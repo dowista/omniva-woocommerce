@@ -347,7 +347,26 @@ class OmnivaLt_Core
     $folder_css = '/assets/css/';
     $folder_js = '/assets/js/';
 
-    if ($hook == 'woocommerce_page_wc-settings' && isset($_GET['section']) && $_GET['section'] == 'omnivalt') {
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The query parameter only selects a read-only admin screen.
+    $section = isset($_GET['section']) ? sanitize_key(wp_unslash($_GET['section'])) : '';
+    $is_legacy_settings_page = $hook === 'woocommerce_page_wc-settings'
+      && 'omnivalt' === $section;
+    $is_omniva_settings_page = $hook === 'woocommerce_page_omnivalt-settings';
+
+    if ( $is_legacy_settings_page || $is_omniva_settings_page ) {
+      wp_enqueue_style('woocommerce_admin_styles');
+      wp_enqueue_script('wc-enhanced-select');
+      wp_localize_script('wc-enhanced-select', 'wc_enhanced_select_params', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'i18n_no_matches' => __('No matches found', 'woocommerce'),
+        'i18n_ajax_error' => __('Loading failed', 'woocommerce'),
+        'i18n_input_too_short_1' => __('Please enter 1 or more characters', 'woocommerce'),
+        'i18n_input_too_long_1' => __('Please delete 1 character', 'woocommerce'),
+        'i18n_selection_too_long_1' => __('You can only select 1 item', 'woocommerce'),
+        'i18n_load_more' => __('Loading more results&hellip;', 'woocommerce'),
+        'i18n_searching' => __('Searching&hellip;', 'woocommerce'),
+      ));
+
       wp_enqueue_style('omnivalt_admin_settings', plugins_url($folder_css . 'omniva_admin_settings.css', self::$main_file_path), array(), OMNIVALT_VERSION);
       wp_enqueue_script('omnivalt_admin_settings', plugins_url($folder_js . 'omniva_admin_settings.js', self::$main_file_path), array('jquery'), OMNIVALT_VERSION);
 
@@ -458,6 +477,7 @@ class OmnivaLt_Core
     require_once $core_dir . 'class-cronjob.php';
     require_once $core_dir . 'class-terminals.php';
     require_once $core_dir . 'class-manifest.php';
+    require_once $core_dir . 'admin/class-settings-page.php';
     require_once $core_dir . 'class-order.php';
     require_once $core_dir . 'class-omniva-order.php';
     require_once $core_dir . 'class-frontend.php';
@@ -536,6 +556,8 @@ class OmnivaLt_Core
     add_action('wp_ajax_omniva_terminals_json', array('OmnivaLt_Terminals', 'get_terminals_json'));
     add_action('wp_ajax_nopriv_omniva_terminals_json', array('OmnivaLt_Terminals', 'get_terminals_json'));
     add_action('admin_menu', array('OmnivaLt_Manifest', 'register_menu_pages'));
+    add_action('admin_menu', array('OmnivaLt_Settings_Page', 'register_menu_page'));
+    add_action('admin_init', array('OmnivaLt_Settings_Page', 'save_settings'));
     add_action('woocommerce_after_shipping_rate', array('OmnivaLt_Order', 'after_rate_description'), 20, 2);
     add_action('woocommerce_after_shipping_rate', array('OmnivaLt_Order', 'after_rate_terminals'));
     add_action('woocommerce_checkout_update_order_meta', array('OmnivaLt_Order', 'add_terminal_id_to_order'));
