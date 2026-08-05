@@ -342,6 +342,12 @@ class OmnivaLt_Core
     wp_enqueue_style('omnivalt_admin_global', plugins_url($folder_css . 'omniva_admin_global.css', self::$main_file_path), array(), OMNIVALT_VERSION);
   }
 
+  /**
+   * Enqueues assets for the legacy and custom Omniva settings screens.
+   *
+   * @param string $hook Current admin page hook suffix.
+   * @return void
+   */
   public static function load_admin_settings_scripts( $hook )
   {
     $folder_css = '/assets/css/';
@@ -349,9 +355,13 @@ class OmnivaLt_Core
 
     // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The query parameter only selects a read-only admin screen.
     $section = isset($_GET['section']) ? sanitize_key(wp_unslash($_GET['section'])) : '';
+    // Some WordPress admin screens expose a more reliable identifier than the hook suffix.
+    $screen = function_exists('get_current_screen') ? get_current_screen() : false;
+    $screen_id = is_object($screen) && ! empty($screen->id) ? $screen->id : '';
     $is_legacy_settings_page = $hook === 'woocommerce_page_wc-settings'
       && 'omnivalt' === $section;
-    $is_omniva_settings_page = $hook === 'woocommerce_page_omnivalt-settings';
+    $is_omniva_settings_page = $hook === 'woocommerce_page_omnivalt-settings'
+      || $screen_id === 'woocommerce_page_omnivalt-settings';
 
     if ( $is_legacy_settings_page || $is_omniva_settings_page ) {
       wp_enqueue_style('woocommerce_admin_styles');
@@ -369,6 +379,23 @@ class OmnivaLt_Core
 
       wp_enqueue_style('omnivalt_admin_settings', plugins_url($folder_css . 'omniva_admin_settings.css', self::$main_file_path), array(), OMNIVALT_VERSION);
       wp_enqueue_script('omnivalt_admin_settings', plugins_url($folder_js . 'omniva_admin_settings.js', self::$main_file_path), array('jquery'), OMNIVALT_VERSION);
+
+      if ( $is_omniva_settings_page ) {
+        // The custom screen needs its own layout, phone input behavior, and country metadata.
+        wp_enqueue_style('omnivalt_admin_settings_page', plugins_url($folder_css . 'omniva_admin_settings_page.css', self::$main_file_path), array('omnivalt_admin_settings'), OMNIVALT_VERSION);
+        wp_enqueue_script('omnivalt_admin_settings_page', plugins_url($folder_js . 'omniva_admin_settings_page.js', self::$main_file_path), array('jquery', 'omnivalt_admin_settings'), OMNIVALT_VERSION, true);
+        wp_localize_script('omnivalt_admin_settings_page', 'omnivaltSettingsPhone', array(
+          'countries' => array(
+            'LT' => array('name' => __('Lithuania', 'omnivalt'), 'dial_code' => '370', 'flag' => '🇱🇹', 'min' => 8, 'max' => 8, 'mobile' => '^6\\d{7}$'),
+            'LV' => array('name' => __('Latvia', 'omnivalt'), 'dial_code' => '371', 'flag' => '🇱🇻', 'min' => 8, 'max' => 8, 'mobile' => '^2\\d{7}$'),
+            'EE' => array('name' => __('Estonia', 'omnivalt'), 'dial_code' => '372', 'flag' => '🇪🇪', 'min' => 7, 'max' => 8, 'mobile' => '^(5|8)\\d{6,7}$'),
+            'FI' => array('name' => __('Finland', 'omnivalt'), 'dial_code' => '358', 'flag' => '🇫🇮', 'min' => 5, 'max' => 12, 'mobile' => '^(4|5)\\d{8}$'),
+          ),
+          'placeholder' => __('Enter phone number', 'omnivalt'),
+          'invalid' => __('Enter a valid phone number for the selected country.', 'omnivalt'),
+          'flag_url' => OMNIVALT_URL . 'assets/img/flags/',
+        ));
+      }
 
       wp_localize_script('omnivalt_admin_settings', 'omnivalt_params', array(
         'available_methods' => self::get_configs('available_methods'),

@@ -576,8 +576,67 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       $this->form_fields = $fields;
     }
 
+    /**
+     * Normalizes and validates a sender phone number for the selected country.
+     *
+     * @param string $phone           Raw phone number from the settings form.
+     * @param string $default_country ISO country code used for national numbers.
+     * @param bool   $mobile          Whether the number must satisfy the mobile pattern.
+     * @return string|false Normalized international number or false when invalid.
+     */
+    private function normalize_sender_phone( $phone, $default_country, $mobile )
+    {
+      $countries = array(
+        'LT' => array('dial_code' => '370', 'phone' => '/^\d{8}$/'),
+        'LV' => array('dial_code' => '371', 'phone' => '/^\d{8}$/'),
+        'EE' => array('dial_code' => '372', 'phone' => '/^\d{7,8}$/'),
+        'FI' => array('dial_code' => '358', 'phone' => '/^\d{5,12}$/'),
+      );
+      $phone = preg_replace('/[^\d+]/', '', $phone);
+
+      // Convert the common international dialing prefix to the format used by the API.
+      if ( strpos($phone, '00') === 0 ) {
+        $phone = '+' . substr($phone, 2);
+      }
+
+      $country = strtoupper($default_country);
+      $national_number = ltrim($phone, '+');
+      foreach ( $countries as $country_code => $country_data ) {
+        if ( strpos($phone, '+' . $country_data['dial_code']) === 0 ) {
+          $country = $country_code;
+          $national_number = substr($phone, strlen($country_data['dial_code']) + 1);
+          break;
+        }
+      }
+
+      if ( ! isset($countries[$country]) ) {
+        return false;
+      }
+
+      // Accept legacy national prefixes before storing the canonical international value.
+      if ( ($country === 'LT' && (strpos($national_number, '8') === 0 || strpos($national_number, '0') === 0)) || ($country === 'FI' && strpos($national_number, '0') === 0) ) {
+        $national_number = substr($national_number, 1);
+      }
+
+      $normalized = '+' . $countries[$country]['dial_code'] . $national_number;
+      $regex = $mobile ? OmnivaLt_Helper::get_mobile_regex($country) : $countries[$country]['phone'];
+
+      if ( empty($regex) || ! preg_match($regex, $mobile ? $normalized : $national_number) ) {
+        return false;
+      }
+
+      return $normalized;
+    }
+
+    /**
+     * Validates sender phone fields before saving the shipping settings.
+     *
+     * @return void
+     */
     public function process_admin_options()
     {
+      check_admin_referer('woocommerce-settings');
+
       $required_fields = array(
         'company' => __('Company name', 'omnivalt'),
         'shop_name' => __('Shop name', 'omnivalt'),
@@ -588,6 +647,26 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
         'shop_mobile' => __('Shop mobile number', 'omnivalt'),
         'shop_email' => __('Shop email', 'omnivalt')
       );
+
+      $phone_errors = array();
+      $default_country_field = $this->get_field_key('shop_countrycode');
+      $default_country = isset($_POST[$default_country_field]) ? sanitize_key(wp_unslash($_POST[$default_country_field])) : 'LT';
+      foreach ( array('shop_phone' => false, 'shop_mobile' => true) as $field_key => $mobile ) {
+        $field_name = $this->get_field_key($field_key);
+        $value = isset($_POST[$field_name]) ? sanitize_text_field(wp_unslash($_POST[$field_name])) : '';
+        if ( empty($value) ) {
+          continue;
+        }
+
+        $normalized_phone = $this->normalize_sender_phone($value, $default_country, $mobile);
+        if ( $normalized_phone === false ) {
+          $phone_errors[] = $field_key === 'shop_mobile' ? __('Shop mobile number', 'omnivalt') : __('Shop phone number', 'omnivalt');
+          // Preserve the previously saved value when validation fails for one field.
+          $_POST[$field_name] = $this->get_option($field_key);
+          continue;
+        }
+        $_POST[$field_name] = $normalized_phone;
+      }
 
       // Save all values
       parent::process_admin_options();
@@ -603,6 +682,9 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       }
       if ( ! empty($errors) ) {
         WC_Admin_Settings::add_error(__('Settings saved, but some required fields are empty', 'omnivalt') . ': ' . implode(', ', $errors));
+      }
+      if ( ! empty($phone_errors) ) {
+        WC_Admin_Settings::add_error(__('Settings were not changed for invalid phone fields', 'omnivalt') . ': ' . implode(', ', $phone_errors));
       }
     }
 
