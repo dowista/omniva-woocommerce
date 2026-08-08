@@ -241,6 +241,7 @@ class OmnivaLt_Shipping_Method_Core
         $units = OmnivaLt_Wc::get_units();
         $params = array(
             'type' => (isset($params['type'])) ? $params['type'] : '',
+            'method_key' => (isset($params['method_key'])) ? $params['method_key'] : '',
             'title' => (isset($params['title'])) ? $params['title'] : __('Shipping','omnivalt'),
             'box_key' => (isset($params['box_key'])) ? $params['box_key'] : '',
             'cant_disable' => (isset($params['cant_disable'])) ? $params['cant_disable'] : false,
@@ -283,7 +284,7 @@ class OmnivaLt_Shipping_Method_Core
 
         ob_start();
         ?>
-        <div class="block-prices <?php echo $block_additional_classes; ?>">
+        <div class="block-prices <?php echo esc_attr($block_additional_classes); ?>" data-method="<?php echo esc_attr($params['type']); ?>" data-method-key="<?php echo esc_attr($params['method_key']); ?>">
             <div class="sec-title">
                 <?php
                 $html_params = array(

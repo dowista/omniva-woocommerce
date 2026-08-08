@@ -1168,6 +1168,248 @@
   color: #000000;
 }
 
+#omnivalt-settings-root.is-layout-pending {
+  visibility: hidden;
+}
+
+#omnivalt-settings-root .omniva-shipping-methods-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+#omnivalt-settings-root .omniva-shipping-method {
+  padding: 14px 0 12px;
+  border-bottom: 1px solid var(--omniva-line);
+}
+
+#omnivalt-settings-root .omniva-shipping-method:first-child {
+  padding-top: 0;
+}
+
+#omnivalt-settings-root .omniva-shipping-method__control table.form-table {
+  margin: 0;
+}
+
+#omnivalt-settings-root
+  .omniva-shipping-method__control
+  table.form-table.omniva-settings
+  tr {
+  padding: 0;
+  border-bottom: 0;
+}
+
+#omnivalt-settings-root
+  .omniva-shipping-method__control
+  table.form-table.omniva-settings
+  .description {
+  margin-bottom: 0;
+}
+
+#omnivalt-settings-root .omniva-shipping-method__countries {
+  margin-top: 18px;
+}
+
+#omnivalt-settings-root .omniva-shipping-method__countries h3,
+#omnivalt-settings-root .omniva-shipping-method--international h3 {
+  margin: 0 0 5px;
+  color: var(--omniva-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+#omnivalt-settings-root .omniva-shipping-method__countries > p,
+#omnivalt-settings-root
+  .omniva-shipping-method--international
+  .omniva-shipping-method__control
+  p {
+  margin: 0 0 14px;
+  color: var(--omniva-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#omnivalt-settings-root .omniva-shipping-method__country-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+#omnivalt-settings-root .omniva-delivery-country.is-unavailable,
+#omnivalt-settings-root
+  .omniva-shipping-method.is-method-disabled
+  .omniva-shipping-method__countries {
+  display: none;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__box {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 14px !important;
+  border: 1px solid var(--omniva-line-strong) !important;
+  border-radius: var(--omniva-radius-sm) !important;
+  background: var(--omniva-canvas) !important;
+  box-shadow: none !important;
+}
+
+#omnivalt-settings-root table.omniva-delivery-country {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#omnivalt-settings-root table.omniva-delivery-country > tbody,
+#omnivalt-settings-root table.omniva-delivery-country > tbody > tr,
+#omnivalt-settings-root table.omniva-delivery-country > tbody > tr > td {
+  display: block;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--omniva-line-strong);
+  color: var(--omniva-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-left: auto;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__toggle .switcher,
+#omnivalt-settings-root .omniva-delivery-country__method-header .switcher {
+  display: flex;
+  align-items: center;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__toggle .switch,
+#omnivalt-settings-root .omniva-delivery-country__method-header .switch {
+  margin: 0;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__method-header {
+  margin: 0;
+  padding: 0 0 10px;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__method-header > label {
+  flex: 1;
+  color: var(--omniva-ink);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__flag {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#omnivalt-settings-root
+  .omniva-delivery-country.is-country-disabled
+  .omniva-delivery-country__body {
+  display: none;
+}
+
+#omnivalt-settings-root
+  .omniva-delivery-country.is-country-disabled
+  .omniva-delivery-country__box {
+  padding: 8px 12px !important;
+}
+
+#omnivalt-settings-root
+  .omniva-delivery-country.is-country-disabled
+  .omniva-delivery-country__header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__body .block-prices {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#omnivalt-settings-root
+  .omniva-delivery-country__body
+  .block-prices
+  + .block-prices {
+  padding-top: 12px !important;
+  border-top: 1px solid var(--omniva-line) !important;
+}
+
+#omnivalt-settings-root .omniva-delivery-country__body .block-prices:hover {
+  box-shadow: none;
+}
+
+#omnivalt-settings-root
+  .omniva-delivery-country__body
+  .block-prices.is-country-disabled
+  .sec-prices,
+#omnivalt-settings-root
+  .omniva-delivery-country__body
+  .block-prices.is-country-disabled
+  .sec-other,
+#omnivalt-settings-root
+  .omniva-delivery-country__body
+  .block-prices.is-method-disabled
+  .sec-prices,
+#omnivalt-settings-root
+  .omniva-delivery-country__body
+  .block-prices.is-method-disabled
+  .sec-other {
+  display: none;
+}
+
+#omnivalt-settings-root .omniva-delivery-prices-source {
+  display: none !important;
+}
+
+#omnivalt-settings-root .omniva-shipping-methods__returns {
+  padding-top: 18px;
+}
+
+#omnivalt-settings-root .omniva-shipping-method--international {
+  padding-top: 22px;
+}
+
 @media (max-width: 1160px) {
   #omnivalt-settings-root .omnivalt-settings-page__layout {
     display: block;

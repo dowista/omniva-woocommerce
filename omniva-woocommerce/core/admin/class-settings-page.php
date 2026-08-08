@@ -48,6 +48,97 @@ class OmnivaLt_Settings_Page
     include OMNIVALT_DIR . 'templates/admin/settings-page.php';
   }
 
+  public static function get_settings_layout()
+  {
+    return array(
+      'tabs' => array(
+        'general' => __('General', 'omnivalt'),
+        'rules' => __('Rules & Exclusions', 'omnivalt'),
+        'workflow' => __('Workflow', 'omnivalt'),
+        'advanced' => __('Advanced', 'omnivalt'),
+      ),
+      'cards' => array(
+        'general' => array(
+          'type' => 'settings',
+          'section' => 'general',
+          'tab' => 'general',
+        ),
+        'api' => array(
+          'type' => 'settings',
+          'section' => 'api',
+          'tab' => 'general',
+        ),
+        'shop' => array(
+          'type' => 'settings',
+          'section' => 'shop',
+          'tab' => 'general',
+        ),
+        'shipping_methods' => array(
+          'type' => 'shipping_methods',
+          'section' => 'methods',
+          'prices_section' => 'prices',
+          'tab' => 'rules',
+        ),
+        'settings' => array(
+          'type' => 'settings',
+          'section' => 'settings',
+          'tab' => 'rules',
+        ),
+        'design' => array(
+          'type' => 'settings',
+          'section' => 'design',
+          'tab' => 'advanced',
+        ),
+        'orders' => array(
+          'type' => 'settings',
+          'section' => 'orders',
+          'tab' => 'workflow',
+        ),
+        'labels' => array(
+          'type' => 'settings',
+          'section' => 'labels',
+          'tab' => 'workflow',
+        ),
+        'manifest' => array(
+          'type' => 'settings',
+          'section' => 'manifest',
+          'tab' => 'workflow',
+        ),
+        'pickup' => array(
+          'type' => 'settings',
+          'section' => 'pickup',
+          'tab' => 'workflow',
+        ),
+        'debug' => array(
+          'type' => 'settings',
+          'section' => 'debug',
+          'tab' => 'advanced',
+        ),
+      ),
+    );
+  }
+
+  public static function get_shipping_method_layout( $shipping_method )
+  {
+    $methods = array();
+
+    foreach ( OmnivaLt_Method::get_all_shipping_methods() as $method ) {
+      $field_key = 'method_' . $method['key'];
+      if ( ! isset($shipping_method->form_fields[$field_key]) ) {
+        continue;
+      }
+
+      $methods[] = array(
+        'key' => $method['key'],
+        'field_key' => $field_key,
+        'title' => $method['title'],
+        'description' => $method['description'],
+      );
+    }
+
+    return $methods;
+  }
+
   private static function get_shipping_method()
   {
     if ( ! class_exists('Omnivalt_Shipping_Method') ) {

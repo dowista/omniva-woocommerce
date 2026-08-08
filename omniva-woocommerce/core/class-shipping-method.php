@@ -754,6 +754,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
 
                   $params = array(
                     'type' => $method_key,
+                    'method_key' => $method['key'],
                     'box_key' => $box_key,
                     'title' => $method['title'],
                     'enable' => array(
@@ -835,6 +836,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
                   
                   $params = array(
                     'type' => $method_key,
+                    'method_key' => $method_key,
                     'box_key' => $box_key,
                     'title' => $region_title,
                     'cant_disable' => true,

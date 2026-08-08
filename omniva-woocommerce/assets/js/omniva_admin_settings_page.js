@@ -1,6 +1,234 @@
 jQuery(function($) {
   'use strict';
 
+  initializeShippingMethodsLayout();
+
+  function initializeShippingMethodsLayout() {
+    var $layout = $('#omnivalt-settings-root').find('[data-omniva-shipping-layout]');
+    if (!$layout.length) {
+      return;
+    }
+
+    var $source = $layout.find('[data-omniva-delivery-source]');
+    var $groups = $layout.find('[data-omniva-method-group]');
+    var $internationalGroup = $groups.filter(function() {
+      return $(this).attr('data-method-key') === 'international';
+    });
+
+    $source.find('.prices_box').each(function() {
+      var $sourceBox = $(this);
+      var countryCode = ($sourceBox.attr('data-country') || '').toUpperCase();
+      var planKey = $sourceBox.attr('data-plan') || '';
+      var destinationType = countryCode ? 'country' : 'plan';
+      var destinationKey = countryCode || planKey;
+      var destinationTitle = $.trim($sourceBox.find('.pb-lang span').first().text());
+      var imageSource = $sourceBox.find('.pb-lang img').first().attr('src');
+
+      $sourceBox.find('.block-prices[data-method]').each(function() {
+        var $block = $(this);
+        var methodKey = $block.attr('data-method-key') || $block.attr('data-method');
+        var $group = $groups.filter(function() {
+          return $(this).attr('data-method-key') === methodKey;
+        });
+
+        if (!$group.length) {
+          $group = $internationalGroup;
+        }
+        if (!$group.length || !destinationKey) {
+          return;
+        }
+
+        var $list = $group.find('[data-method-country-list]').first();
+        var $destination = $list.children('[data-omniva-destination]').filter(function() {
+          return $(this).attr('data-destination-type') === destinationType
+            && $(this).attr('data-destination-key') === destinationKey;
+        }).first();
+
+        if (!$destination.length) {
+          var $destinationBox = $('<div class="prices_box omniva-delivery-country__box"></div>');
+          if (destinationType === 'country') {
+            $destinationBox.attr('data-country', destinationKey);
+          } else {
+            $destinationBox.attr('data-plan', destinationKey);
+          }
+
+          var $destinationHeader = $('<div class="omniva-delivery-country__header"></div>');
+          var $destinationTitle = $('<div class="omniva-delivery-country__title"></div>');
+          if (imageSource) {
+            $destinationTitle.append(
+              $('<img class="omniva-delivery-country__flag" alt="">').attr('src', imageSource)
+            );
+          }
+          $destinationTitle.append($('<span></span>').text(destinationTitle));
+          $destinationHeader.append($destinationTitle);
+          if (destinationType === 'country' || destinationType === 'plan') {
+            $destinationHeader.append('<div class="omniva-delivery-country__toggle"></div>');
+          }
+
+          var $destinationBody = $('<div class="omniva-delivery-country__body" data-destination-body></div>');
+          $destinationBox.append($destinationHeader, $destinationBody);
+          $destination = $('<table class="form-table omniva-settings omniva-delivery-country" data-omniva-destination><tbody><tr><td></td></tr></tbody></table>')
+            .attr('data-destination-type', destinationType)
+            .attr('data-destination-key', destinationKey)
+            .appendTo($list);
+          $destination.find('td').append($destinationBox);
+
+          if (destinationType === 'plan') {
+            var $planToggle = $('<div class="switcher" title=""></div>');
+            var $planToggleInput = $('<input type="checkbox" class="omniva-international-toggle" data-omniva-destination-toggle>');
+            var $planToggleLabel = $('<label class="switch"></label>');
+            $planToggleLabel.append($planToggleInput, '<span class="slider round"></span>');
+            $planToggle.append($planToggleLabel);
+            $planToggle.attr('title', destinationTitle);
+            $destination.find('.omniva-delivery-country__toggle').append($planToggle);
+          }
+        }
+
+        $block.appendTo($destination.find('[data-destination-body]'));
+
+        var $switcher = $block.find('.sec-title .switcher').first();
+        var $methodLabel = $block.find('.sec-title > label').first();
+        if ($switcher.length) {
+          var $countryToggle = $switcher.find('input[type="checkbox"]').first();
+          $countryToggle
+            .attr('data-omniva-country-toggle', 'true')
+            .attr('aria-label', $.trim($methodLabel.text()) || destinationTitle);
+          $block.data('omniva-country-toggle', $countryToggle);
+
+          if (destinationType === 'country') {
+            $destination.find('.omniva-delivery-country__toggle').append($switcher);
+            $methodLabel.remove();
+            $block.find('.sec-title').remove();
+          } else {
+            var $methodHeader = $('<div class="omniva-delivery-country__header omniva-delivery-country__method-header"></div>');
+            if ($methodLabel.length) {
+              $methodHeader.append($methodLabel);
+            }
+            $methodHeader.append($switcher);
+            $block.find('.sec-title').remove();
+            $methodHeader.insertBefore($block);
+          }
+        }
+      });
+    });
+
+    $source.remove();
+
+    $('#omnivalt-settings-root').on('change', '#woocommerce_omnivalt_api_country, input[id^="woocommerce_omnivalt_method_"]', function() {
+      // The legacy handler also updates the checkbox state. Refresh after it has finished.
+      window.setTimeout(refreshShippingMethodsLayout, 0);
+    });
+    $('#omnivalt-settings-root').on('change', 'input[data-omniva-country-toggle]', function() {
+      var $destination = $(this).closest('[data-omniva-destination]');
+      $destination.find('.block-prices[data-method]').each(function() {
+        updateCountryBlock($(this), false);
+      });
+    });
+    $('#omnivalt-settings-root').on('change', 'input[data-omniva-destination-toggle]', function() {
+      var $destination = $(this).closest('[data-omniva-destination]');
+      var enabled = $(this).is(':checked');
+
+      $destination.find('input[data-omniva-country-toggle]').each(function() {
+        var $regionToggle = $(this);
+        if ($regionToggle.is(':checked') !== enabled) {
+          $regionToggle.prop('checked', enabled).trigger('change');
+        }
+      });
+    });
+
+    refreshShippingMethodsLayout();
+    $('#omnivalt-settings-root').removeClass('is-layout-pending');
+
+    function refreshShippingMethodsLayout() {
+      var availableMethods = getAvailableMethods();
+
+      $groups.each(function() {
+        var $group = $(this);
+        var methodKey = $group.attr('data-method-key');
+        if (methodKey === 'international') {
+          $group.find('[data-omniva-destination] .block-prices[data-method]').each(function() {
+            updateCountryBlock($(this), false);
+          });
+          $group.toggle($group.find('[data-omniva-destination]').length > 0);
+          return;
+        }
+
+        var $globalField = $('#woocommerce_omnivalt_method_' + methodKey);
+        var methodEnabled = !$globalField.length || ($globalField.is(':checked') && !$globalField.is(':disabled'));
+        $group.toggleClass('is-method-disabled', !methodEnabled);
+
+        $group.find('[data-omniva-destination]').each(function() {
+          var $destination = $(this);
+          var countryCode = $destination.attr('data-destination-key');
+          var allowed = isMethodAvailable(availableMethods[countryCode], methodKey);
+
+          $destination.toggleClass('is-unavailable', !allowed).toggle(allowed);
+          $destination.find('.block-prices[data-method]').each(function() {
+            var $block = $(this);
+            $block.toggleClass('is-method-disabled', !methodEnabled || !allowed);
+            updateCountryBlock($block, !methodEnabled || !allowed);
+          });
+        });
+      });
+    }
+
+    function updateCountryBlock($block, methodDisabled) {
+      var $destination = $block.closest('[data-omniva-destination]');
+      var $toggle = $block.data('omniva-country-toggle');
+      if (!$toggle || !$toggle.length) {
+        $toggle = $block.find('input[data-omniva-country-toggle]').first();
+      }
+      if (!$toggle.length) {
+        $toggle = $destination.find('input[data-omniva-country-toggle]').first();
+      }
+      var enabled = !$toggle.length || $toggle.is(':checked');
+      var editable = enabled && !methodDisabled;
+      $block.toggleClass('is-country-disabled', !enabled);
+      $block.toggleClass('disabled', !!methodDisabled);
+      $block.find('.sec-prices, .sec-other').toggleClass('disabled', !editable);
+      if ($destination.length) {
+        var hasEnabledBlock = $destination.find('input[data-omniva-country-toggle]:checked').length > 0;
+        $destination.toggleClass('is-country-disabled', !hasEnabledBlock);
+        $destination.find('input[data-omniva-destination-toggle]').prop('checked', hasEnabledBlock);
+      }
+    }
+
+    function getAvailableMethods() {
+      var apiCountry = $('#woocommerce_omnivalt_api_country').val();
+      if (window.omnivalt_params && window.omnivalt_params.available_methods && window.omnivalt_params.available_methods[apiCountry]) {
+        return window.omnivalt_params.available_methods[apiCountry];
+      }
+
+      return {};
+    }
+
+    function isMethodAvailable(countryMethods, methodKey) {
+      if (!countryMethods) {
+        return false;
+      }
+
+      var aliases = {
+        'pt': ['pt', 'terminal', 'pickup'],
+        'c': ['c', 'courier'],
+        'cp': ['cp', 'courier_plus'],
+        'pc': ['pc', 'private_customer'],
+        'pn': ['pn', 'post_near'],
+        'ps': ['ps', 'post_specific'],
+        'lc': ['lc', 'letter_courier'],
+        'lp': ['lp', 'letter_post']
+      };
+      var methodAliases = aliases[methodKey] || [methodKey];
+
+      for (var i = 0; i < methodAliases.length; i++) {
+        if ($.inArray(methodAliases[i], countryMethods) !== -1) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+  }
+
   // Add the custom visual treatment while keeping WooCommerce's generated field names and values.
   $('#woocommerce_omnivalt_shop_name').each(function() {
     var $input = $(this);
@@ -25,12 +253,26 @@ jQuery(function($) {
     updateFloatingLabel();
   });
 
+  function refreshSettingsTab($tab) {
+    var selectedTab = $tab.attr('data-settings-tab');
+
+    $('#omnivalt-settings-root [data-settings-card]').each(function() {
+      var $card = $(this);
+      var cardTab = $card.attr('data-settings-tab');
+
+      $card.toggle(!cardTab || cardTab === selectedTab);
+    });
+  }
+
   $('#omnivalt-settings-root .omniva-tabs__tab').on('click', function() {
     var $tab = $(this);
 
     $tab.addClass('is-active').attr('aria-current', 'page');
     $tab.siblings('.omniva-tabs__tab').removeClass('is-active').removeAttr('aria-current');
+    refreshSettingsTab($tab);
   });
+
+  refreshSettingsTab($('#omnivalt-settings-root .omniva-tabs__tab.is-active').first());
 
   if (window.omnivaltSettingsPhone) {
     var phoneSettings = window.omnivaltSettingsPhone;
