@@ -383,7 +383,7 @@ class OmnivaLt_Core
       if ( $is_omniva_settings_page ) {
         // The custom screen needs its own layout, phone input behavior, and country metadata.
         wp_enqueue_style('omnivalt_admin_settings_page', plugins_url($folder_css . 'omniva_admin_settings_page.css', self::$main_file_path), array('omnivalt_admin_settings'), OMNIVALT_VERSION);
-        wp_enqueue_script('omnivalt_admin_settings_page', plugins_url($folder_js . 'omniva_admin_settings_page.js', self::$main_file_path), array('jquery', 'omnivalt_admin_settings'), OMNIVALT_VERSION, true);
+        wp_enqueue_script('omnivalt_admin_settings_page', plugins_url($folder_js . 'omniva_admin_settings_page.js', self::$main_file_path), array('jquery', 'omnivalt_admin_settings', 'jquery-ui-sortable'), OMNIVALT_VERSION, true);
         wp_localize_script('omnivalt_admin_settings_page', 'omnivaltSettingsPhone', array(
           'countries' => array(
             'LT' => array('name' => __('Lithuania', 'omnivalt'), 'dial_code' => '370', 'flag' => '🇱🇹', 'min' => 8, 'max' => 8, 'mobile' => '^6\\d{7}$'),

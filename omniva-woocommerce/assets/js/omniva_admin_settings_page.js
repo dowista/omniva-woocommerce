@@ -2,6 +2,7 @@ jQuery(function($) {
   'use strict';
 
   initializeShippingMethodsLayout();
+  initializePositionSortable();
 
   function initializeShippingMethodsLayout() {
     var $layout = $('#omnivalt-settings-root').find('[data-omniva-shipping-layout]');
@@ -226,6 +227,138 @@ jQuery(function($) {
       }
 
       return false;
+    }
+  }
+
+  function initializePositionSortable() {
+    $('#omnivalt-settings-root .field-position').each(function() {
+      var $fieldset = $(this);
+      var $table = $fieldset.children('table').first();
+      var $rows = $table.find('tr');
+      var $list = $('<ol class="omnivalt-position-list" data-settings-position-list></ol>');
+      var items = [];
+
+      if (!$table.length || !$rows.length) {
+        return;
+      }
+
+      for (var rowIndex = 0; rowIndex < $rows.length; rowIndex += 2) {
+        var $labelCells = $rows.eq(rowIndex).children('th');
+        var $valueCells = $rows.eq(rowIndex + 1).children('td');
+
+        $labelCells.each(function(cellIndex) {
+          var $input = $valueCells.eq(cellIndex).find('input[type="number"]').first();
+
+          if (!$input.length) {
+            return;
+          }
+
+          items.push({
+            input: $input,
+            title: $.trim($(this).text())
+          });
+        });
+      }
+
+      if (!items.length) {
+        return;
+      }
+
+      $.each(items, function(index, item) {
+        var $handle = $('<span class="omnivalt-position-list__handle" aria-hidden="true">&#8942;</span>');
+        var $title = $('<span class="omnivalt-position-list__title"></span>').text(item.title);
+        var $listItem = $('<li class="omnivalt-position-list__item"></li>');
+
+        $listItem.append($handle, $title, item.input);
+        $list.append($listItem);
+      });
+
+      $table.replaceWith($list);
+      sortPositionItems($list);
+      var initialOrder = $list.children('.omnivalt-position-list__item').toArray();
+
+      if ($.fn.sortable) {
+        $list.sortable({
+          axis: 'y',
+          cursor: 'grabbing',
+          forcePlaceholderSize: true,
+          placeholder: 'omnivalt-position-list__placeholder',
+          update: function() {
+            updatePositionValues($list);
+          }
+        });
+      }
+
+      $list.data('omnivaltPositionReset', function() {
+        $.each(initialOrder, function(index, item) {
+          $list.append(item);
+        });
+
+        if ($.fn.sortable && $list.hasClass('ui-sortable')) {
+          $list.sortable('refresh');
+        }
+      });
+    });
+
+    function updatePositionValues($list) {
+      $list.children('.omnivalt-position-list__item').each(function(index) {
+        $(this).find('input[type="number"]').val(index + 1).trigger('change');
+      });
+    }
+
+    function sortPositionItems($list) {
+      var positioned = [];
+      var unpositioned = [];
+      var ordered = [];
+
+      $list.children('.omnivalt-position-list__item').each(function(index) {
+        var value = $(this).find('input[type="number"]').val();
+        var position = parseInt(value, 10);
+
+        if (value !== '' && !isNaN(position) && position !== 0) {
+          positioned.push({
+            item: this,
+            position: position,
+            originalIndex: index
+          });
+        } else {
+          unpositioned.push(this);
+        }
+      });
+
+      positioned.sort(function(first, second) {
+        if (first.position === second.position) {
+          return first.originalIndex - second.originalIndex;
+        }
+
+        return first.position - second.position;
+      });
+
+      $.each(positioned, function(index, positionedItem) {
+        var targetIndex = positionedItem.position > 0 ? positionedItem.position - 1 : 0;
+
+        while (ordered[targetIndex]) {
+          targetIndex++;
+        }
+
+        ordered[targetIndex] = positionedItem.item;
+      });
+
+      $.each(unpositioned, function(index, item) {
+        var targetIndex = 0;
+
+        while (ordered[targetIndex]) {
+          targetIndex++;
+        }
+
+        ordered[targetIndex] = item;
+      });
+
+      $.each(ordered, function(index, item) {
+        if (item) {
+          $list.append(item);
+        }
+      });
     }
   }
 
@@ -589,6 +722,13 @@ jQuery(function($) {
 
         if ($.isFunction(resetPhone)) {
           resetPhone();
+        }
+      });
+      $form.find('[data-settings-position-list]').each(function() {
+        var resetPositionList = $(this).data('omnivaltPositionReset');
+
+        if ($.isFunction(resetPositionList)) {
+          resetPositionList();
         }
       });
 
