@@ -25,11 +25,11 @@ jQuery(function($) {
     updateFloatingLabel();
   });
 
-  $('#omnivalt-settings-root .wbte-ewb-tabs__tab').on('click', function() {
+  $('#omnivalt-settings-root .omniva-tabs__tab').on('click', function() {
     var $tab = $(this);
 
     $tab.addClass('is-active').attr('aria-current', 'page');
-    $tab.siblings('.wbte-ewb-tabs__tab').removeClass('is-active').removeAttr('aria-current');
+    $tab.siblings('.omniva-tabs__tab').removeClass('is-active').removeAttr('aria-current');
   });
 
   if (window.omnivaltSettingsPhone) {
@@ -38,7 +38,6 @@ jQuery(function($) {
     // Replace the visible phone control with a country-aware input and keep the original field for submission.
     $('#woocommerce_omnivalt_shop_phone, #woocommerce_omnivalt_shop_mobile').each(function() {
       var $original = $(this);
-      var $row = $original.closest('tr');
       var isMobile = $original.attr('id') === 'woocommerce_omnivalt_shop_mobile';
       var selectedCountry = $('#woocommerce_omnivalt_shop_countrycode').val() || 'LT';
       var storedValue = $original.val() || '';
@@ -129,15 +128,15 @@ jQuery(function($) {
     // Keep the original select in the form and use a searchable UI for selecting multiple values.
     var $select = $(this);
     var $select2 = $select.next('.select2-container');
-    var $picker = $('<div class="wbte-ewb-picker omnivalt-settings-picker"></div>');
-    var $selectedWrap = $('<div class="wbte-ewb-picker__selected-wrap"></div>');
-    var $selectedHeader = $('<div class="wbte-ewb-picker__selected-header"></div>');
-    var $selectedCount = $('<span class="wbte-ewb-picker__selected-count"></span>');
-    var $clear = $('<button type="button" class="wbte-ewb-picker__clear"></button>').text('Clear all');
-    var $selected = $('<div class="wbte-ewb-picker__selected"></div>');
-    var $inputWrap = $('<div class="wbte-ewb-picker__input-wrap"></div>');
-    var $input = $('<input type="search" class="wbte-ewb-input wbte-ewb-picker__search" autocomplete="off" aria-expanded="false" aria-haspopup="listbox">');
-    var $dropdown = $('<div class="wbte-ewb-picker__dropdown" role="listbox" aria-multiselectable="true"></div>').hide();
+    var $picker = $('<div class="omniva-picker"></div>');
+    var $selectedWrap = $('<div class="omniva-picker__selected-wrap"></div>');
+    var $selectedHeader = $('<div class="omniva-picker__selected-header"></div>');
+    var $selectedCount = $('<span class="omniva-picker__selected-count"></span>');
+    var $clear = $('<button type="button" class="omniva-picker__clear"></button>').text('Clear all');
+    var $selected = $('<div class="omniva-picker__selected"></div>');
+    var $inputWrap = $('<div class="omniva-picker__input-wrap"></div>');
+    var $input = $('<input type="search" class="omniva-input omniva-picker__search" autocomplete="off" aria-expanded="false" aria-haspopup="listbox">');
+    var $dropdown = $('<div class="omniva-picker__dropdown" role="listbox" aria-multiselectable="true"></div>').hide();
 
     if ($select.attr('id') === 'woocommerce_omnivalt_restricted_categories') {
       $input.attr('placeholder', 'Search categories...');
@@ -174,8 +173,8 @@ jQuery(function($) {
       $selectedCount.text(values.length + ' selected');
       $select.find('option:selected').each(function() {
         var optionValue = $(this).val();
-        var $tag = $('<span class="wbte-ewb-picker__tag"></span>');
-        var $remove = $('<button type="button" class="wbte-ewb-picker__remove" aria-label="Remove selected item">&times;</button>');
+        var $tag = $('<span class="omniva-picker__tag"></span>');
+        var $remove = $('<button type="button" class="omniva-picker__remove" aria-label="Remove selected item">&times;</button>');
 
         $tag.append($('<span></span>').text($(this).text()), $remove);
         $remove.on('click', function() {
@@ -190,7 +189,7 @@ jQuery(function($) {
     function renderOptions() {
       var query = $input.val().toLowerCase();
       var values = getValues();
-      var $list = $('<div class="wbte-ewb-picker__list"></div>');
+      var $list = $('<div class="omniva-picker__list"></div>');
       var count = 0;
 
       $select.find('option').each(function() {
@@ -203,12 +202,12 @@ jQuery(function($) {
         }
 
         count++;
-        var $option = $('<button type="button" class="wbte-ewb-picker__option" role="option"></button>');
-        $option.toggleClass('wbte-ewb-picker__option--selected', isSelected);
+        var $option = $('<button type="button" class="omniva-picker__option" role="option"></button>');
+        $option.toggleClass('omniva-picker__option--selected', isSelected);
         $option.attr('aria-selected', isSelected ? 'true' : 'false');
         $option.append(
-          $('<span class="wbte-ewb-picker__option-check"></span>').text(isSelected ? '\u2713' : ''),
-          $('<span class="wbte-ewb-picker__option-label"></span>').text(label)
+          $('<span class="omniva-picker__option-check"></span>').text(isSelected ? '\u2713' : ''),
+          $('<span class="omniva-picker__option-label"></span>').text(label)
         );
         $option.on('mousedown', function(event) {
           event.preventDefault();
@@ -228,7 +227,7 @@ jQuery(function($) {
       });
 
       if (!count) {
-        $list.append($('<p class="wbte-ewb-picker__empty"></p>').text('No matches found.'));
+        $list.append($('<p class="omniva-picker__empty"></p>').text('No matches found.'));
       }
 
       $dropdown.empty().append($list);

@@ -3,12 +3,12 @@
 }
 
 .woocommerce div.omniva-title {
-    position: relative;
+  position: relative;
 }
 .woocommerce div.omniva-title .logo {
-    position: absolute;
-    top: 0;
-    right: 0;
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 .woocommerce table.omniva-settings .section_title {
   padding-left: 0;
@@ -36,22 +36,42 @@
 .woocommerce table.omniva-settings .omniva-fake-btn.disabled {
   pointer-events: none;
 }
-.woocommerce table.omniva-settings .field-dimensions input[type="number"] {
-	width: 90px;
-	vertical-align: middle;
+
+body:not(.omniva-settings-initialized)
+  .woocommerce
+  table.omniva-settings
+  tr:has([class^='omniva_']),
+body:not(.omniva-settings-initialized)
+  .woocommerce
+  table.omniva-settings
+  tr:has([class*=' omniva_']) {
+  display: none !important;
+}
+
+body:not(.omniva-settings-initialized)
+  .woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices {
+  display: none !important;
+}
+
+.woocommerce table.omniva-settings .field-dimensions input[type='number'] {
+  width: 90px;
+  vertical-align: middle;
 }
 .woocommerce table.omniva-settings .field-dimensions span {
-	vertical-align: middle;
+  vertical-align: middle;
 }
 
 .woocommerce table.omniva-settings .omniva-debugview th,
 .woocommerce table.omniva-settings .omniva-debugview td {
-	padding-top: 0;
+  padding-top: 0;
 }
 .woocommerce table.omniva-settings .omniva-debugview td .title {
-	font-weight: 600;
-	margin-bottom: 5px;
-	display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
+  display: block;
 }
 .woocommerce table.omniva-settings .omniva-debugview td .debug-row .date {
   cursor: pointer;
@@ -61,7 +81,12 @@
 .woocommerce table.omniva-settings .omniva-debugview td .debug-row .date:focus {
   text-decoration: underline;
 }
-.woocommerce table.omniva-settings .omniva-debugview td .debug-row .date.active {
+.woocommerce
+  table.omniva-settings
+  .omniva-debugview
+  td
+  .debug-row
+  .date.active {
   color: #008000;
 }
 
@@ -106,7 +131,7 @@
   box-shadow: 0px 0px 2px 1px var(--omniva-primary-color);
 }
 .woocommerce table.omniva-settings .prices_box .disabled:before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   bottom: 0;
@@ -124,7 +149,7 @@
   width: 40px;
   height: 24px;
 }
-.woocommerce table.omniva-settings .switch input { 
+.woocommerce table.omniva-settings .switch input {
   opacity: 0;
   width: 0;
   height: 0;
@@ -138,19 +163,19 @@
   bottom: 0;
   margin: 0;
   background-color: #ccc;
-  -webkit-transition: .4s;
-  transition: .4s;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
 }
 .woocommerce table.omniva-settings .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
   bottom: 3px;
   background-color: white;
-  -webkit-transition: .4s;
-  transition: .4s;
+  -webkit-transition: 0.4s;
+  transition: 0.4s;
 }
 .woocommerce table.omniva-settings input:checked + .slider {
   background-color: var(--omniva-primary-color);
@@ -180,7 +205,12 @@
   text-transform: uppercase;
   color: var(--omniva-primary-color);
 }
-.woocommerce table.omniva-settings .prices_box .block-prices.disabled .sec-title label {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices.disabled
+  .sec-title
+  label {
   color: #999;
 }
 .woocommerce table.omniva-settings .prices_box .block-prices .sec-prices {
@@ -194,28 +224,53 @@
   width: 24%;
   display: inline-block;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .sec-prices input[type="number"] {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .sec-prices
+  input[type='number'] {
   vertical-align: middle;
   width: 75%;
   display: inline-block;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .sec-prices select {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .sec-prices
+  select {
   vertical-align: middle;
   width: 75%;
   max-width: 75%;
   display: inline-block;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .sec-prices .price_free {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .sec-prices
+  .price_free {
   position: relative;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table table {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  table {
   display: inline-table;
   width: 75%;
   vertical-align: top;
   border-collapse: collapse;
   transition: all 0.5s ease;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table table:hover {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  table:hover {
   box-shadow: 0 0 0 1px #2271b1;
 }
 .woocommerce table.omniva-settings .prices_box .block-prices .prices-table th,
@@ -225,21 +280,59 @@
   border: 1px solid #8c8f94;
   border-collapse: collapse;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table table:hover th,
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table table:hover td {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  table:hover
+  th,
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  table:hover
+  td {
   border-color: #2271b1;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table .column-value input {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  .column-value
+  input {
   max-width: 100px;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table .column-price {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  .column-price {
   width: 30%;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table .column-actions {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  .column-actions {
   width: 10%;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-table .description,
-.woocommerce table.omniva-settings .prices_box .block-prices .prices-coupon .description {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-table
+  .description,
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .prices-coupon
+  .description {
   width: 75%;
   margin: 3px 0 10px 25%;
   color: #aeaeae;
@@ -252,19 +345,39 @@
 .woocommerce table.omniva-settings .prices_box .block-prices .sec-other > div {
   margin-bottom: 5px;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .other-label label {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .other-label
+  label {
   display: inline-block;
   width: 24%;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .other-label input {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .other-label
+  input {
   display: inline-block;
   width: 75%;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .other-description label {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .other-description
+  label {
   display: inline-block;
   width: 24%;
 }
-.woocommerce table.omniva-settings .prices_box .block-prices .other-description textarea {
+.woocommerce
+  table.omniva-settings
+  .prices_box
+  .block-prices
+  .other-description
+  textarea {
   display: inline-block;
   width: 75%;
 }
@@ -277,8 +390,8 @@
   padding: 0;
   width: 33%;
 }
-.woocommerce table.omniva-settings .field-custom_label table input[type="text"],
-.woocommerce table.omniva-settings .field-position table input[type="number"] {
+.woocommerce table.omniva-settings .field-custom_label table input[type='text'],
+.woocommerce table.omniva-settings .field-position table input[type='number'] {
   width: 95%;
 }
 .woocommerce table.omniva-settings .field-position table th,
@@ -298,7 +411,7 @@
   box-shadow: 0 0 1px 1px #333;
 }
 @media only screen and (max-width: 1023px) {
-    .woocommerce div.omniva-title .logo {
-        display: none;
-    }
+  .woocommerce div.omniva-title .logo {
+    display: none;
+  }
 }

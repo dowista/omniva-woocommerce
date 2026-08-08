@@ -328,13 +328,18 @@ jQuery('document').ready(function($){
 
 /*** Tables ***/
 jQuery("document").ready(function($) {
-  omnivalt_checkAllRows($(".prices-table > table")[0]);
-  omnivalt_checkTableAddRowButton($(".prices-table > table")[0]);
+  var first_price_table = $(".prices-table > table")[0];
+  if (first_price_table) {
+    omnivalt_checkAllRows(first_price_table);
+    omnivalt_checkTableAddRowButton(first_price_table);
+  }
 
   var all_price_types_fields = $(".sec-prices .price_type");
   for (var i=0; i<all_price_types_fields.length; i++) {
-    omnivalt_showPricesSection(all_price_types_fields[i]);
+    omnivalt_showPricesSection(all_price_types_fields[i], false);
   }
+
+  $("body").addClass("omniva-settings-initialized");
 
   $(document).on( "change", '.prices-table .row-values .column-value input[type="number"]', function() {
     var table = $(this).closest("table");
@@ -358,7 +363,7 @@ jQuery("document").ready(function($) {
   });
 
   $(document).on( "change", ".price_type", function() {
-    omnivalt_showPricesSection(this);
+    omnivalt_showPricesSection(this, true);
   });
 
   /** Functions **/
@@ -458,8 +463,15 @@ jQuery("document").ready(function($) {
   }
 
   function omnivalt_checkTableAddRowButton(table) {
+    if (!table || !$(table).length) {
+      return;
+    }
+
     var button = $(table).find(".row-footer .column-add .omniva-fake-btn");
     var values_fields = $(table).find('.row-values .column-value input[type="number"]');
+    if (!button.length) {
+      return;
+    }
     if (values_fields.length === 0) {
       button[0].classList.remove("disabled");
       return;
@@ -472,14 +484,32 @@ jQuery("document").ready(function($) {
   }
 
   function omnivalt_checkAllRows(table) {
+    if (!table || !$(table).length) {
+      return;
+    }
+
     var value_step = $(table).data("step1");
+    if (value_step === undefined || value_step === null || value_step === "") {
+      return;
+    }
+
     var decimals = omnivalt_countDecimals(value_step);
-    var all_rows = $(table).find(".row-values");
+    var all_rows = $(table).find(".row-values").filter(function() {
+      return $(this).find(".column-value .value-from").length
+        && $(this).find('.column-value input[type="number"]').length;
+    });
+    if (!all_rows.length) {
+      return;
+    }
+
     var prev_value = 0;
     var next_value = "";
     for (var i=0; i<all_rows.length; i++) {
       var span = $(all_rows[i]).find(".column-value .value-from")[0];
       var input = $(all_rows[i]).find('.column-value input[type="number"]')[0];
+      if (!span || !input) {
+        continue;
+      }
       if ((i + 1) < all_rows.length) {
         next_value = $(all_rows[i+1]).find('.column-value input[type="number"]').val();
       } else {
@@ -536,34 +566,52 @@ jQuery("document").ready(function($) {
     elem.value = value;
   }
 
-  function omnivalt_showPricesSection(select_field) {
+  function omnivalt_showPricesSection(select_field, animate) {
+    if (animate === undefined) {
+      animate = true;
+    }
+
     var prices_single = $(select_field).closest(".sec-prices").find(".prices-single");
     var prices_weight = $(select_field).closest(".sec-prices").find(".prices-table.table-weight");
     var prices_amount = $(select_field).closest(".sec-prices").find(".prices-table.table-amount");
     var prices_boxsize = $(select_field).closest(".sec-prices").find(".prices-table.table-boxsize");
+
+    function setPricesSectionVisibility(elements, visible) {
+      if (animate) {
+        if (visible) {
+          $(elements).stop(true, true).slideDown("slow");
+        } else {
+          $(elements).stop(true, true).slideUp("slow");
+        }
+      } else if (visible) {
+        $(elements).show();
+      } else {
+        $(elements).hide();
+      }
+    }
     
     if ($(select_field).val() != "simple") {
-      $(prices_single).slideUp("slow");
+      setPricesSectionVisibility(prices_single, false);
     } else {
-      $(prices_single).slideDown("slow");
+      setPricesSectionVisibility(prices_single, true);
     }
     
     if ($(select_field).val() != "weight") {
-      $(prices_weight).slideUp("slow");
+      setPricesSectionVisibility(prices_weight, false);
     } else {
-      $(prices_weight).slideDown("slow");
+      setPricesSectionVisibility(prices_weight, true);
     }
     
     if ($(select_field).val() != "amount") {
-      $(prices_amount).slideUp("slow");
+      setPricesSectionVisibility(prices_amount, false);
     } else {
-      $(prices_amount).slideDown("slow");
+      setPricesSectionVisibility(prices_amount, true);
     }
 
     if ($(select_field).val() != "boxsize") {
-      $(prices_boxsize).slideUp("slow");
+      setPricesSectionVisibility(prices_boxsize, false);
     } else {
-      $(prices_boxsize).slideDown("slow");
+      setPricesSectionVisibility(prices_boxsize, true);
     }
   }
 });

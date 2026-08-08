@@ -46,32 +46,32 @@ foreach ( $shipping_method->form_fields as $field_key => $field ) {
   $settings_sections[$current_section]['fields'][$field_key] = $field;
 }
 ?>
-<div id="omnivalt-settings-root" class="omnivalt-settings-page wbte-ewb-admin">
-  <header class="omnivalt-settings-page__header wbte-ewb-admin__header">
-    <div class="omnivalt-settings-page__header-content wbte-ewb-admin__header-content">
+<div id="omnivalt-settings-root" class="omnivalt-settings-page">
+  <header class="omnivalt-settings-page__header">
+    <div class="omnivalt-settings-page__header-content">
       <div>
-        <div class="omnivalt-settings-page__breadcrumb wbte-ewb-breadcrumb">
+        <div class="omnivalt-settings-page__breadcrumb">
           <span><?php esc_html_e('WooCommerce', 'omnivalt'); ?></span>
-          <span class="wbte-ewb-breadcrumb__sep" aria-hidden="true">/</span>
+          <span class="omnivalt-settings-page__breadcrumb-sep" aria-hidden="true">/</span>
           <span><?php esc_html_e('Omniva', 'omnivalt'); ?></span>
         </div>
-        <h1 class="wbte-ewb-admin__title"><?php esc_html_e('Omniva settings', 'omnivalt'); ?></h1>
-        <p class="wbte-ewb-admin__subtitle"><?php esc_html_e('Configure Omniva shipping methods, delivery services and labels.', 'omnivalt'); ?></p>
+        <h1 class="omnivalt-settings-page__title"><?php esc_html_e('Omniva settings', 'omnivalt'); ?></h1>
+        <p class="omnivalt-settings-page__subtitle"><?php esc_html_e('Configure Omniva shipping methods, delivery services and labels.', 'omnivalt'); ?></p>
       </div>
 
-      <!-- <a class="omnivalt-settings-page__brand wbte-ewb-admin__brand" href="https://www.omniva.lt" target="_blank" rel="noopener noreferrer" aria-label="Omniva.lt">
-        <span class="omnivalt-settings-page__brand-logo wbte-ewb-admin__brand-logo" aria-hidden="true"></span>
-        <span class="omnivalt-settings-page__brand-slogan wbte-ewb-admin__brand-slogan"><?php esc_html_e('Pristatome', 'omnivalt'); ?><br /><?php esc_html_e('džiaugsmą', 'omnivalt'); ?></span>
+      <!-- <a class="omnivalt-settings-page__brand" href="https://www.omniva.lt" target="_blank" rel="noopener noreferrer" aria-label="Omniva.lt">
+        <span class="omnivalt-settings-page__brand-logo" aria-hidden="true"></span>
+        <span class="omnivalt-settings-page__brand-slogan"><?php esc_html_e('Pristatome', 'omnivalt'); ?><br /><?php esc_html_e('džiaugsmą', 'omnivalt'); ?></span>
       </a> -->
     </div>
   </header>
 
-  <div class="omnivalt-settings-page__layout wbte-ewb-settings">
-    <nav class="omnivalt-settings-page__tabs wbte-ewb-tabs" aria-label="<?php esc_attr_e('Omniva settings sections', 'omnivalt'); ?>">
-      <button type="button" class="wbte-ewb-tabs__tab is-active" aria-current="page"><?php esc_html_e('General', 'omnivalt'); ?></button>
-      <button type="button" class="wbte-ewb-tabs__tab"><?php esc_html_e('Rules & Exclusions', 'omnivalt'); ?></button>
-      <button type="button" class="wbte-ewb-tabs__tab"><?php esc_html_e('Workflow', 'omnivalt'); ?></button>
-      <button type="button" class="wbte-ewb-tabs__tab"><?php esc_html_e('Advanced', 'omnivalt'); ?></button>
+  <div class="omnivalt-settings-page__layout">
+    <nav class="omnivalt-settings-page__tabs omniva-tabs" aria-label="<?php esc_attr_e('Omniva settings sections', 'omnivalt'); ?>">
+      <button type="button" class="omniva-tabs__tab is-active" aria-current="page"><?php esc_html_e('General', 'omnivalt'); ?></button>
+      <button type="button" class="omniva-tabs__tab"><?php esc_html_e('Rules & Exclusions', 'omnivalt'); ?></button>
+      <button type="button" class="omniva-tabs__tab"><?php esc_html_e('Workflow', 'omnivalt'); ?></button>
+      <button type="button" class="omniva-tabs__tab"><?php esc_html_e('Advanced', 'omnivalt'); ?></button>
     </nav>
 
     <main class="omnivalt-settings-page__main woocommerce">
@@ -91,51 +91,51 @@ foreach ( $shipping_method->form_fields as $field_key => $field ) {
               $attributes = isset($matches[1]) ? $matches[1] : '';
 
               if ( strpos($attributes, 'class=') !== false ) {
-                $attributes = preg_replace('/class=(["\'])([^"\']*)\1/', 'class=$1$2 wbte-ewb-field$1', $attributes, 1);
+                $attributes = preg_replace('/class=(["\'])([^"\']*)\1/', 'class=$1$2 omniva-field$1', $attributes, 1);
               } else {
-                $attributes .= ' class="wbte-ewb-field"';
+                $attributes .= ' class="omniva-field"';
               }
 
               return '<tr' . $attributes . '>';
             },
             $section_rows
           );
-          $section_rows = str_replace('class="description"', 'class="description wbte-ewb-field__desc"', $section_rows);
+          $section_rows = str_replace('class="description"', 'class="description omniva-field__desc"', $section_rows);
           $section_html = '<table class="form-table omniva-settings">';
           $section_html .= $section_rows;
           $section_html .= '</table>';
           $icon = isset($section_icons[$section_key]) ? $section_icons[$section_key] : 'admin-generic';
           ?>
-          <section class="omnivalt-settings-page__card wbte-ewb-card">
-            <div class="omniva-title omnivalt-settings-page__card-header ch">
+          <section class="omnivalt-settings-page__card">
+            <div class="omniva-title omnivalt-settings-page__card-header">
               <div class="title">
-                <div class="omnivalt-settings-page__card-header-top ch__top">
-                  <span class="omnivalt-settings-page__card-header-icon ch__icon dashicons dashicons-<?php echo esc_attr($icon); ?>" aria-hidden="true"></span>
+                <div class="omnivalt-settings-page__card-header-top">
+                  <span class="omnivalt-settings-page__card-header-icon dashicons dashicons-<?php echo esc_attr($icon); ?>" aria-hidden="true"></span>
                   <h2><?php echo esc_html($section['title']); ?></h2>
                 </div>
                 <?php if ( ! empty($section['description']) ) : ?>
-                  <p class="ch__sub"><?php echo esc_html($section['description']); ?></p>
+                  <p class="omnivalt-settings-page__card-subtitle"><?php echo esc_html($section['description']); ?></p>
                 <?php endif; ?>
               </div>
             </div>
-            <div class="cb">
+            <div class="omnivalt-settings-page__card-body">
               <?php // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Generated by WooCommerce's escaped settings field renderer. ?>
               <?php echo $section_html; ?>
             </div>
           </section>
         <?php endforeach; ?>
 
-        <div class="omnivalt-settings-page__savebar wbte-ewb-savebar">
-          <button type="submit" name="save" class="woocommerce-save-button wbte-ewb-btn wbte-ewb-btn--primary" value="<?php esc_attr_e('Save changes', 'omnivalt'); ?>">
+        <div class="omnivalt-settings-page__savebar">
+          <button type="submit" name="save" class="woocommerce-save-button" value="<?php esc_attr_e('Save changes', 'omnivalt'); ?>">
             <?php esc_html_e('Save settings', 'omnivalt'); ?>
           </button>
         </div>
       </form>
     </main>
 
-    <aside class="omnivalt-settings-page__visual wbte-ewb-settings__visual" aria-hidden="true">
-      <!-- <img class="omnivalt-settings-page__visual-logo wbte-ewb-settings__visual-logo" src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/logo-black.svg'); ?>" alt="" /> -->
-      <img class="omnivalt-settings-page__visual-image wbte-ewb-settings__visual-image" src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/settings.svg'); ?>" alt="" />
+    <aside class="omnivalt-settings-page__visual" aria-hidden="true">
+      <!-- <img class="omnivalt-settings-page__visual-logo" src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/logo-black.svg'); ?>" alt="" /> -->
+      <img class="omnivalt-settings-page__visual-image" src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/settings.svg'); ?>" alt="" />
     </aside>
   </div>
 </div>
