@@ -363,6 +363,24 @@ jQuery(function($) {
       $number.on('input change blur', syncPhone);
       renderCountryPicker();
       syncPhone();
+
+      var initialPhoneValue = $original.val() || '';
+      var initialPhoneCountry = selectedCountry;
+
+      $original.data('omnivaltPhoneReset', function() {
+        var countryData = phoneSettings.countries[initialPhoneCountry];
+        var number = initialPhoneValue;
+        var prefix = '+' + countryData.dial_code;
+
+        if (number.indexOf(prefix) === 0) {
+          number = number.substring(prefix.length);
+        }
+
+        selectedCountry = initialPhoneCountry;
+        $number.val(number.replace(/\D/g, ''));
+        renderCountryPicker();
+        syncPhone();
+      });
     });
   }
 
@@ -493,4 +511,90 @@ jQuery(function($) {
 
     renderSelected();
   });
+
+  initializeSettingsSaveBar();
+
+  function initializeSettingsSaveBar() {
+    var $root = $('#omnivalt-settings-root');
+    var $form = $root.find('form').first();
+    var $status = $root.find('[data-settings-save-status]');
+    var $statusText = $status.find('[data-settings-save-status-text]');
+    var $discard = $root.find('[data-settings-discard]');
+    var $save = $root.find('.woocommerce-save-button').first();
+
+    if (!$form.length || !$status.length || !$discard.length || !$save.length) {
+      return;
+    }
+
+    var initialControls = [];
+    var savedFormState;
+    var updateTimer = null;
+
+    $form.find(':input').each(function() {
+      var $control = $(this);
+      var value = $control.val();
+
+      initialControls.push({
+        element: this,
+        type: (this.type || '').toLowerCase(),
+        value: $.isArray(value) ? value.slice() : value,
+        checked: this.checked
+      });
+    });
+
+    savedFormState = $form.serialize();
+
+    function renderSaveState() {
+      var hasUnsavedChanges = $form.serialize() !== savedFormState;
+      var statusLabel = hasUnsavedChanges ? $status.attr('data-unsaved-label') : $status.attr('data-saved-label');
+
+      $status
+        .toggleClass('is-unsaved', hasUnsavedChanges)
+        .toggleClass('is-saved', !hasUnsavedChanges);
+      $statusText.text(statusLabel || '');
+      $discard.prop('hidden', !hasUnsavedChanges);
+      $save.prop('disabled', !hasUnsavedChanges);
+    }
+
+    function scheduleSaveStateUpdate() {
+      if (updateTimer) {
+        window.clearTimeout(updateTimer);
+      }
+
+      updateTimer = window.setTimeout(function() {
+        updateTimer = null;
+        renderSaveState();
+      }, 0);
+    }
+
+    $form.on('input.omnivaltSettingsSave change.omnivaltSettingsSave', ':input', scheduleSaveStateUpdate);
+
+    $discard.on('click', function() {
+      $.each(initialControls, function(index, controlState) {
+        var $control = $(controlState.element);
+
+        if (!$control.length) {
+          return;
+        }
+
+        $control.val(controlState.value);
+        if (controlState.type === 'checkbox' || controlState.type === 'radio') {
+          $control.prop('checked', controlState.checked);
+        }
+      });
+
+      $form.find(':input').trigger('change');
+      $form.find('.omnivalt-phone-input__value').each(function() {
+        var resetPhone = $(this).data('omnivaltPhoneReset');
+
+        if ($.isFunction(resetPhone)) {
+          resetPhone();
+        }
+      });
+
+      renderSaveState();
+    });
+
+    renderSaveState();
+  }
 });

@@ -310,9 +310,25 @@ $render_settings_card = function( $section_key, $section, $tab = '' ) use ( $shi
         <?php endforeach; ?>
 
         <div class="omnivalt-settings-page__savebar">
-          <button type="submit" name="save" class="woocommerce-save-button" value="<?php esc_attr_e('Save changes', 'omnivalt'); ?>">
-            <?php esc_html_e('Save settings', 'omnivalt'); ?>
-          </button>
+          <div
+            class="omnivalt-settings-page__save-status is-saved"
+            data-settings-save-status
+            data-saved-label="<?php esc_attr_e('All changes saved', 'omnivalt'); ?>"
+            data-unsaved-label="<?php esc_attr_e('Unsaved changes', 'omnivalt'); ?>"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="omnivalt-settings-page__save-status-dot" data-settings-save-status-dot aria-hidden="true"></span>
+            <span data-settings-save-status-text><?php esc_html_e('All changes saved', 'omnivalt'); ?></span>
+          </div>
+          <div class="omnivalt-settings-page__save-actions">
+            <button type="button" class="omnivalt-settings-page__discard" data-settings-discard hidden>
+              <?php esc_html_e('Discard', 'omnivalt'); ?>
+            </button>
+            <button type="submit" name="save" class="woocommerce-save-button" value="<?php esc_attr_e('Save changes', 'omnivalt'); ?>" disabled>
+              <?php esc_html_e('Save settings', 'omnivalt'); ?>
+            </button>
+          </div>
         </div>
       </form>
     </main>

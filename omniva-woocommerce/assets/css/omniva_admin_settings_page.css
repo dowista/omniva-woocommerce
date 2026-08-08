@@ -1134,10 +1134,71 @@
   left: 160px;
   z-index: 100;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 24px;
   padding: 12px 24px;
   border-top: 1px solid var(--omniva-line-strong);
   background: rgba(255, 255, 255, 0.96);
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #52627a;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__save-status.is-unsaved {
+  color: #52627a;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__save-status-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #248653;
+}
+
+#omnivalt-settings-root
+  .omnivalt-settings-page__save-status.is-unsaved
+  .omnivalt-settings-page__save-status-dot {
+  background: #a46f00;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__save-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__discard {
+  min-height: 48px;
+  padding: 11px 24px;
+  border: 1px solid var(--omniva-ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--omniva-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__discard:hover,
+#omnivalt-settings-root .omnivalt-settings-page__discard:focus {
+  border-color: var(--omniva-ink);
+  background: var(--omniva-canvas);
+  box-shadow: none;
+  color: var(--omniva-ink);
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__discard[hidden] {
+  display: none;
 }
 
 #omnivalt-settings-root
@@ -1158,6 +1219,16 @@
 
 #omnivalt-settings-root
   .omnivalt-settings-page__savebar
+  .woocommerce-save-button:disabled {
+  border-color: #f0d994;
+  background: #f6e4ac;
+  color: #75683e;
+  cursor: default;
+  opacity: 1;
+}
+
+#omnivalt-settings-root
+  .omnivalt-settings-page__savebar
   .woocommerce-save-button:hover,
 #omnivalt-settings-root
   .omnivalt-settings-page__savebar
@@ -1166,6 +1237,18 @@
   background: #ffbc01;
   box-shadow: none;
   color: #000000;
+}
+
+#omnivalt-settings-root
+  .omnivalt-settings-page__savebar
+  .woocommerce-save-button:disabled:hover,
+#omnivalt-settings-root
+  .omnivalt-settings-page__savebar
+  .woocommerce-save-button:disabled:focus {
+  border-color: #f0d994;
+  background: #f6e4ac;
+  box-shadow: none;
+  color: #75683e;
 }
 
 #omnivalt-settings-root.is-layout-pending {
@@ -1492,6 +1575,10 @@
   #omnivalt-settings-root .omnivalt-settings-page__savebar {
     left: 0;
     padding: 10px 16px;
+  }
+
+  #omnivalt-settings-root .omnivalt-settings-page__savebar {
+    gap: 16px;
   }
 }
 
