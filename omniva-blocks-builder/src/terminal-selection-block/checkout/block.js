@@ -17,10 +17,23 @@ import { txt } from '../global/text';
 import { addTokenToValue, isObjectEmpty, findArrayElemByObjProp} from '../global/utils';
 import { debug, enableStateDebug } from '../global/debug';
 
+const getSavedTerminal = ( extensions ) => {
+    const cookieMatch = document.cookie.match(/(?:^|;\s*)omniva_terminal=([^;]*)/);
+
+    if ( cookieMatch ) {
+        return decodeURIComponent(cookieMatch[1]);
+    }
+
+    return extensions && extensions.omnivalt
+        ? extensions.omnivalt.selected_terminal || ''
+        : '';
+};
+
 export const Block = ({ checkoutExtensionData, extensions }) => {
     const terminalValidationErrorId = 'omnivalt_terminal';
     const phoneValidationErrorId = 'shipping_phone';
     const { setExtensionData } = checkoutExtensionData;
+    const savedTerminal = getSavedTerminal(extensions);
     const [mapValues, setMapValues] = useState({
         country: 'LT',
         postcode: ''
@@ -41,7 +54,7 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         label: txt.select_terminal,
         error: txt.error_terminal,
     });
-    const [selectedOmnivaTerminal, setSelectedOmnivaTerminal] = useState('');
+    const [selectedOmnivaTerminal, setSelectedOmnivaTerminal] = useState(savedTerminal);
     const [selectedRateId, setSelectedRateId] = useState('');
     const [containerParams, setContainerParams] = useState({
         provider: 'unknown',
@@ -50,6 +63,7 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
     const [containerErrorClass, setContainerErrorClass] = useState('');
     const elemTerminalSelectField = useRef(null);
     const elemMapContainer = useRef(null);
+    const hasRestoredTerminal = useRef(false);
     const map = loadMap();
     const customSelect = loadCustomSelect();
 
@@ -60,6 +74,13 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
     enableStateDebug('Selected terminal', selectedOmnivaTerminal);
     enableStateDebug('Selected rate ID', selectedRateId);
     enableStateDebug('Omniva dynamic data', omnivaData);
+
+    useEffect(() => {
+        if ( ! hasRestoredTerminal.current && savedTerminal !== '' ) {
+            setSelectedOmnivaTerminal(savedTerminal);
+            hasRestoredTerminal.current = true;
+        }
+    }, [savedTerminal]);
 
     const debouncedSetExtensionData = useCallback(
         debounce((namespace, key, value) => {
