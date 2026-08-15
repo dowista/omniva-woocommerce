@@ -60,7 +60,6 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         provider: 'unknown',
         type: 'unknown',
     });
-    const [containerErrorClass, setContainerErrorClass] = useState('');
     const elemTerminalSelectField = useRef(null);
     const elemMapContainer = useRef(null);
     const hasRestoredTerminal = useRef(false);
@@ -363,7 +362,6 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         if ( terminalValidationError ) {
             debug('Clearing terminal validation error...');
             clearValidationError(terminalValidationErrorId);
-            setContainerErrorClass('');
         }
 
         if ( ! isOmnivaTerminalMethod(selectedRateId) ) {
@@ -387,10 +385,9 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             setValidationErrors({
                 [terminalValidationErrorId]: {
                     message: blockText.error,
-                    hidden: false
+                    hidden: true
                 }
             });
-            setContainerErrorClass('error');
         }
     }, [
         setExtensionData,
@@ -426,7 +423,7 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
                 )}
             </div>
             {showBlock.value && (
-                <div className={`omnivalt-terminal-select-container provider-${containerParams.provider} type-${containerParams.type} ${containerErrorClass}`}>
+                <div className={`omnivalt-terminal-select-container provider-${containerParams.provider} type-${containerParams.type} ${terminalValidationError && !terminalValidationError.hidden && selectedOmnivaTerminal === '' ? 'error' : ''}`}>
                     <div id="omnivalt-terminal-container-org" className="omnivalt-org-select">
                         <SelectControl
                             id="omnivalt-terminal-select-field"
