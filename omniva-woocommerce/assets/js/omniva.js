@@ -1,3 +1,18 @@
+/* global
+    TerminalMappingOmnivalt,
+    omnivaSettings,
+    omnivaTerminals,
+    omniva_current_country,
+    omniva_getCookie,
+    omniva_setCookie,
+    omnivadata,
+    omnivaltMap,
+    omnivalt_provider,
+    omnivalt_terminals,
+    omnivalt_type,
+    omniva_type
+*/
+
 /*** New method (use terminal-mapping library) ***/
 function omnivalt_init_map() {
     var container_parcel_terminal = document.getElementById("omnivalt-terminal-container-map");
@@ -41,6 +56,7 @@ function omnivalt_init_map() {
                 select_btn: omnivalt_data.text.select_button,
                 modal_open_btn: omnivalt_data.text.modal_open_button,
                 geolocation_btn: omnivalt_data.text.use_my_location,
+                geolocation_loading: omnivalt_data.text.geolocation_loading,
                 your_position: omnivalt_data.text.my_position,
                 nothing_found: omnivalt_data.text.not_found,
                 no_cities_found: omnivalt_data.text.no_cities_found,
@@ -60,14 +76,6 @@ function omnivalt_init_map() {
             this.lib.setImagesPath(this.icons_URL);
             this.lib.setTranslation(this.translations);
             this.lib.dom.setContainerParent(container);
-
-            this.lib.setParseMapTooltip((location, leafletCoords) => {
-                let tip = location.address + " [" + location.id + "]";
-                if ( location.comment ) {
-                    tip += "<br/><i>" + location.comment + "</i>";
-                }
-                return tip;
-            });
 
             this.lib.sub('tmjs-ready', function(data) {
                 omnivaltMap.load_data();
@@ -314,11 +322,7 @@ var omniva_addrese_change = false;
                   
         });
         search.on('selectpostcode',function(){
-            if (omnivaSettings.auto_select != "yes") {
-                var autoselect = false;
-            } else {
-                var autoselect = true;
-            }
+            var autoselect = omnivaSettings.auto_select == "yes";
             findPosition(search.val(),autoselect);    
                   
         });
@@ -578,7 +582,7 @@ var omniva_addrese_change = false;
         function calculateDistance(y,x){
    
             $.each( terminals, function( key, location ) {
-                distance = calcCrow(y, x, location[1], location[2]);
+                var distance = calcCrow(y, x, location[1], location[2]);
                 location['distance'] = distance.toFixed(2);
                 
             });
@@ -606,11 +610,11 @@ var omniva_addrese_change = false;
           var R = 6371;
           var dLat = toRad(lat2-lat1);
           var dLon = toRad(lon2-lon1);
-          var lat1 = toRad(lat1);
-          var lat2 = toRad(lat2);
-    
+          var radLat1 = toRad(lat1);
+          var radLat2 = toRad(lat2);
+
           var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(radLat1) * Math.cos(radLat2); 
           var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
           var d = R * c;
           return d;
@@ -771,7 +775,7 @@ var omniva_addrese_change = false;
             */
             $('.omniva-terminals-listing li div.omniva-details').hide();
             id = 'omn-'+id;
-            dispOmniva = document.getElementById(id)
+            var dispOmniva = document.getElementById(id)
             if(dispOmniva){
                 dispOmniva.style.display = 'block';
             }      
@@ -882,7 +886,7 @@ var omniva_addrese_change = false;
           }
               var matches = document.querySelectorAll(".omnivaOption");
               for (var i = 0; i < matches.length; i++) {
-                node = matches[i];
+                var node = matches[i];
                 if ( node.value.includes(terminal)) {
                   node.selected = 'selected';
                 } else {

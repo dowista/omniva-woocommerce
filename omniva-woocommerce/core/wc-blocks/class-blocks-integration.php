@@ -85,6 +85,7 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
         
         return array(
             'ajax_url' => admin_url('admin-ajax.php'),
+            'clear_terminal_nonce' => wp_create_nonce('omnivalt_clear_terminal'),
             'plugin_url' => OMNIVALT_URL,
             'methods' => array(
                 'terminal_omniva' => 'omnivalt_pt',
@@ -126,6 +127,7 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
                     'select_button' => __('Select', 'omnivalt'),
                     'modal_open_button' => __('Select in map', 'omnivalt'),
                     'use_my_location' => __('Use my location', 'omnivalt'),
+                    'geolocation_loading' => __('Locating...', 'omnivalt'),
                     'my_position' => __('Distance calculated from this point', 'omnivalt'),
                     'not_found' => __('Place not found', 'omnivalt'),
                     'no_cities_found' => __('There were no cities found for your search term', 'omnivalt'),
@@ -332,10 +334,10 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
 
         foreach ( $scripts as $script_id => $script_files ) {
             if ( ! empty($script_files['js']) ) {
-                wp_enqueue_script($script_id, $js_url . $script_files['js'], array('jquery'), null, true);
+                wp_enqueue_script($script_id, $js_url . $script_files['js'], array('jquery'), $this->get_file_version(OMNIVALT_DIR . 'assets/js/' . $script_files['js']), true);
             }
             if ( ! empty($script_files['css']) ) {
-                wp_enqueue_style($script_id, $css_url . $script_files['css']);
+                wp_enqueue_style($script_id, $css_url . $script_files['css'], array(), $this->get_file_version(OMNIVALT_DIR . 'assets/css/' . $script_files['css']));
             }
         }
     }
@@ -349,14 +351,14 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
     }
 
     /**
-     * Get the file modified time as a cache buster if we're in dev mode.
+     * Get the file modified time as a cache buster.
      *
      * @param string $file Local path to the file.
      * @return string The cache buster value to use for the given file.
      */
     private function get_file_version( $file )
     {
-        if ( defined('SCRIPT_DEBUG') && SCRIPT_DEBUG && file_exists($file) ) {
+        if ( file_exists($file) ) {
             return filemtime($file);
         }
         

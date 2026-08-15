@@ -262,8 +262,12 @@ class OmnivaLt_Core
     $folder_js = '/assets/js/';
 
     if (is_cart() || is_checkout()) {
-      wp_enqueue_script('omnivalt_mapping', plugins_url($folder_js . 'terminal-mapping.js', self::$main_file_path), array('jquery'), null, true);
-      wp_enqueue_style('omnivalt_mapping', plugins_url($folder_css . 'terminal-mapping.css', self::$main_file_path));
+      $mapping_js_file = OMNIVALT_DIR . $folder_js . 'terminal-mapping.js';
+      $mapping_css_file = OMNIVALT_DIR . $folder_css . 'terminal-mapping.css';
+      $mapping_js_version = file_exists($mapping_js_file) ? filemtime($mapping_js_file) : OMNIVALT_VERSION;
+      $mapping_css_version = file_exists($mapping_css_file) ? filemtime($mapping_css_file) : OMNIVALT_VERSION;
+      wp_enqueue_script('omnivalt_mapping', plugins_url($folder_js . 'terminal-mapping.js', self::$main_file_path), array('jquery'), $mapping_js_version, true);
+      wp_enqueue_style('omnivalt_mapping', plugins_url($folder_css . 'terminal-mapping.css', self::$main_file_path), array(), $mapping_css_version);
 
       wp_enqueue_script('omnivalt-helper', plugins_url($folder_js . 'omniva_helper.js', self::$main_file_path), array('jquery'), OMNIVALT_VERSION);
       wp_enqueue_script('omnivalt', plugins_url($folder_js . 'omniva.js', self::$main_file_path), array('jquery'), OMNIVALT_VERSION);
@@ -278,6 +282,7 @@ class OmnivaLt_Core
 
       wp_localize_script('omnivalt', 'omnivalt_data', array( //New method (use terminal-mapping library)
         'ajax_url' => admin_url('admin-ajax.php'),
+        'clear_terminal_nonce' => wp_create_nonce('omnivalt_clear_terminal'),
         'omniva_plugin_url' => OMNIVALT_URL,
         'text' => array(
           'providers' => array(
@@ -299,6 +304,7 @@ class OmnivaLt_Core
           'enter_address' => __('Enter postcode/address', 'omnivalt'),
           'show_more' => __('Show more', 'omnivalt'),
           'use_my_location' => __('Use my location', 'omnivalt'),
+          'geolocation_loading' => __('Locating...', 'omnivalt'),
           'my_position' => __('Distance calculated from this point', 'omnivalt'),
           'geo_not_supported' => __('Geolocation is not supported', 'omnivalt'),
         )
@@ -580,6 +586,8 @@ class OmnivaLt_Core
     add_action('wp_footer', array('OmnivaLt_Core', 'add_to_footer'));
     add_action('wp_ajax_nopriv_add_terminal_to_session', array('OmnivaLt_Terminals', 'add_terminal_to_session'));
     add_action('wp_ajax_add_terminal_to_session', array('OmnivaLt_Terminals', 'add_terminal_to_session'));
+    add_action('wp_ajax_nopriv_omnivalt_clear_terminal', array('OmnivaLt_Terminals', 'clear_terminal_from_session'));
+    add_action('wp_ajax_omnivalt_clear_terminal', array('OmnivaLt_Terminals', 'clear_terminal_from_session'));
     add_action('wp_ajax_omniva_terminals_json', array('OmnivaLt_Terminals', 'get_terminals_json'));
     add_action('wp_ajax_nopriv_omniva_terminals_json', array('OmnivaLt_Terminals', 'get_terminals_json'));
     add_action('admin_menu', array('OmnivaLt_Manifest', 'register_menu_pages'));

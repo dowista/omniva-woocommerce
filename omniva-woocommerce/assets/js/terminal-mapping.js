@@ -222,7 +222,8 @@ var DOMManipulator = /*#__PURE__*/function () {
       container: null,
       modal: null,
       map: null,
-      overlay: null
+      overlay: null,
+      mapSearchLocation: null
     };
     this.registerSubs();
   }
@@ -310,7 +311,6 @@ var DOMManipulator = /*#__PURE__*/function () {
       overlayNode.className = 'tmjs-loading-overlay ' + this.cssThemeRule;
       overlayNode.innerHTML = '<div class="lds-ellipsis"><div></div><div></div><div></div><div></div></div>';
       this.UI.overlay = parentNode.appendChild(overlayNode);
-      this.bodyOverflow(false);
     }
 
     /**
@@ -322,7 +322,6 @@ var DOMManipulator = /*#__PURE__*/function () {
       if (this.UI.overlay) {
         this.UI.overlay.parentNode.removeChild(this.UI.overlay);
         this.UI.overlay = null;
-        this.bodyOverflow(true);
       }
     }
 
@@ -385,12 +384,53 @@ var DOMManipulator = /*#__PURE__*/function () {
     key: "addModal",
     value: function addModal(id, strings) {
       var close_button_class = this.isModal ? '' : 'tmjs-hidden';
-      var template = "\n      <div class=\"tmjs-modal-content\">\n\n        <div class=\"tmjs-modal-body\">\n          <div class=\"tmjs-map-container\"><div class=\"tmjs-map\"></div></div>\n          <div class=\"tmjs-terminal-sidebar\">\n            <div class=\"tmjs-terminal-finder\">\n              <h2 data-tmjs-string=\"modal_header\">".concat(strings.modal_header, "</h2>\n              <div class=\"tmjs-close-modal-btn ").concat(close_button_class, "\"></div>\n              <h3 class=\"tmjs-pt-2\" data-tmjs-string=\"seach_header\">").concat(strings.seach_header, "</h3>\n\n              <div class=\"tmjs-d-block\">\n                <input type=\"text\" class=\"tmjs-search-input\">\n                <a href=\"#search\" class=\"tmjs-search-btn\" ><img src=\"").concat(this.TMJS.imagePath, "search.svg\" width=\"18\"></a>\n              </div>\n\n              <div class=\"tmjs-d-block tmjs-pt-1\">\n                <a href=\"#useMyLocation\" class=\"tmjs-geolocation-btn\"><img src=\"").concat(this.TMJS.imagePath, "gps.svg\" width=\"15\"><span data-tmjs-string=\"geolocation_btn\">").concat(strings.geolocation_btn, "</span></a>\n              </div>\n              <div class=\"tmjs-search-result tmjs-d-block tmjs-pt-2\"></div>\n            </div>\n\n            <div class=\"tmjs-terminal-block\">\n              <h3 data-tmjs-string=\"terminal_list_header\">").concat(strings.terminal_list_header, "</h3>\n              <ul class=\"tmjs-terminal-list\"></ul>\n            </div>\n          </div>\n        </div>\n      </div>\n    ");
+      var template = "\n      <div class=\"tmjs-modal-content\">\n\n        <div class=\"tmjs-modal-body\">\n          <div class=\"tmjs-map-container\"><div class=\"tmjs-map-search\"><div class=\"tmjs-map-search__field\"><span class=\"tmjs-map-search__icon\" aria-hidden=\"true\"></span><input type=\"search\" class=\"tmjs-map-search__input\" autocomplete=\"off\" placeholder=\"Search parcel terminals\"><button type=\"button\" class=\"tmjs-map-search__clear\" aria-label=\"Clear search\"></button></div><ul class=\"tmjs-map-search__results\" hidden></ul></div><div class=\"tmjs-map\"></div></div>\n          <div class=\"tmjs-terminal-sidebar\">\n            <div class=\"tmjs-terminal-finder\">\n              <h2 data-tmjs-string=\"modal_header\">".concat(strings.modal_header, "</h2>\n              <div class=\"tmjs-close-modal-btn ").concat(close_button_class, "\"></div>\n              <h3 class=\"tmjs-pt-2\" data-tmjs-string=\"seach_header\">").concat(strings.seach_header, "</h3>\n\n              <div class=\"tmjs-d-block\">\n                <input type=\"text\" class=\"tmjs-search-input\">\n                <a href=\"#search\" class=\"tmjs-search-btn\" ><img src=\"").concat(this.TMJS.imagePath, "search.svg\" width=\"18\"></a>\n              </div>\n\n              <div class=\"tmjs-d-block tmjs-pt-1\">\n                <a href=\"#useMyLocation\" class=\"tmjs-geolocation-btn\"><img src=\"").concat(this.TMJS.imagePath, "gps.svg\" width=\"15\"><span data-tmjs-string=\"geolocation_btn\">").concat(strings.geolocation_btn, "</span></a>\n              </div>\n              <div class=\"tmjs-search-result tmjs-d-block tmjs-pt-2\"></div>\n            </div>\n\n            <div class=\"tmjs-terminal-block\">\n              <h3 data-tmjs-string=\"terminal_list_header\">").concat(strings.terminal_list_header, "</h3>\n              <ul class=\"tmjs-terminal-list\"></ul>\n            </div>\n          </div>\n        </div>\n      </div>\n    ");
       var modal = this.createElement('div', {
         classList: [this.cssThemeRule, this.isModal ? 'tmjs-modal' : 'tmjs-modal-flat', this.isModal ? 'tmjs-hidden' : ''],
         innerHTML: template
       });
       modal.id = id;
+      var modalHeader = this.createElement('div', {
+        classList: ['header', 'underline'],
+        innerHTML: '<span id="tmjs-delivery-location-title" class="om-headline-2xl om-mb-0" data-tmjs-string="delivery_location">' + strings.delivery_location + '</span><div class="close ' + close_button_class + '" data-dismiss="modal" aria-label="Close" data-testid="destination_location_modal_close_button"><div tabindex="0" class="om-icon ico-close om-icon-size-lg"></div></div>'
+      });
+      var modalContent = modal.querySelector('.tmjs-modal-content');
+      var modalBody = modal.querySelector('.tmjs-modal-body');
+      modalContent.insertBefore(modalHeader, modalBody);
+      var legacyModalHeader = modal.querySelector('.tmjs-terminal-finder h2');
+      if (legacyModalHeader) {
+        legacyModalHeader.parentNode.removeChild(legacyModalHeader);
+      }
+      var legacyCloseButton = modal.querySelector('.tmjs-close-modal-btn');
+      if (legacyCloseButton) {
+        legacyCloseButton.parentNode.removeChild(legacyCloseButton);
+      }
+      var mapSearchField = modal.querySelector('.tmjs-map-search__field');
+      var mapSearchReset = this.createElement('button', {
+        classList: ['tmjs-map-search__reset'],
+        innerHTML: 'Clear'
+      });
+      mapSearchReset.type = 'button';
+      mapSearchReset.setAttribute('aria-label', 'Clear terminal, session and postcode');
+      if (mapSearchField) {
+        mapSearchField.appendChild(mapSearchReset);
+      }
+      var mapSearchLocation = modal.querySelector('.tmjs-geolocation-btn');
+      if (mapSearchField && mapSearchLocation) {
+        var mapSearchLocationWrapper = mapSearchLocation.parentNode;
+        mapSearchLocation.classList.add('tmjs-map-search__location');
+        mapSearchLocation.setAttribute('aria-label', strings.geolocation_btn);
+        var mapSearchLocationIcon = mapSearchLocation.querySelector('img');
+        if (mapSearchLocationIcon) {
+          mapSearchLocationIcon.src = this.TMJS.imagePath + 'geolocation.svg';
+          mapSearchLocationIcon.width = 20;
+          mapSearchLocationIcon.height = 20;
+        }
+        mapSearchField.appendChild(mapSearchLocation);
+        if (mapSearchLocationWrapper && mapSearchLocationWrapper !== mapSearchField && mapSearchLocationWrapper.parentNode) {
+          mapSearchLocationWrapper.parentNode.removeChild(mapSearchLocationWrapper);
+        }
+      }
 
       /* if exists destroy and rebuild */
       if (this.UI.modal !== null) {
@@ -400,6 +440,11 @@ var DOMManipulator = /*#__PURE__*/function () {
       this.UI.modal = modal;
       this.UI.map = modal.querySelector('.tmjs-map');
       this.UI.terminalList = modal.querySelector('.tmjs-terminal-list');
+      this.UI.mapSearchInput = modal.querySelector('.tmjs-map-search__input');
+      this.UI.mapSearchResults = modal.querySelector('.tmjs-map-search__results');
+      this.UI.mapSearchReset = modal.querySelector('.tmjs-map-search__reset');
+      this.UI.mapSearchLocation = modal.querySelector('.tmjs-map-search__location');
+      this.UI.mapSearchInput.placeholder = this.TMJS.strings.search_placeholder;
       this.attachContainerToParent(modal, this.modalParent);
       //document.body.appendChild(this.UI.modal);
     }
@@ -411,9 +456,15 @@ var DOMManipulator = /*#__PURE__*/function () {
         e.preventDefault();
         _this2.openModal();
       });
-      this.UI.modal.querySelector('.tmjs-close-modal-btn').addEventListener('click', function (e) {
+      this.UI.modal.querySelector('.header .close').addEventListener('click', function (e) {
         e.preventDefault();
         _this2.closeModal();
+      });
+      this.UI.modal.querySelector('.header .close').addEventListener('keydown', function (e) {
+        if (e.keyCode === 13 || e.keyCode === 32) {
+          e.preventDefault();
+          _this2.closeModal();
+        }
       });
       this.UI.modal.querySelector('.tmjs-terminal-list').addEventListener('click', function (event) {
         _this2.handleTerminalListEvents(event, _this2.findTerminalElement(event.target));
@@ -422,6 +473,36 @@ var DOMManipulator = /*#__PURE__*/function () {
         e.preventDefault();
         e.stopPropagation();
         _this2.searchNearestDebounce(e.target.value, e.keyCode == '13');
+      });
+      this.UI.mapSearchInput.addEventListener('input', function (event) {
+        var isLocationActive = _this2.UI.mapSearchLocation && _this2.UI.mapSearchLocation.classList.contains('tmjs-map-search__location--active');
+        _this2.UI.modal.querySelector('.tmjs-map-search__clear').classList.toggle('tmjs-map-search__clear--visible', event.target.value.length > 0);
+        if (_this2.UI.mapSearchLocation) {
+          _this2.UI.mapSearchLocation.classList.toggle('tmjs-map-search__location--compact', event.target.value.trim().length > 0 || isLocationActive);
+        }
+        _this2.renderMapSearchResults(event.target.value);
+      });
+      var restoreMapSearchResults = function restoreMapSearchResults() {
+        var searchValue = _this2.UI.mapSearchInput.value.trim();
+        if (searchValue.length >= 3) {
+          _this2.renderMapSearchResults(searchValue);
+        }
+      };
+      this.UI.mapSearchInput.addEventListener('focus', restoreMapSearchResults);
+      this.UI.mapSearchInput.addEventListener('click', restoreMapSearchResults);
+      this.UI.modal.querySelector('.tmjs-map-search__clear').addEventListener('click', function () {
+        _this2.UI.mapSearchInput.value = '';
+        _this2.UI.modal.querySelector('.tmjs-map-search__clear').classList.remove('tmjs-map-search__clear--visible');
+        var isLocationActive = false;
+        if (_this2.UI.mapSearchLocation) {
+          isLocationActive = _this2.UI.mapSearchLocation.classList.contains('tmjs-map-search__location--active');
+          _this2.UI.mapSearchLocation.classList.toggle('tmjs-map-search__location--compact', isLocationActive);
+        }
+        _this2.renderMapSearchResults('');
+        _this2.UI.mapSearchInput.focus();
+      });
+      this.UI.mapSearchReset.addEventListener('click', function () {
+        _this2.clearTerminalSelection();
       });
       this.UI.modal.querySelector('.tmjs-search-btn').addEventListener('click', function (e) {
         e.preventDefault();
@@ -441,8 +522,27 @@ var DOMManipulator = /*#__PURE__*/function () {
       }
       this.bodyOverflow(false);
       this.UI.modal.classList.remove('tmjs-hidden');
+      var selectedTerminalId = this.TMJS.map.getCookieValue('omniva_terminal');
+      var selectedLocation = this.TMJS.map.getLocationById(selectedTerminalId);
+      if (selectedLocation) {
+        this.setActiveTerminal(selectedLocation.id, false, true);
+      }
       this.TMJS.map.zoomMap();
+      this.TMJS.map.openActivePopup();
       this.TMJS.publish('modal-opened', true);
+      if (this.UI.mapSearchLocation) {
+        var isLocationActive = this.UI.mapSearchLocation.classList.contains('tmjs-map-search__location--active');
+        this.UI.mapSearchLocation.classList.toggle('tmjs-map-search__location--compact', this.UI.mapSearchInput.value.trim().length > 0 || isLocationActive);
+        if (this.UI.mapSearchInput.value.trim().length >= 3) {
+          this.renderMapSearchResults(this.UI.mapSearchInput.value);
+        } else {
+          this.UI.mapSearchResults.innerHTML = '';
+          this.UI.mapSearchResults.hidden = true;
+        }
+      }
+      if (this.UI.mapSearchInput) {
+        this.UI.mapSearchInput.focus();
+      }
       return this;
     }
   }, {
@@ -453,6 +553,7 @@ var DOMManipulator = /*#__PURE__*/function () {
       }
       this.bodyOverflow();
       this.UI.modal.classList.add('tmjs-hidden');
+      this.hideMapSearchResults();
       this.TMJS.publish('modal-closed', true);
       return this;
     }
@@ -468,12 +569,45 @@ var DOMManipulator = /*#__PURE__*/function () {
       return target.parentElement ? this.findTerminalElement(target.parentElement) : null;
     }
   }, {
+    key: "setGeolocationButtonState",
+    value: function setGeolocationButtonState(state) {
+      var button = this.UI.mapSearchLocation;
+      if (!button) {
+        return;
+      }
+      var label = button.querySelector('[data-tmjs-string="geolocation_btn"]');
+      if (!label) {
+        return;
+      }
+      if (state === 'loading') {
+        label.textContent = this.TMJS.strings.geolocation_loading || 'Locating...';
+        button.classList.add('tmjs-map-search__location--loading');
+        button.classList.remove('tmjs-map-search__location--compact', 'tmjs-map-search__location--active');
+        button.setAttribute('aria-busy', 'true');
+        button.setAttribute('aria-label', label.textContent);
+        return;
+      }
+      label.textContent = this.TMJS.strings.geolocation_btn;
+      button.classList.remove('tmjs-map-search__location--loading');
+      button.setAttribute('aria-busy', 'false');
+      if (state === 'active') {
+        button.classList.add('tmjs-map-search__location--compact', 'tmjs-map-search__location--active');
+        button.setAttribute('aria-label', this.TMJS.strings.geolocation_btn);
+        return;
+      }
+      button.classList.remove('tmjs-map-search__location--compact', 'tmjs-map-search__location--active');
+      button.setAttribute('aria-label', this.TMJS.strings.geolocation_btn);
+    }
+  }, {
     key: "useGeolocation",
     value: function useGeolocation() {
+      if (this.UI.mapSearchLocation && this.UI.mapSearchLocation.classList.contains('tmjs-map-search__location--loading')) {
+        return;
+      }
       if (!navigator.geolocation) {
-        console.log('Browser doesnt support geolocation');
+        this.geoLocationError();
       } else {
-        //status.textContent = 'Locating…';
+        this.setGeolocationButtonState('loading');
         console.log('Getting coords...');
         this.TMJS.publish('add-search-loader');
         navigator.geolocation.getCurrentPosition(this.geoLocationSuccess.bind(this), this.geoLocationError.bind(this));
@@ -487,14 +621,17 @@ var DOMManipulator = /*#__PURE__*/function () {
         lat: position.coords.latitude,
         lng: position.coords.longitude
       };
+      this.setGeolocationButtonState('active');
       console.log('Your position', referencePoint);
       this.TMJS.map.addReferencePosition(referencePoint);
       this.TMJS.publish('geolocation', referencePoint);
       this.renderTerminalList(this.TMJS.map.addDistance(referencePoint), true);
+      this.renderMapSearchResults('', true);
     }
   }, {
     key: "geoLocationError",
     value: function geoLocationError() {
+      this.setGeolocationButtonState('idle');
       this.UI.modal.querySelector('.tmjs-search-result').innerText = this.TMJS.strings.geolocation_not_supported;
       console.log('wasnt able to retrieve position');
     }
@@ -584,10 +721,156 @@ var DOMManipulator = /*#__PURE__*/function () {
       return this;
     }
   }, {
+    key: "hideMapSearchResults",
+    value: function hideMapSearchResults() {
+      if (!this.UI.mapSearchResults) {
+        return;
+      }
+      this.UI.mapSearchResults.innerHTML = '';
+      this.UI.mapSearchResults.hidden = true;
+    }
+  }, {
+    key: "renderMapSearchResults",
+    value: function renderMapSearchResults(value) {
+      var _this4 = this;
+      var showNearest = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+      var normalizeSearchValue = function normalizeSearchValue(searchValue) {
+        var normalizedValue = String(searchValue || '').trim().toLocaleLowerCase();
+        if (typeof normalizedValue.normalize === 'function') {
+          normalizedValue = normalizedValue.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+        return normalizedValue;
+      };
+      var search = normalizeSearchValue(value);
+      var results = this.UI.mapSearchResults;
+      results.innerHTML = '';
+      results.hidden = !showNearest && search.length < 3;
+      if (!showNearest && search.length < 3) {
+        return;
+      }
+      var filteredLocations = this.TMJS.map.locations.filter(function (location) {
+        if (showNearest) {
+          return typeof location.distance !== 'undefined' && location.distance !== null;
+        }
+        return normalizeSearchValue([location.name, location.address, location.city, location.id].join(' ')).indexOf(search) !== -1;
+      });
+      if (showNearest) {
+        filteredLocations.sort(this.TMJS.map.sortByDistance.bind(this.TMJS.map));
+      }
+      var hasDistances = showNearest || filteredLocations.some(function (location) {
+        return typeof location.distance !== 'undefined' && location.distance !== null;
+      });
+      if (!hasDistances) {
+        // The API city field contains the municipality and county. The visible city is the last part of the address.
+        var getMunicipality = function getMunicipality(location) {
+          var administrativeLocation = String(location.city || '').trim();
+          var municipalityMatch = administrativeLocation.match(/^(.+?\bsav\.)/i);
+          return (municipalityMatch ? municipalityMatch[1] : administrativeLocation).toLocaleLowerCase();
+        };
+        var getVisibleCity = function getVisibleCity(location) {
+          var addressParts = String(location.address || '').split(',');
+          return (addressParts.length > 1 ? addressParts[addressParts.length - 1] : location.city || '').trim().toLocaleLowerCase();
+        };
+        filteredLocations.sort(function (a, b) {
+          var municipalityResult = getMunicipality(a).localeCompare(getMunicipality(b));
+          if (municipalityResult !== 0) {
+            return municipalityResult;
+          }
+          var cityResult = getVisibleCity(a).localeCompare(getVisibleCity(b));
+          if (cityResult !== 0) {
+            return cityResult;
+          }
+          var aName = String(a.name || a.address || '').trim().toLocaleLowerCase();
+          var bName = String(b.name || b.address || '').trim().toLocaleLowerCase();
+          var nameResult = aName.localeCompare(bName);
+          if (nameResult !== 0) {
+            return nameResult;
+          }
+          return String(a.address || '').trim().toLocaleLowerCase().localeCompare(String(b.address || '').trim().toLocaleLowerCase());
+        });
+      }
+      filteredLocations.slice(0, showNearest ? 10 : 20).forEach(function (location) {
+        var item = document.createElement('li');
+        var selectButton = document.createElement('button');
+        var mapButton = document.createElement('button');
+        var distance = document.createElement('span');
+        var terminalIcon = document.createElement('span');
+        var name = document.createElement('span');
+        var address = document.createElement('span');
+        var icon = document.createElement('span');
+        item.className = 'tmjs-map-search__result';
+        selectButton.type = 'button';
+        selectButton.className = 'tmjs-map-search__result-select';
+        mapButton.type = 'button';
+        mapButton.className = 'tmjs-map-search__result-map';
+        mapButton.setAttribute('aria-label', 'Show on map');
+        terminalIcon.className = 'tmjs-map-search__result-terminal-icon';
+        name.className = 'tmjs-map-search__result-name';
+        address.className = 'tmjs-map-search__result-address';
+        icon.className = 'tmjs-map-search__result-icon';
+        name.textContent = location.name || '';
+        address.textContent = [location.address, location.city, location.id].filter(Boolean).join(', ');
+        selectButton.appendChild(terminalIcon);
+        selectButton.appendChild(name);
+        selectButton.appendChild(address);
+        mapButton.appendChild(icon);
+        var hasDistance = typeof location.distance !== 'undefined' && location.distance !== null;
+        if (hasDistance) {
+          distance.className = 'tmjs-terminal-distance tmjs-map-search__result-distance';
+          distance.textContent = location.distance.toFixed(2) + ' km';
+          mapButton.appendChild(distance);
+        } else {
+          mapButton.classList.add('tmjs-map-search__result-map--without-distance');
+          item.classList.add('tmjs-map-search__result--without-distance');
+        }
+        selectButton.addEventListener('click', function (event) {
+          event.stopPropagation();
+          _this4.setActiveTerminal(location.id, false);
+          _this4.TMJS.publish('terminal-selected', location);
+          _this4.UI.mapSearchInput.value = '';
+          if (_this4.UI.mapSearchLocation) {
+            var isLocationActive = _this4.UI.mapSearchLocation.classList.contains('tmjs-map-search__location--active');
+            _this4.UI.mapSearchLocation.classList.toggle('tmjs-map-search__location--compact', isLocationActive);
+          }
+          _this4.renderMapSearchResults('');
+        });
+        mapButton.addEventListener('click', function (event) {
+          event.stopPropagation();
+          _this4.setActiveTerminal(location.id, false, true);
+          var marker = _this4.TMJS.map._dummyMarker || location._marker;
+          var map = _this4.TMJS.map._map;
+          var zoom = Math.min(_this4.TMJS.map.ZOOM_SELECTED + 2, _this4.TMJS.map.ZOOM_MAX);
+          var openPopup = function openPopup() {
+            marker.openPopup();
+          };
+          if (map.getZoom() === zoom && map.getCenter().equals(location.coords)) {
+            openPopup();
+          } else {
+            map.once('moveend', openPopup);
+            map.flyTo(location.coords, zoom, {
+              animate: true,
+              duration: 0.45
+            });
+          }
+          _this4.UI.mapSearchInput.value = '';
+          if (_this4.UI.mapSearchLocation) {
+            var isLocationActive = _this4.UI.mapSearchLocation.classList.contains('tmjs-map-search__location--active');
+            _this4.UI.mapSearchLocation.classList.toggle('tmjs-map-search__location--compact', isLocationActive);
+          }
+          _this4.renderMapSearchResults('');
+        });
+        item.appendChild(selectButton);
+        item.appendChild(mapButton);
+        results.appendChild(item);
+      });
+    }
+  }, {
     key: "setActiveTerminal",
     value: function setActiveTerminal(id) {
       var scrollIntoView = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
-      if (this.TMJS.map.isActive(id)) {
+      var skipMapZoom = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+      var terminalId = id && typeof id === 'object' ? id.id : id;
+      if (this.TMJS.map.isActive(terminalId)) {
         console.log('Allready active');
         if (scrollIntoView) {
           var _location = this.TMJS.map.getActiveLocation();
@@ -595,7 +878,7 @@ var DOMManipulator = /*#__PURE__*/function () {
         }
         return;
       }
-      var location = this.TMJS.map.getLocationById(id);
+      var location = this.TMJS.map.getLocationById(terminalId);
       if (!location) {
         console.log('Location has no List element associated');
         return;
@@ -608,10 +891,10 @@ var DOMManipulator = /*#__PURE__*/function () {
       if (scrollIntoView) {
         this.scrollIntoView(location._li);
       }
-      if (!this.UI.modal.classList.contains('tmjs-hidden')) {
-        this.TMJS.map.zoomToMarker(location._marker);
-      }
       this.TMJS.map.setActiveLocation(location);
+      if (!skipMapZoom && !this.UI.modal.classList.contains('tmjs-hidden')) {
+        this.TMJS.map._map.setView(location.coords, this.TMJS.map.ZOOM_SELECTED);
+      }
     }
   }, {
     key: "scrollIntoView",
@@ -638,9 +921,70 @@ var DOMManipulator = /*#__PURE__*/function () {
     key: "resetSearch",
     value: function resetSearch() {
       this._lastSearchTerm = '';
+      if (this.UI.mapSearchLocation) {
+        this.UI.mapSearchLocation.classList.remove('tmjs-map-search__location--active');
+      }
       this.renderTerminalList(this.TMJS.map.resetDistance(), true);
       this.TMJS.map.removeReferencePosition();
       this.TMJS.publish('reset-search-result');
+    }
+  }, {
+    key: "clearTerminalSelection",
+    value: function clearTerminalSelection() {
+      var ajaxUrl = '';
+      var nonce = '';
+      var blockData = null;
+      document.cookie = 'omniva_terminal=; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; path=/; SameSite=Lax';
+      clearTimeout(this._searchTimeoutId);
+      this._lastSearchTerm = '';
+      this.UI.mapSearchInput.value = '';
+      this.UI.mapSearchResults.innerHTML = '';
+      this.UI.mapSearchResults.hidden = true;
+      if (this.UI.mapSearchLocation) {
+        this.UI.mapSearchLocation.classList.remove('tmjs-map-search__location--compact', 'tmjs-map-search__location--active');
+      }
+      this.UI.modal.querySelector('.tmjs-map-search__clear').classList.remove('tmjs-map-search__clear--visible');
+      var postcodeInput = this.UI.modal.querySelector('.tmjs-search-input');
+      if (postcodeInput) {
+        postcodeInput.value = '';
+      }
+      var selectedFields = document.querySelectorAll('#omnivalt-terminal-select-field, #omnivalt-terminal-selected');
+      selectedFields.forEach(function (selectedField) {
+        selectedField.value = '';
+        selectedField.dispatchEvent(new Event('change', {
+          bubbles: true
+        }));
+      });
+      if (this.TMJS.map && this.TMJS.map._activeLocation && this.TMJS.map._map) {
+        this.TMJS.map._map.fire('click');
+      }
+      if (this.TMJS.map) {
+        this.renderTerminalList(this.TMJS.map.resetDistance(), true);
+        this.TMJS.map.removeReferencePosition();
+      }
+      var selectedTerminal = this.UI.container.querySelector('.tmjs-selected-terminal');
+      if (selectedTerminal) {
+        selectedTerminal.innerText = this.TMJS.strings.select_pickup_point;
+      }
+      if (typeof omnivalt_data !== 'undefined' && omnivalt_data.ajax_url) {
+        ajaxUrl = omnivalt_data.ajax_url;
+        nonce = omnivalt_data.clear_terminal_nonce || '';
+      }
+      if (!ajaxUrl && typeof wcSettings !== 'undefined' && wcSettings['omnivalt-blocks_data']) {
+        blockData = wcSettings['omnivalt-blocks_data'];
+        ajaxUrl = blockData.ajax_url || '';
+        nonce = blockData.clear_terminal_nonce || '';
+      }
+      if (ajaxUrl && nonce && typeof fetch === 'function') {
+        fetch(ajaxUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+          },
+          body: 'action=omnivalt_clear_terminal&nonce=' + encodeURIComponent(nonce)
+        })['catch'](function () {});
+      }
     }
   }, {
     key: "searchNearest",
@@ -756,6 +1100,21 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
 function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
 function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+function escapePopupHtml(value) {
+  var entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(value || '').replace(/[&<>"']/g, function (character) {
+    return entities[character];
+  });
+}
+
+function renderTerminalPopup(location, selectText, selectedText, isSelected) {
+  var addressParts = [location.address, location.city, location.id].filter(function (part) {
+    return part !== null && typeof part !== 'undefined' && String(part).trim() !== '';
+  });
+  var buttonText = isSelected ? selectedText || 'Selected' : selectText;
+  var disabledAttribute = isSelected ? ' disabled' : '';
+  return '<div class="om-popup-floating" data-testid="service_point_popup"><div><div class="om-d-flex om-flex-row om-align-items-start om-justify-content-between"><h2 class="om-body-md-bold om-my-auto">' + escapePopupHtml(location.name) + '</h2><button type="button" class="omniva-terminal-popup__close om-icon ico-close" aria-label="Close"></button></div><div class="om-d-flex om-flex-row om-align-items-start om-mt-3 om-mb-5"><span class="om-me-3 om-icon ico-location-pin om-flex-shrink-0" aria-hidden="true"></span><span class="om-gray-color om-body-base">' + escapePopupHtml(addressParts.join(', ')) + '</span></div></div><button class="omniva-terminal-popup__select om-my-2 om-btn btn-sm btn-primary om-full-width" type="button"' + disabledAttribute + ' data-terminal-id="' + escapePopupHtml(location.id) + '">' + escapePopupHtml(buttonText) + '</button></div>';
+}
 var Map = /*#__PURE__*/function () {
   function Map(root, TMJS) {
     _classCallCheck(this, Map);
@@ -847,6 +1206,9 @@ var Map = /*#__PURE__*/function () {
       this.locations.forEach(function (terminal) {
         //terminal._marker.options.icon = this.getIcon(terminal.identifier);
         terminal._marker.setIcon(_this2.getIcon(terminal.identifier));
+        if (terminal._marker._icon && terminal.identifier !== 'reference') {
+          terminal._marker._icon.classList.add('tmjs-terminal-marker');
+        }
         if (_this2._map.hasLayer(terminal._marker)) {
           console.log('Found visible marker');
           // terminal._marker.refreshIconOptions();
@@ -855,12 +1217,16 @@ var Map = /*#__PURE__*/function () {
 
       if (this._dummyMarker && this._activeLocation) {
         this._dummyMarker.setIcon(this.getIcon(this._activeLocation.identifier));
+        if (this._dummyMarker._icon) {
+          this._dummyMarker._icon.classList.add('tmjs-terminal-marker');
+        }
       }
       this.updateActiveMarkerClass();
     }
   }, {
     key: "setupLeafletMap",
     value: function setupLeafletMap(rootEl) {
+      var _this3 = this;
       this._map = L.map(rootEl, {
         zoomControl: false,
         minZoom: this.ZOOM_MIN,
@@ -874,13 +1240,64 @@ var Map = /*#__PURE__*/function () {
         attribution: this._attribution
       }).addTo(this._map);
       this._markerLayer = L.markerClusterGroup({
+        showCoverageOnHover: false,
         //zoomToBoundsOnClick: false
       });
       this._activeMarkerLayer = L.markerClusterGroup({
+        showCoverageOnHover: false,
         //zoomToBoundsOnClick: false
       });
       this._map.addLayer(this._markerLayer);
       this._map.addLayer(this._activeMarkerLayer);
+      this._map.on('click', function (event) {
+        if (_this3.TMJS.dom && typeof _this3.TMJS.dom.hideMapSearchResults === 'function') {
+          _this3.TMJS.dom.hideMapSearchResults();
+        }
+        // MarkerClusterGroup propagates marker clicks to the map. They must not
+        // be handled as clicks on the map background, otherwise the popup is closed.
+        var clickedLayer = event.layer || event.propagatedFrom;
+        if (clickedLayer && clickedLayer.options && typeof clickedLayer.options.terminalId !== 'undefined') {
+          return;
+        }
+        if (!_this3._activeLocation) {
+          return;
+        }
+        var activeLocation = _this3._activeLocation;
+        if (activeLocation._li) {
+          activeLocation._li.classList.remove('tmjs-active');
+        }
+        if (activeLocation._marker && activeLocation._marker._icon) {
+          activeLocation._marker._icon.classList.remove('tmjs-active-marker-hidden', 'tmjs-active-marker');
+          _this3._markerLayer.addLayer(activeLocation._marker);
+        }
+        if (_this3._dummyMarker) {
+          _this3._map.removeLayer(_this3._dummyMarker);
+          _this3._dummyMarker = null;
+        }
+        _this3._activeMarkerLayer.clearLayers();
+        _this3._activeLocation = null;
+        _this3._map.closePopup();
+      });
+      this._map.on('popupopen', function (event) {
+        var popupElement = event.popup.getElement();
+        var location = event.popup._source && _this3.getLocationById(event.popup._source.options.terminalId);
+        if (!popupElement || !location) {
+          return;
+        }
+        var closeButton = popupElement.querySelector('.omniva-terminal-popup__close');
+        var selectButton = popupElement.querySelector('.omniva-terminal-popup__select');
+        if (closeButton) {
+          closeButton.addEventListener('click', function () {
+            _this3._map.closePopup(event.popup);
+          });
+        }
+        if (selectButton) {
+          selectButton.addEventListener('click', function () {
+            _this3.TMJS.dom.setActiveTerminal(location.id, false);
+            _this3.TMJS.publish('terminal-selected', location);
+          });
+        }
+      });
       if (!this.TMJS.dom.isModal) {
         this._map.setView(this._defaultMapPos, this.ZOOM_DEFAULT);
       }
@@ -924,12 +1341,18 @@ var Map = /*#__PURE__*/function () {
     value: function addMarker(latLong, id) {
       var identifier = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
       var className = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
-      return L.marker(latLong, {
+      var marker = L.marker(latLong, {
         icon: this.getIcon(identifier),
         terminalId: id,
         tmjs_map: this,
         className: className
       }).bindPopup(this.markerPopUpInfo);
+      marker.on('add', function () {
+        if (marker._icon && identifier !== 'reference') {
+          marker._icon.classList.add('tmjs-terminal-marker');
+        }
+      });
+      return marker;
     }
 
     /**
@@ -942,13 +1365,10 @@ var Map = /*#__PURE__*/function () {
       var defaultText = '';
       if (typeof e.options.terminalId !== 'undefined') {
         var location = e.options.tmjs_map.getLocationById(e.options.terminalId);
-        if (typeof e.options.tmjs_map.TMJS.parseMapTooltip === 'function') {
-          return e.options.tmjs_map.TMJS.parseMapTooltip(location, e.getLatLng());
-        }
         if (location) {
-          var text = location.comment ? location.comment : location.address;
-          var distance = location.distance ? " ( ".concat(location.distance.toFixed(2), " km )") : '';
-          return "".concat(text, " [ ").concat(e.options.terminalId, " ]").concat(distance);
+          var selectedTerminalId = e.options.tmjs_map.getCookieValue('omniva_terminal');
+          var isSelected = selectedTerminalId ? selectedTerminalId === String(location.id) : e.options.tmjs_map.isActive(location.id);
+          return renderTerminalPopup(location, e.options.tmjs_map.TMJS.strings.select_btn, e.options.tmjs_map.TMJS.strings.selected_btn, isSelected);
         }
         defaultText = e.options.terminalId + '<br/>';
       }
@@ -996,12 +1416,12 @@ var Map = /*#__PURE__*/function () {
       });
       this._markerLayer.addLayers(markers);
       this._activeMarkerLayer.on('click', function (e) {
-        _this3._map.setView(e.layer.getLatLng(), _this3._map.getZoom());
-        _this3.TMJS.dom.setActiveTerminal(e.layer.options.terminalId);
+          _this3._map.setView(e.layer.getLatLng(), _this3._map.getZoom());
+        _this3.TMJS.dom.setActiveTerminal(e.layer.options.terminalId, false, true);
       });
       this._markerLayer.on('click', function (e) {
-        _this3._map.setView(e.layer.getLatLng(), _this3._map.getZoom());
-        _this3.TMJS.dom.setActiveTerminal(e.layer.options.terminalId);
+          _this3._map.setView(e.layer.getLatLng(), _this3._map.getZoom());
+        _this3.TMJS.dom.setActiveTerminal(e.layer.options.terminalId, false, true);
       });
       this._markerLayer.on('animationend', function (e) {
         _this3.updateActiveMarkerClass();
@@ -1017,6 +1437,7 @@ var Map = /*#__PURE__*/function () {
       if (this._dummyMarker && this._dummyMarker._icon) {
         // there is dummy with icon
         this._dummyMarker._icon.classList.add('tmjs-active-marker');
+        this._dummyMarker._icon.classList.add('tmjs-terminal-marker');
       }
       // hide marker in general layer
       if (this._activeLocation && this._activeLocation._marker._icon) {
@@ -1042,6 +1463,10 @@ var Map = /*#__PURE__*/function () {
     value: function zoomMap() {
       if (this._activeLocation) {
         this._map.setView(this._activeLocation.coords, this.ZOOM_MAX);
+        return;
+      }
+      if (this._referenceMarker && this._map.hasLayer(this._referenceMarker)) {
+        this._map.setView(this._referenceMarker.getLatLng(), this.ZOOM_SELECTED);
         return;
       }
       this._map.setView(this._defaultMapPos, this.ZOOM_DEFAULT);
@@ -1091,11 +1516,11 @@ var Map = /*#__PURE__*/function () {
   }, {
     key: "getLocationById",
     value: function getLocationById(id) {
-      if (!this.locations) {
+      if (!this.locations || id === null || typeof id === 'undefined' || id === '') {
         return undefined;
       }
       return this.locations.find(function (loc) {
-        return loc.id === id;
+        return String(loc.id) === String(id);
       });
     }
   }, {
@@ -1104,7 +1529,7 @@ var Map = /*#__PURE__*/function () {
       this.locations.forEach(function (loc) {
         loc.distance = null;
       });
-      this.locations.sort(this.sortByCity);
+      this.locations.sort(this.sortByCity.bind(this));
       return this.locations;
     }
   }, {
@@ -1146,6 +1571,45 @@ var Map = /*#__PURE__*/function () {
     key: "isActive",
     value: function isActive(id) {
       return this._activeLocation && this._activeLocation.id == id;
+    }
+  }, {
+    key: "getCookieValue",
+    value: function getCookieValue(name) {
+      if (typeof document === 'undefined' || !document.cookie) {
+        return '';
+      }
+      var cookiePrefix = name + '=';
+      var cookies = document.cookie.split(';');
+      for (var index = 0; index < cookies.length; index++) {
+        var cookie = cookies[index].replace(/^\s+/, '');
+        if (cookie.indexOf(cookiePrefix) !== 0) {
+          continue;
+        }
+        var value = cookie.substring(cookiePrefix.length);
+        try {
+          return decodeURIComponent(value);
+        } catch (error) {
+          return value;
+        }
+      }
+      return '';
+    }
+  }, {
+    key: "openActivePopup",
+    value: function openActivePopup() {
+      var marker = this._dummyMarker || (this._activeLocation && this._activeLocation._marker);
+      if (!marker) {
+        return;
+      }
+      var map = this._map;
+      var openPopup = function openPopup() {
+        marker.openPopup();
+      };
+      if (map.getZoom() === this.ZOOM_MAX && map.getCenter().equals(marker.getLatLng())) {
+        openPopup();
+        return;
+      }
+      map.once('moveend', openPopup);
     }
   }, {
     key: "getActiveLocation",
@@ -1271,36 +1735,42 @@ var TerminalMapping = /*#__PURE__*/function () {
     this.containerId = 'tmjs_' + (0,_modules_Tools_js__WEBPACK_IMPORTED_MODULE_4__.generateId)();
 
     // Default strings and proxy to detect changes
-    this.strings = new Proxy({
-      modal_header: 'Terminal map',
-      terminal_list_header: 'Terminal list',
-      seach_header: 'Search around',
-      search_btn: 'Find',
-      modal_open_btn: 'Select terminal',
-      geolocation_btn: 'Use my location',
-      your_position: 'Distance calculated from this point',
-      nothing_found: 'Nothing found',
-      no_cities_found: 'There were no cities found for your search term',
-      geolocation_not_supported: 'Geolocation is not supported',
-      select_pickup_point: 'Select a pickup point',
-      // Unused strings
-      search_placeholder: 'Enter postcode/address',
-      workhours_header: 'Workhours',
-      contacts_header: 'Contacts',
-      no_pickup_points: 'No points to select',
-      select_btn: 'select',
-      back_to_list_btn: 'reset search',
-      no_information: 'No information'
-    }, {
-      set: function set(obj, prop, value) {
-        // update DOM
-        _this.dom.updateString(prop, value);
+    this.strings = new Proxy(
+      {
+        modal_header: 'Terminal map',
+        delivery_location: 'Delivery location',
+        terminal_list_header: 'Terminal list',
+        seach_header: 'Search around',
+        search_btn: 'Find',
+        modal_open_btn: 'Select terminal',
+        geolocation_btn: 'Use my location',
+        geolocation_loading: 'Locating...',
+        your_position: 'Distance calculated from this point',
+        nothing_found: 'Nothing found',
+        no_cities_found: 'There were no cities found for your search term',
+        geolocation_not_supported: 'Geolocation is not supported',
+        select_pickup_point: 'Select a pickup point',
+        // Unused strings
+        search_placeholder: 'Start typing parcel machine name or address',
+        workhours_header: 'Workhours',
+        contacts_header: 'Contacts',
+        no_pickup_points: 'No points to select',
+        select_btn: 'select',
+        back_to_list_btn: 'reset search',
+        no_information: 'No information',
+        selected_btn: 'Selected',
+      },
+      {
+        set: function set(obj, prop, value) {
+          // update DOM
+          _this.dom.updateString(prop, value);
 
-        // default functionality
-        obj[prop] = value;
-        return true;
+          // default functionality
+          obj[prop] = value;
+          return true;
+        },
       }
-    });
+    );
     this.subscribers = {};
     this.depend = new _modules_DependencyCheck_js__WEBPACK_IMPORTED_MODULE_1__.DependencyCheck(this);
     this.dom = new _modules_DOMManipulator_js__WEBPACK_IMPORTED_MODULE_2__.DOMManipulator(this);
@@ -1364,8 +1834,8 @@ var TerminalMapping = /*#__PURE__*/function () {
         this.dom.setModalParent(modalParent);
       }
       console.info(this.prefix + 'Initializing Terminal Mapping');
-      this.dom.addOverlay();
       this.dom.addContainer(this.containerId, this.strings);
+      this.dom.addOverlay(this.dom.UI.modal);
       // load check for leaflet and plugins first
       this.depend.loadLeaflet(function () {
         _this2.map = new _modules_Map_js__WEBPACK_IMPORTED_MODULE_3__.Map(_this2.dom.UI.map, _this2);
