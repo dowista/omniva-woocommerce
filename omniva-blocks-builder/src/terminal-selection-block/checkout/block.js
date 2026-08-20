@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { useEffect, useState, useCallback, useRef } from '@wordpress/element';
+import { createPortal, useEffect, useState, useCallback, useRef } from '@wordpress/element';
 import { SelectControl, TextareaControl, Icon } from '@wordpress/components';
 import { warning } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
@@ -27,6 +27,50 @@ const getSavedTerminal = ( extensions ) => {
     return extensions && extensions.omnivalt
         ? extensions.omnivalt.selected_terminal || ''
         : '';
+};
+
+const getShippingRatePortalTarget = ( rateId ) => {
+    const shippingRatesControl = document.querySelector(
+        '.wc-block-components-shipping-rates-control'
+    );
+
+    if ( ! shippingRatesControl ) {
+        return null;
+    }
+
+    const rateInputs = shippingRatesControl.querySelectorAll(
+        'input[type="radio"]'
+    );
+
+    for ( let i = 0; i < rateInputs.length; i++ ) {
+        if ( rateInputs[i].value !== rateId ) {
+            continue;
+        }
+
+        const rateOption = rateInputs[i].closest(
+            '.wc-block-components-radio-control__option'
+        ) || rateInputs[i].closest('label');
+
+        if ( rateOption && rateOption.parentElement ) {
+            return {
+                parent: rateOption.parentElement,
+                sibling: rateOption,
+            };
+        }
+    }
+
+    const ratePackage = shippingRatesControl.querySelector(
+        '.wc-block-components-shipping-rates-control__package'
+    );
+
+    if ( ratePackage ) {
+        return {
+            parent: ratePackage,
+            sibling: ratePackage.lastElementChild,
+        };
+    }
+
+    return null;
 };
 
 export const Block = ({ checkoutExtensionData, extensions }) => {
@@ -62,6 +106,8 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
     });
     const elemTerminalSelectField = useRef(null);
     const elemMapContainer = useRef(null);
+    const terminalPortalTarget = useRef(null);
+    const [portalTarget, setPortalTarget] = useState(null);
     const hasRestoredTerminal = useRef(false);
     const map = loadMap();
     const customSelect = loadCustomSelect();
@@ -408,11 +454,86 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         selectedRateId
     ]);
 
+    useEffect(() => {
+        const removePortalTarget = () => {
+            if ( terminalPortalTarget.current ) {
+                terminalPortalTarget.current.remove();
+                terminalPortalTarget.current = null;
+            }
+
+            setPortalTarget(null);
+        };
+
+        if ( ! showBlock.value || selectedRateId === '' ) {
+            removePortalTarget();
+            return undefined;
+        }
+
+        const placePortalTarget = () => {
+            const target = getShippingRatePortalTarget(selectedRateId);
+            const currentTarget = terminalPortalTarget.current;
+
+            if (
+                currentTarget &&
+                currentTarget.isConnected &&
+                currentTarget.dataset.rateId === selectedRateId
+            ) {
+                return;
+            }
+
+            if ( currentTarget ) {
+                currentTarget.remove();
+            }
+
+            if ( ! target ) {
+                terminalPortalTarget.current = null;
+                setPortalTarget(null);
+                return;
+            }
+
+            const newPortalTarget = document.createElement('div');
+            newPortalTarget.className = 'omnivalt-terminal-portal';
+            newPortalTarget.dataset.rateId = selectedRateId;
+
+            if ( target.sibling && target.sibling.nextSibling ) {
+                target.parent.insertBefore(newPortalTarget, target.sibling.nextSibling);
+            } else {
+                target.parent.appendChild(newPortalTarget);
+            }
+
+            terminalPortalTarget.current = newPortalTarget;
+            setPortalTarget(newPortalTarget);
+        };
+
+        placePortalTarget();
+
+        const observer = new MutationObserver(placePortalTarget);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+
+        return () => {
+            observer.disconnect();
+            removePortalTarget();
+        };
+    }, [
+        selectedRateId,
+        showBlock.value
+    ]);
+
     if ( ! isOmnivaMethod(selectedRateId) ) {
         return null;
     }
 
-    return (
+    const isTerminalRate = isOmnivaTerminalMethod(selectedRateId);
+    const hasPortalTarget = portalTarget && portalTarget.isConnected;
+
+    if ( isTerminalRate && ! hasPortalTarget ) {
+        return null;
+    }
+
+    const blockContent = (
         <div className="omnivalt-container">
             <div className="omnivalt-general-errors">
                 {(phoneValidationError && !phoneValidationError.hidden) && (
@@ -445,4 +566,10 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             )}
         </div>
     );
+
+    if ( isTerminalRate && hasPortalTarget ) {
+        return createPortal(blockContent, portalTarget);
+    }
+
+    return blockContent;
 };

@@ -8,6 +8,86 @@ const markSelectControlValue = ( selectElem, value ) => {
     selectElem.dispatchEvent(event);
 };
 
+const renderSelectedTerminal = ( map, location ) => {
+    if ( ! map.elements.map_container || ! location ) {
+        return;
+    }
+
+    const selectedTerminal = map.elements.map_container.querySelector('.tmjs-selected-terminal');
+
+    if ( ! selectedTerminal ) {
+        return;
+    }
+
+    const primaryText = String(location.name || location.address || location.city || '').trim();
+    const secondaryText = [location.address, location.city]
+        .map(value => value == null ? '' : String(value).trim())
+        .filter(value => value !== '')
+        .join(', ');
+
+    selectedTerminal.textContent = '';
+
+    const primary = document.createElement('span');
+    primary.className = 'tmjs-selected-primary';
+    primary.textContent = primaryText;
+    selectedTerminal.appendChild(primary);
+
+    if ( secondaryText && secondaryText !== primaryText ) {
+        const secondary = document.createElement('span');
+        secondary.className = 'tmjs-selected-secondary';
+        secondary.textContent = secondaryText;
+        selectedTerminal.appendChild(secondary);
+    }
+};
+
+const syncSelectedTerminalState = ( map ) => {
+    if ( ! map.elements.map_container ) {
+        return;
+    }
+
+    const selectedTerminal = map.elements.map_container.querySelector('.tmjs-selected-terminal');
+    const openButton = map.elements.map_container.querySelector('.tmjs-open-modal-btn');
+    const hasSelection = Boolean(
+        selectedTerminal && selectedTerminal.querySelector('.tmjs-selected-primary')
+    );
+
+    if ( selectedTerminal ) {
+        selectedTerminal.classList.toggle('tmjs-terminal-selected', hasSelection);
+    }
+
+    if ( openButton ) {
+        openButton.textContent = hasSelection
+            ? (txt.map.change_button || txt.map.modal_open_button)
+            : txt.map.modal_open_button;
+    }
+};
+
+const observeSelectedTerminal = ( map ) => {
+    if ( ! map.elements.map_container ) {
+        return;
+    }
+
+    if ( map.selectionObserver ) {
+        map.selectionObserver.disconnect();
+    }
+
+    const selectedTerminal = map.elements.map_container.querySelector('.tmjs-selected-terminal');
+
+    if ( ! selectedTerminal ) {
+        return;
+    }
+
+    map.selectionObserver = new MutationObserver(() => syncSelectedTerminalState(map));
+    map.selectionObserver.observe(selectedTerminal, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+    });
+    map.elements.map_container._omnivaltTerminalSelectionObserver = map.selectionObserver;
+
+    syncSelectedTerminalState(map);
+};
+
 export const getTerminalsByCountry = ( country, type ) => {
     return fetch(`${getOmnivaData().ajax_url}?action=omnivalt_get_terminals&country=${country}&type=${type}`, {
         method: 'GET',
@@ -32,6 +112,7 @@ export const loadMap = () => {
         variables: {
             allow_close_modal: true
         },
+        selectionObserver: null,
 
         load_data: function ( params ) {
             this.elements = {
@@ -48,6 +129,18 @@ export const loadMap = () => {
                 //show_map: getOmnivaData().show_map,
                 map_icon: this.set_param(params, 'map_icon', 'omnivalt_icon.png')
             };
+
+            if ( this.elements.map_container ) {
+                this.elements.map_container.style.setProperty(
+                    '--omnivalt-terminal-location-icon',
+                    `url("${this.params.icons_url}location.svg")`
+                );
+                this.elements.map_container.style.setProperty(
+                    '--omnivalt-terminal-icon',
+                    `url("${this.params.icons_url}terminal.svg")`
+                );
+            }
+
             const modal_header = (this.params.terminals_type == 'post') ? txt.map.modal_title_post : txt.map.modal_title_terminal;
             const provider = (this.params.provider in txt.providers) ? txt.providers[this.params.provider] : txt.providers.omniva;
             this.translations = {
@@ -106,6 +199,8 @@ export const loadMap = () => {
                 customTileAttribution: '&copy; <a href="https://www.omniva.lt">Omniva</a>' + ' | Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
                 terminalList: terminals,
             });
+
+            observeSelectedTerminal(this);
         },
 
         build_actions: function( thisMap ) {
@@ -131,6 +226,11 @@ export const loadMap = () => {
                     thisMap.lib.publish("close-map-modal");
                 }
                 thisMap.variables.allow_close_modal = true;
+            });
+
+            this.lib.sub('terminal-selected', function( data ) {
+                renderSelectedTerminal(thisMap, data);
+                syncSelectedTerminalState(thisMap);
             });
         },
 
@@ -163,6 +263,11 @@ export const loadMap = () => {
 };
 
 export const removeMap = ( mapContainer ) => {
+    if ( mapContainer && mapContainer._omnivaltTerminalSelectionObserver ) {
+        mapContainer._omnivaltTerminalSelectionObserver.disconnect();
+        mapContainer._omnivaltTerminalSelectionObserver = null;
+    }
+
     while ( mapContainer.firstChild ) {
         mapContainer.removeChild(mapContainer.lastChild);
     }

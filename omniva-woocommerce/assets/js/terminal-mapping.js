@@ -1743,20 +1743,7 @@ var Map = /*#__PURE__*/function () {
         if (!_this3._activeLocation) {
           return;
         }
-        var activeLocation = _this3._activeLocation;
-        if (activeLocation._li) {
-          activeLocation._li.classList.remove('tmjs-active');
-        }
-        if (activeLocation._marker && activeLocation._marker._icon) {
-          activeLocation._marker._icon.classList.remove('tmjs-active-marker-hidden', 'tmjs-active-marker');
-          _this3._markerLayer.addLayer(activeLocation._marker);
-        }
-        if (_this3._dummyMarker) {
-          _this3._map.removeLayer(_this3._dummyMarker);
-          _this3._dummyMarker = null;
-        }
-        _this3._activeMarkerLayer.clearLayers();
-        _this3._activeLocation = null;
+        _this3.clearActiveLocation();
         _this3._map.closePopup();
       });
       this._map.on('popupopen', function (event) {
@@ -1778,6 +1765,14 @@ var Map = /*#__PURE__*/function () {
             _this3.TMJS.publish('terminal-selected', location);
           });
         }
+      });
+      this._map.on('popupclose', function (event) {
+        var popupSource = event.popup && event.popup._source;
+        var activeLocation = _this3._activeLocation;
+        if (!popupSource || !activeLocation || !popupSource.options || typeof popupSource.options.terminalId === 'undefined' || String(popupSource.options.terminalId) !== String(activeLocation.id)) {
+          return;
+        }
+        _this3.clearActiveLocation();
       });
       if (!this.TMJS.dom.isModal) {
         this._map.setView(this._defaultMapPos, this.ZOOM_DEFAULT);
@@ -1931,6 +1926,38 @@ var Map = /*#__PURE__*/function () {
       if (this._activeLocation && this._activeLocation._marker._icon) {
         this._activeLocation._marker._icon.classList.add('tmjs-active-marker-hidden');
       }
+    }
+  }, {
+    key: "clearActiveLocation",
+    value: function clearActiveLocation() {
+      if (!this._activeLocation) {
+        return;
+      }
+      var activeLocation = this._activeLocation;
+      if (activeLocation._li) {
+        activeLocation._li.classList.remove('tmjs-active');
+      }
+      if (this._activeMarkerLayer) {
+        this._activeMarkerLayer.clearLayers();
+      }
+      if (this._dummyMarker) {
+        if (this._map && this._map.hasLayer(this._dummyMarker)) {
+          this._map.removeLayer(this._dummyMarker);
+        }
+        this._dummyMarker = null;
+      }
+      if (activeLocation._marker) {
+        if (activeLocation._marker._icon) {
+          activeLocation._marker._icon.classList.remove('tmjs-active-marker-hidden', 'tmjs-active-marker');
+        }
+        if (this._markerLayer && !this._markerLayer.hasLayer(activeLocation._marker)) {
+          this._markerLayer.addLayer(activeLocation._marker);
+        }
+        if (this._markerLayer && typeof this._markerLayer.refreshClusters === 'function') {
+          this._markerLayer.refreshClusters(activeLocation._marker);
+        }
+      }
+      this._activeLocation = null;
     }
   }, {
     key: "setActiveLocation",

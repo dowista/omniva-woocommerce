@@ -261,3 +261,143 @@
 .provider-matkahuolto .omnivalt-terminals-list .show-more a:hover {
   color: var(--omnivalt-blocks-matkahuolto-color-main);
 }
+.omnivalt-terminal-portal,
+.omnivalt-terminal-select-container,
+.omnivalt-map-select {
+  width: 100%;
+}
+.omnivalt-terminal-select-container {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.omnivalt-terminal-select-container .omnivalt-map-select {
+  order: 1;
+}
+.omnivalt-terminal-select-container .omnivalt-org-select {
+  order: 2;
+  position: relative;
+}
+.omnivalt-terminal-select-container
+  .omnivalt-org-select
+  > .components-base-control {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+.omnivalt-terminal-select-container .omnivalt-terminal-error {
+  margin: 12px 24px 0;
+}
+.omnivalt-map-select .tmjs-container {
+  align-items: center;
+  background: #fafafa;
+  border-bottom: 1px solid #dedede;
+  border-top: 1px solid #dedede;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  min-height: 88px;
+  padding: 20px 13px;
+  width: 100%;
+}
+.omnivalt-map-select .tmjs-container .tmjs-selected-terminal {
+  align-items: center;
+  color: #0d0d0d;
+  display: flex;
+  flex: 1 1 auto;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.35;
+  min-width: 0;
+  padding: 0;
+}
+.omnivalt-map-select .tmjs-container .tmjs-selected-terminal::before {
+  background-image: var(--omnivalt-terminal-location-icon);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: '';
+  filter: brightness(0);
+  flex: 0 0 28px;
+  height: 28px;
+  margin-right: 14px;
+  width: 28px;
+}
+.omnivalt-map-select
+  .tmjs-container
+  .tmjs-selected-terminal.tmjs-terminal-selected {
+  align-items: start;
+  display: grid;
+  grid-template-columns: 35px minmax(0, 1fr);
+}
+.omnivalt-map-select .tmjs-container .tmjs-terminal-selected::before {
+  align-self: center;
+  background-image: var(--omnivalt-terminal-icon);
+  grid-row: 1 / span 2;
+  margin-right: 0;
+}
+.omnivalt-map-select .tmjs-container .tmjs-selected-primary,
+.omnivalt-map-select .tmjs-container .tmjs-selected-secondary {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omnivalt-map-select .tmjs-container .tmjs-selected-primary {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.omnivalt-map-select .tmjs-container .tmjs-selected-secondary {
+  color: #3f3f3f;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+.omnivalt-map-select .tmjs-container .tmjs-open-modal-btn {
+  align-items: center;
+  background: #ffbc01 !important;
+  border: 1px solid #ffbc01 !important;
+  border-radius: 999px;
+  color: #0d0d0d !important;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 16px;
+  font-weight: 600;
+  justify-content: center;
+  line-height: 1.25;
+  min-height: 42px;
+  padding: 10px 20px;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+.omnivalt-map-select .tmjs-container .tmjs-open-modal-btn:hover,
+.omnivalt-map-select .tmjs-container .tmjs-open-modal-btn:focus {
+  background: #ffebb2 !important;
+  border-color: #ffebb2 !important;
+  color: #0d0d0d !important;
+  text-decoration: none !important;
+}
+.omnivalt-map-select .tmjs-container .tmjs-open-modal-btn:focus-visible {
+  outline: 2px solid #0d0d0d;
+  outline-offset: 2px;
+}
+@media only screen and (max-width: 600px) {
+  .omnivalt-map-select .tmjs-container {
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 18px 16px;
+  }
+  .omnivalt-map-select .tmjs-container .tmjs-open-modal-btn {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
