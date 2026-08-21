@@ -15,6 +15,7 @@ jQuery(function($) {
     var $internationalGroup = $groups.filter(function() {
       return $(this).attr('data-method-key') === 'international';
     });
+    var destinationIndex = 0;
 
     $source.find('.prices_box').each(function() {
       var $sourceBox = $(this);
@@ -40,6 +41,7 @@ jQuery(function($) {
         }
 
         var $list = $group.find('[data-method-country-list]').first();
+        var $tabs = $group.find('[data-method-country-tabs]').first();
         var $destination = $list.children('[data-omniva-destination]').filter(function() {
           return $(this).attr('data-destination-type') === destinationType
             && $(this).attr('data-destination-key') === destinationKey;
@@ -53,26 +55,50 @@ jQuery(function($) {
             $destinationBox.attr('data-plan', destinationKey);
           }
 
-          var $destinationHeader = $('<div class="omniva-delivery-country__header"></div>');
-          var $destinationTitle = $('<div class="omniva-delivery-country__title"></div>');
+          destinationIndex += 1;
+          var destinationId = 'omniva-delivery-country-' + destinationIndex;
+          var destinationTabId = destinationId + '-tab';
+          var $destinationTab = $('<div class="omniva-delivery-country-tab" data-omniva-country-tab role="presentation"></div>');
+          var $destinationButton = $('<button type="button" class="omniva-delivery-country-tab__button" role="tab" aria-selected="false"></button>');
+          var $destinationTitle = $('<span class="omniva-delivery-country-tab__title"></span>');
           if (imageSource) {
             $destinationTitle.append(
               $('<img class="omniva-delivery-country__flag" alt="">').attr('src', imageSource)
             );
           }
           $destinationTitle.append($('<span></span>').text(destinationTitle));
-          $destinationHeader.append($destinationTitle);
-          if (destinationType === 'country' || destinationType === 'plan') {
-            $destinationHeader.append('<div class="omniva-delivery-country__toggle"></div>');
+          $destinationButton.append($destinationTitle);
+          $destinationButton.attr('id', destinationTabId);
+          var $destinationToggle = $('<span class="omniva-delivery-country-tab__toggle" data-omniva-country-toggle-wrap></span>');
+          $destinationTab.append($destinationButton, $destinationToggle).appendTo($tabs);
+
+          var $destinationHeader = $('<div class="omniva-delivery-country__header omniva-delivery-country__destination-header"></div>');
+          var $destinationHeaderTitle = $('<span class="omniva-delivery-country__title"></span>');
+          if (imageSource) {
+            $destinationHeaderTitle.append(
+              $('<img class="omniva-delivery-country__flag" alt="">').attr('src', imageSource)
+            );
           }
+          $destinationHeaderTitle.append($('<span></span>').text(destinationTitle));
+          $destinationHeader.append($destinationHeaderTitle);
 
           var $destinationBody = $('<div class="omniva-delivery-country__body" data-destination-body></div>');
           $destinationBox.append($destinationHeader, $destinationBody);
-          $destination = $('<table class="form-table omniva-settings omniva-delivery-country" data-omniva-destination><tbody><tr><td></td></tr></tbody></table>')
+          $destination = $('<table class="form-table omniva-settings omniva-delivery-country" data-omniva-destination role="tabpanel"><tbody><tr><td></td></tr></tbody></table>')
+            .attr('id', destinationId)
+            .attr('aria-labelledby', destinationTabId)
+            .attr('aria-hidden', 'true')
+            .attr('hidden', 'hidden')
             .attr('data-destination-type', destinationType)
             .attr('data-destination-key', destinationKey)
             .appendTo($list);
           $destination.find('td').append($destinationBox);
+          $destination.data('omniva-destination-tab', $destinationTab);
+          $destinationTab.data('omniva-destination', $destination);
+          $destinationButton.data('omniva-destination', $destination);
+          $destinationButton.on('click', function() {
+            activateDestination($(this).data('omniva-destination'));
+          });
 
           if (destinationType === 'plan') {
             var $planToggle = $('<div class="switcher" title=""></div>');
@@ -81,9 +107,12 @@ jQuery(function($) {
             $planToggleLabel.append($planToggleInput, '<span class="slider round"></span>');
             $planToggle.append($planToggleLabel);
             $planToggle.attr('title', destinationTitle);
-            $destination.find('.omniva-delivery-country__toggle').append($planToggle);
+            $planToggleInput.data('omniva-destination', $destination);
+            $destinationToggle.append($planToggle);
           }
         }
+
+        $destinationTab = $destination.data('omniva-destination-tab');
 
         $block.appendTo($destination.find('[data-destination-body]'));
 
@@ -95,9 +124,10 @@ jQuery(function($) {
             .attr('data-omniva-country-toggle', 'true')
             .attr('aria-label', $.trim($methodLabel.text()) || destinationTitle);
           $block.data('omniva-country-toggle', $countryToggle);
+          $countryToggle.data('omniva-destination', $destination);
 
           if (destinationType === 'country') {
-            $destination.find('.omniva-delivery-country__toggle').append($switcher);
+            $destinationTab.find('[data-omniva-country-toggle-wrap]').append($switcher);
             $methodLabel.remove();
             $block.find('.sec-title').remove();
           } else {
@@ -120,13 +150,29 @@ jQuery(function($) {
       window.setTimeout(refreshShippingMethodsLayout, 0);
     });
     $('#omnivalt-settings-root').on('change', 'input[data-omniva-country-toggle]', function() {
-      var $destination = $(this).closest('[data-omniva-destination]');
+      var $destination = getDestinationForControl($(this));
+
+      if (!$destination.length) {
+        return;
+      }
+
       $destination.find('.block-prices[data-method]').each(function() {
         updateCountryBlock($(this), false);
       });
+
+      if ($(this).is(':checked')) {
+        activateDestination($destination);
+      } else {
+        refreshDestinationTabs($destination.closest('[data-omniva-method-group]'));
+      }
     });
     $('#omnivalt-settings-root').on('change', 'input[data-omniva-destination-toggle]', function() {
-      var $destination = $(this).closest('[data-omniva-destination]');
+      var $destination = getDestinationForControl($(this));
+
+      if (!$destination.length) {
+        return;
+      }
+
       var enabled = $(this).is(':checked');
 
       $destination.find('input[data-omniva-country-toggle]').each(function() {
@@ -135,6 +181,12 @@ jQuery(function($) {
           $regionToggle.prop('checked', enabled).trigger('change');
         }
       });
+
+      if (enabled) {
+        activateDestination($destination);
+      } else {
+        refreshDestinationTabs($destination.closest('[data-omniva-method-group]'));
+      }
     });
 
     refreshShippingMethodsLayout();
@@ -151,6 +203,7 @@ jQuery(function($) {
             updateCountryBlock($(this), false);
           });
           $group.toggle($group.find('[data-omniva-destination]').length > 0);
+          refreshDestinationTabs($group);
           return;
         }
 
@@ -162,19 +215,26 @@ jQuery(function($) {
           var $destination = $(this);
           var countryCode = $destination.attr('data-destination-key');
           var allowed = isMethodAvailable(availableMethods[countryCode], methodKey);
+          var $destinationTab = $destination.data('omniva-destination-tab');
 
-          $destination.toggleClass('is-unavailable', !allowed).toggle(allowed);
+          $destination.toggleClass('is-unavailable', !allowed);
+          if ($destinationTab && $destinationTab.length) {
+            $destinationTab.toggleClass('is-unavailable', !allowed);
+          }
           $destination.find('.block-prices[data-method]').each(function() {
             var $block = $(this);
             $block.toggleClass('is-method-disabled', !methodEnabled || !allowed);
             updateCountryBlock($block, !methodEnabled || !allowed);
           });
         });
+
+        refreshDestinationTabs($group);
       });
     }
 
     function updateCountryBlock($block, methodDisabled) {
       var $destination = $block.closest('[data-omniva-destination]');
+      var $destinationTab = $destination.data('omniva-destination-tab');
       var $toggle = $block.data('omniva-country-toggle');
       if (!$toggle || !$toggle.length) {
         $toggle = $block.find('input[data-omniva-country-toggle]').first();
@@ -188,10 +248,92 @@ jQuery(function($) {
       $block.toggleClass('disabled', !!methodDisabled);
       $block.find('.sec-prices, .sec-other').toggleClass('disabled', !editable);
       if ($destination.length) {
-        var hasEnabledBlock = $destination.find('input[data-omniva-country-toggle]:checked').length > 0;
+        var $countryToggles = $destination.find('input[data-omniva-country-toggle]');
+        if (!$countryToggles.length && $destinationTab && $destinationTab.length) {
+          $countryToggles = $destinationTab.find('input[data-omniva-country-toggle]');
+        }
+        var hasEnabledBlock = $countryToggles.filter(':checked').length > 0;
         $destination.toggleClass('is-country-disabled', !hasEnabledBlock);
-        $destination.find('input[data-omniva-destination-toggle]').prop('checked', hasEnabledBlock);
+        if ($destinationTab && $destinationTab.length) {
+          $destinationTab.toggleClass('is-country-disabled', !hasEnabledBlock);
+          $destinationTab.find('[role="tab"]')
+            .prop('disabled', !hasEnabledBlock)
+            .attr('aria-disabled', hasEnabledBlock ? 'false' : 'true');
+          $destinationTab.find('input[data-omniva-destination-toggle]').prop('checked', hasEnabledBlock);
+        }
       }
+    }
+
+    function getDestinationForControl($control) {
+      var $destination = $control.closest('[data-omniva-destination]');
+      if ($destination.length) {
+        return $destination;
+      }
+
+      $destination = $control.data('omniva-destination');
+      if ($destination && $destination.length) {
+        return $destination;
+      }
+
+      $destination = $control.closest('[data-omniva-country-tab]').data('omniva-destination');
+      return ($destination && $destination.length) ? $destination : $();
+    }
+
+    function activateDestination($destination) {
+      if (!$destination || !$destination.length || $destination.hasClass('is-unavailable')) {
+        return;
+      }
+
+      var $list = $destination.closest('[data-method-country-list]');
+      var $group = $destination.closest('[data-omniva-method-group]');
+      var $tabs = $group.find('[data-method-country-tabs]').first();
+      var $destinationTab = $destination.data('omniva-destination-tab');
+
+      if (!$list.length || !$destinationTab || !$destinationTab.length || $destination.hasClass('is-country-disabled') || $destinationTab.hasClass('is-country-disabled')) {
+        return;
+      }
+
+      $list.children('[data-omniva-destination]')
+        .removeClass('is-active')
+        .attr('aria-hidden', 'true')
+        .attr('hidden', 'hidden');
+      $tabs.children('[data-omniva-country-tab]')
+        .removeClass('is-active')
+        .find('[role="tab"]')
+        .attr('aria-selected', 'false')
+        .attr('tabindex', '-1');
+
+      $destination.addClass('is-active').attr('aria-hidden', 'false').removeAttr('hidden');
+      $destinationTab.addClass('is-active');
+      $destinationTab.find('[role="tab"]')
+        .attr('aria-selected', 'true')
+        .attr('tabindex', '0');
+    }
+
+    function refreshDestinationTabs($group) {
+      var $destinations = $group.find('[data-omniva-destination]');
+      var $availableDestinations = $destinations.filter(':not(.is-unavailable):not(.is-country-disabled)');
+      var $activeDestination = $destinations.filter('.is-active').first();
+
+      if (
+        !$activeDestination.length ||
+        $activeDestination.hasClass('is-unavailable') ||
+        $activeDestination.hasClass('is-country-disabled')
+      ) {
+        $activeDestination = $availableDestinations.first();
+      }
+
+      if ($activeDestination.length) {
+        activateDestination($activeDestination);
+        return;
+      }
+
+      $destinations.removeClass('is-active').attr('aria-hidden', 'true').attr('hidden', 'hidden');
+      $group.find('[data-method-country-tabs] [data-omniva-country-tab]')
+        .removeClass('is-active')
+        .find('[role="tab"]')
+        .attr('aria-selected', 'false')
+        .attr('tabindex', '-1');
     }
 
     function getAvailableMethods() {

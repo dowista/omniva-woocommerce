@@ -177,10 +177,6 @@ $render_settings_card = function( $section_key, $section, $tab = '' ) use ( $shi
         <p class="omnivalt-settings-page__subtitle"><?php esc_html_e('Configure Omniva shipping methods, delivery services and labels.', 'omnivalt'); ?></p>
       </div>
 
-      <!-- <a class="omnivalt-settings-page__brand" href="https://www.omniva.lt" target="_blank" rel="noopener noreferrer" aria-label="Omniva.lt">
-        <span class="omnivalt-settings-page__brand-logo" aria-hidden="true"></span>
-        <span class="omnivalt-settings-page__brand-slogan"><?php esc_html_e('Pristatome', 'omnivalt'); ?><br /><?php esc_html_e('džiaugsmą', 'omnivalt'); ?></span>
-      </a> -->
     </div>
   </header>
 
@@ -250,6 +246,7 @@ $render_settings_card = function( $section_key, $section, $tab = '' ) use ( $shi
                       <div class="omniva-shipping-method__countries" data-method-countries>
                         <h3><?php esc_html_e('Delivery countries', 'omnivalt'); ?></h3>
                         <p><?php esc_html_e('Choose the countries where this shipping method should be available.', 'omnivalt'); ?></p>
+                        <div class="omniva-shipping-method__country-tabs" data-method-country-tabs role="tablist" aria-label="<?php esc_attr_e('Delivery countries', 'omnivalt'); ?>"></div>
                         <div class="omniva-shipping-method__country-list" data-method-country-list></div>
                       </div>
                     </article>
@@ -261,6 +258,7 @@ $render_settings_card = function( $section_key, $section, $tab = '' ) use ( $shi
                       <p><?php esc_html_e('Configure international service package and region settings.', 'omnivalt'); ?></p>
                     </div>
                     <div class="omniva-shipping-method__countries" data-method-countries>
+                      <div class="omniva-shipping-method__country-tabs" data-method-country-tabs role="tablist" aria-label="<?php esc_attr_e('International services', 'omnivalt'); ?>"></div>
                       <div class="omniva-shipping-method__country-list" data-method-country-list></div>
                     </div>
                   </article>
@@ -333,9 +331,34 @@ $render_settings_card = function( $section_key, $section, $tab = '' ) use ( $shi
       </form>
     </main>
 
-    <aside class="omnivalt-settings-page__visual" aria-hidden="true">
-      <!-- <img class="omnivalt-settings-page__visual-logo" src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/logo-black.svg'); ?>" alt="" /> -->
-      <img class="omnivalt-settings-page__visual-image" src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/settings.svg'); ?>" alt="" />
+    <aside class="omnivalt-settings-page__sidebar">
+      <div class="omnivalt-settings-page__support-image">
+        <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/support.png'); ?>" alt="<?php esc_attr_e('Omniva support', 'omnivalt'); ?>" />
+      </div>
+
+      <section class="omnivalt-settings-page__sidebar-card omnivalt-settings-page__help-card">
+        <h2><?php esc_html_e('Need help?', 'omnivalt'); ?></h2>
+        <p><?php esc_html_e('Have any suggestions or problems?', 'omnivalt'); ?></p>
+        <p><?php esc_html_e('Please do not hesitate to', 'omnivalt'); ?> <a href="mailto:support@example.com"><?php esc_html_e('contact us', 'omnivalt'); ?></a>.</p>
+      </section>
+
+      <section class="omnivalt-settings-page__sidebar-card omnivalt-settings-page__news-card">
+        <h2><?php esc_html_e('News!', 'omnivalt'); ?></h2>
+        <p><?php esc_html_e('We are working on new features and improvements for your shipping experience.', 'omnivalt'); ?></p>
+        <p><?php esc_html_e('Check back soon for the latest updates.', 'omnivalt'); ?></p>
+      </section>
+
+      <a class="omnivalt-settings-page__brand" href="<?php echo esc_url('https://www.omniva.lt/'); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php esc_attr_e('Omniva - Delivering Happiness', 'omnivalt'); ?>">
+        <img
+          class="omnivalt-settings-page__brand-logo"
+          src="<?php echo esc_attr('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 275 60%27%3E%3Cpath fill=%27%23F86300%27 d=%27M22.064 17.42C9.29 17.42 0 26.71 0 38.71S9.29 60 22.064 60C34.84 60 44.13 50.71 44.13 38.71s-9.29-21.29-22.065-21.29Zm0 34.45c-7.354 0-12.774-5.419-12.774-13.16 0-7.743 5.42-13.162 12.774-13.162 7.355 0 12.775 5.42 12.775 13.162 0 7.741-5.42 13.16-12.775 13.16m79.226-34.45c-10.84 0-14.323 8.128-14.323 8.128h-.387s-2.71-8.129-12.774-8.129c-8.904 0-12.387 7.355-12.387 7.355h-.387l-.387-6.194h-8.517v40.259h8.904V37.16c0-6.968 5.032-11.613 10.451-11.613 5.032 0 8.13 2.71 8.13 8.904v24.387h8.903V37.16c0-6.968 5.031-11.613 10.45-11.613 5.033 0 8.13 3.097 8.13 8.904v24.387h8.903V34.064c0-10.451-5.806-16.645-14.709-16.645Zm48.392 0c-9.678 0-13.161 7.354-13.161 7.354h-.387l-.388-6.194h-8.516v40.259h8.904V37.16c0-6.58 5.419-11.613 11.612-11.613 5.419 0 8.904 3.097 8.904 8.904v24.387h8.903V34.064c0-10.064-6.194-16.645-15.871-16.645Zm27.101 41.418h8.903V18.58h-8.903zM181.196 0c-2.865 0-5.187 1.935-5.187 5.265 0 3.251 2.322 5.187 5.187 5.187 2.942 0 5.265-1.936 5.265-5.187 0-3.33-2.323-5.265-5.265-5.265m33.137 46.064h-.387l-12-27.484h-9.291l17.42 40.258h8.129l17.419-40.258h-9.29zm42.404-28.645c-10.219 0-16.068 5.066-16.068 5.066v8.13h1.161s4.843-5.067 13.746-5.067c6.194 0 9.678 3.097 9.678 8.516v3.484s-4.258-2.71-11.613-2.71c-9.678 0-15.097 5.42-15.097 13.007 0 6.736 5.419 12.155 13.549 12.155 10.064 0 12.774-7.355 12.774-7.355h.387l.387 6.193h8.516V33.677c0-10.064-6.193-16.258-17.42-16.258m-2.709 34.838c-3.871 0-6.194-1.935-6.194-5.418 0-3.485 2.71-5.807 7.355-5.807 6.968 0 10.065 2.71 10.065 2.71s-1.936 8.515-11.226 8.515%27/%3E%3C/svg%3E'); ?>"
+          alt=""
+        />
+        <span class="omnivalt-settings-page__brand-slogan">
+          <?php esc_html_e('DELIVERING', 'omnivalt'); ?><br />
+          <?php esc_html_e('HAPPINESS', 'omnivalt'); ?>
+        </span>
+      </a>
     </aside>
   </div>
 </div>
