@@ -399,6 +399,7 @@ class OmnivaLt_Core
           ),
           'placeholder' => __('Enter phone number', 'omnivalt'),
           'invalid' => __('Enter a valid phone number for the selected country.', 'omnivalt'),
+          'pickup_window_invalid' => __('End time must be later than start time.', 'omnivalt'),
           'flag_url' => OMNIVALT_URL . 'assets/img/flags/',
         ));
       }

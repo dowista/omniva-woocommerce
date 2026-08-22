@@ -504,8 +504,17 @@ jQuery(function($) {
     }
   }
 
-  // Add the custom visual treatment while keeping WooCommerce's generated field names and values.
-  $('#woocommerce_omnivalt_shop_name').each(function() {
+  // Keep sender details visually grouped as a compact data-entry form while
+  // preserving WooCommerce's generated field names and values.
+  $( [
+    '#woocommerce_omnivalt_company',
+    '#woocommerce_omnivalt_shop_name',
+    '#woocommerce_omnivalt_shop_city',
+    '#woocommerce_omnivalt_shop_address',
+    '#woocommerce_omnivalt_shop_postcode',
+    '#woocommerce_omnivalt_shop_email',
+    '#woocommerce_omnivalt_bank_account'
+  ].join(', ') ).each(function() {
     var $input = $(this);
     var $row = $input.closest('tr');
     var $label = $row.children('th').find('label').first();
@@ -521,12 +530,34 @@ jQuery(function($) {
     $label.addClass('omnivalt-floating-input__label').prependTo($wrapper);
 
     function updateFloatingLabel() {
-      $wrapper.toggleClass('is-active', $input.is(':focus') || $input.val().length > 0);
+      $wrapper.toggleClass('is-active', $input.is(':focus') || $input.val().length > 0 || $input.is('[placeholder]'));
     }
 
     $input.on('focus blur input change', updateFloatingLabel);
     updateFloatingLabel();
   });
+
+  var $pickupStart = $('#woocommerce_omnivalt_pick_up_start');
+  var $pickupEnd = $('#woocommerce_omnivalt_pick_up_end');
+
+  if ($pickupStart.length && $pickupEnd.length) {
+    function validatePickupWindow() {
+      var startTime = $pickupStart.val();
+      var endTime = $pickupEnd.val();
+      var isInvalid = startTime && endTime && startTime >= endTime;
+      var message = window.omnivaltSettingsPhone && window.omnivaltSettingsPhone.pickup_window_invalid
+        ? window.omnivaltSettingsPhone.pickup_window_invalid
+        : 'End time must be later than start time.';
+
+      $pickupEnd[0].setCustomValidity(isInvalid ? message : '');
+
+      return !isInvalid;
+    }
+
+    $pickupStart.add($pickupEnd).on('input change', validatePickupWindow);
+    $('#omnivalt-settings-root form').on('submit', validatePickupWindow);
+    validatePickupWindow();
+  }
 
   function refreshSettingsTab($tab) {
     var selectedTab = $tab.attr('data-settings-tab');

@@ -227,16 +227,14 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
         'description' => __('Required if want to use the "Cash On Delivery" (COD) payment method.', 'omnivalt'),
       );
       $fields['pick_up_start'] = array(
-        'title' => __('Pick up time start', 'omnivalt'),
-        'type' => 'text',
-        'placeholder' => '08:00',
-        'description' => sprintf(__('Allowed formats: %1$s. Default time is %2$s, if incorrect value is entered or field is empty.', 'omnivalt'),'<i>07:00, 7:00, 7</i>', '08:00'),
+        'title' => __('Pickup window', 'omnivalt'),
+        'type' => 'pickup_window',
+        'end_field_key' => 'pick_up_end',
+        'default' => '08:00',
       );
       $fields['pick_up_end'] = array(
-        'title' => __('Pick up time end', 'omnivalt'),
-        'type' => 'text',
-        'placeholder' => '17:00',
-        'description' => sprintf(__('Allowed formats: %1$s. Default time is %2$s, if incorrect value is entered or field is empty.', 'omnivalt'),'<i>09:00, 9:00, 9</i>', '17:00'),
+        'type' => 'pickup_window_end',
+        'default' => '17:00',
       );
       $fields['send_off'] = array(
         'title' => __('Send off type', 'omnivalt'),
@@ -628,6 +626,21 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       return $normalized;
     }
 
+    private function normalize_pickup_time( $value, $fallback = false )
+    {
+      $value = trim((string) $value);
+
+      if ( preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/', $value) ) {
+        return $value;
+      }
+
+      if ( preg_match('/^(?:[0-9]|1[0-9]|2[0-3])$/', $value) ) {
+        return sprintf('%02d:00', (int) $value);
+      }
+
+      return $fallback;
+    }
+
     /**
      * Validates sender phone fields before saving the shipping settings.
      *
@@ -649,6 +662,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       );
 
       $phone_errors = array();
+      $pickup_time_errors = array();
       $default_country_field = $this->get_field_key('shop_countrycode');
       $default_country = isset($_POST[$default_country_field]) ? sanitize_key(wp_unslash($_POST[$default_country_field])) : 'LT';
       foreach ( array('shop_phone' => false, 'shop_mobile' => true) as $field_key => $mobile ) {
@@ -666,6 +680,27 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
           continue;
         }
         $_POST[$field_name] = $normalized_phone;
+      }
+
+      $pickup_start_field = $this->get_field_key('pick_up_start');
+      $pickup_end_field = $this->get_field_key('pick_up_end');
+      $pickup_start = isset($_POST[$pickup_start_field]) ? sanitize_text_field(wp_unslash($_POST[$pickup_start_field])) : '';
+      $pickup_end = isset($_POST[$pickup_end_field]) ? sanitize_text_field(wp_unslash($_POST[$pickup_end_field])) : '';
+      $normalized_pickup_start = $this->normalize_pickup_time($pickup_start);
+      $normalized_pickup_end = $this->normalize_pickup_time($pickup_end);
+
+      if ( $normalized_pickup_start === false || $normalized_pickup_end === false ) {
+        $pickup_time_errors[] = __('Use the 24-hour HH:MM format for the pickup window.', 'omnivalt');
+      } elseif ( $normalized_pickup_start >= $normalized_pickup_end ) {
+        $pickup_time_errors[] = __('Pickup end time must be later than the start time.', 'omnivalt');
+      }
+
+      if ( ! empty($pickup_time_errors) ) {
+        $_POST[$pickup_start_field] = $this->normalize_pickup_time($this->get_option('pick_up_start'), '08:00');
+        $_POST[$pickup_end_field] = $this->normalize_pickup_time($this->get_option('pick_up_end'), '17:00');
+      } else {
+        $_POST[$pickup_start_field] = $normalized_pickup_start;
+        $_POST[$pickup_end_field] = $normalized_pickup_end;
       }
 
       // Save all values
@@ -686,6 +721,59 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       if ( ! empty($phone_errors) ) {
         WC_Admin_Settings::add_error(__('Settings were not changed for invalid phone fields', 'omnivalt') . ': ' . implode(', ', $phone_errors));
       }
+      if ( ! empty($pickup_time_errors) ) {
+        WC_Admin_Settings::add_error(implode(' ', $pickup_time_errors));
+      }
+    }
+
+    public function generate_pickup_window_html( $key, $value )
+    {
+      $end_field_key = isset($value['end_field_key']) ? $value['end_field_key'] : 'pick_up_end';
+      $start_field_key = $this->get_field_key($key);
+      $end_field_name = $this->get_field_key($end_field_key);
+      $start_value = $this->normalize_pickup_time($this->get_option($key), '08:00');
+      $end_value = $this->normalize_pickup_time($this->get_option($end_field_key), '17:00');
+      $description_id = $start_field_key . '_description';
+
+      ob_start();
+      ?>
+      <tr valign="top" class="omnivalt-pickup-window">
+        <th scope="row" class="titledesc">
+          <label><?php echo esc_html($value['title']); ?></label>
+        </th>
+        <td class="forminp">
+          <fieldset>
+            <div class="omnivalt-pickup-window__fields">
+              <div class="omnivalt-pickup-window__field">
+                <label for="<?php echo esc_attr($start_field_key); ?>"><?php esc_html_e('Start time', 'omnivalt'); ?></label>
+                <input type="time" id="<?php echo esc_attr($start_field_key); ?>" name="<?php echo esc_attr($start_field_key); ?>" value="<?php echo esc_attr($start_value); ?>" step="60" required aria-describedby="<?php echo esc_attr($description_id); ?>" />
+              </div>
+              <div class="omnivalt-pickup-window__field">
+                <label for="<?php echo esc_attr($end_field_name); ?>"><?php esc_html_e('End time', 'omnivalt'); ?></label>
+                <input type="time" id="<?php echo esc_attr($end_field_name); ?>" name="<?php echo esc_attr($end_field_name); ?>" value="<?php echo esc_attr($end_value); ?>" step="60" required aria-describedby="<?php echo esc_attr($description_id); ?>" />
+              </div>
+            </div>
+            <p id="<?php echo esc_attr($description_id); ?>" class="description"><?php esc_html_e('Use 24-hour time, for example 08:00–17:00.', 'omnivalt'); ?></p>
+          </fieldset>
+        </td>
+      </tr>
+      <?php
+      return ob_get_clean();
+    }
+
+    public function generate_pickup_window_end_html( $key, $value )
+    {
+      return '';
+    }
+
+    public function validate_pickup_window_field( $key, $value )
+    {
+      return sanitize_text_field($value);
+    }
+
+    public function validate_pickup_window_end_field( $key, $value )
+    {
+      return sanitize_text_field($value);
     }
 
     public function generate_hr_html( $key, $value )
