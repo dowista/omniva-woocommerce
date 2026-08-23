@@ -299,6 +299,66 @@ div.tmjs-loading-overlay {
 .om-popup-floating .ico-close::after {
   transform: rotate(-45deg);
 }
+
+html body .tmjs-modal .om-popup-floating button.omniva-terminal-popup__close,
+html
+  body
+  .tmjs-modal-flat
+  .om-popup-floating
+  button.omniva-terminal-popup__close {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #000 !important;
+  height: 24px !important;
+  margin: -2px -4px 0 8px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  width: 24px !important;
+}
+
+html
+  body
+  .tmjs-modal
+  .om-popup-floating
+  button.omniva-terminal-popup__close:hover,
+html
+  body
+  .tmjs-modal
+  .om-popup-floating
+  button.omniva-terminal-popup__close:focus,
+html
+  body
+  .tmjs-modal-flat
+  .om-popup-floating
+  button.omniva-terminal-popup__close:hover,
+html
+  body
+  .tmjs-modal-flat
+  .om-popup-floating
+  button.omniva-terminal-popup__close:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #000 !important;
+}
+
+html
+  body
+  .tmjs-modal
+  .om-popup-floating
+  button.omniva-terminal-popup__close:focus-visible,
+html
+  body
+  .tmjs-modal-flat
+  .om-popup-floating
+  button.omniva-terminal-popup__close:focus-visible {
+  outline: 2px solid #121212 !important;
+  outline-offset: 2px !important;
+}
+
 .om-popup-floating .ico-location-pin {
   background: url('../img/terminal-mapping/location.svg') center / contain
     no-repeat;
@@ -517,7 +577,7 @@ div.tmjs-loading-overlay {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   list-style: none;
   margin: 6px 0 0;
-  max-height: calc(-15.375rem + 100vh);
+  max-height: calc(-246px + 100vh);
   overflow-y: auto;
   padding: 0;
 }
@@ -845,13 +905,13 @@ a:focus.tmjs-select-btn,
 a:hover.tmjs-select-btn {
   background-color: #fff;
   border: 1px solid transparent;
-  border-radius: 0.25rem;
+  border-radius: 4px;
   color: #000;
   display: block;
   font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
-  padding: 0.375rem 0.75rem;
+  padding: 6px 12px;
   text-align: center;
   text-decoration: none;
   transition: color 0.15s;
@@ -872,14 +932,14 @@ a:hover.tmjs-select-btn {
   display: none !important;
 }
 .tmjs-pt-1 {
-  padding-top: 0.5rem;
+  padding-top: 8px;
 }
 .tmjs-pt-2 {
-  padding-top: 1rem;
+  padding-top: 16px;
 }
 .tmjs-my-2 {
-  margin-bottom: 1rem;
-  margin-top: 1rem;
+  margin-bottom: 16px;
+  margin-top: 16px;
 }
 .tmjs-terminal.tmjs-active {
   text-align: center;
@@ -963,6 +1023,7 @@ html body .tmjs-modal-flat *::after {
   box-sizing: border-box !important;
   font-family: 'TT Wellingtons', sans-serif !important;
   letter-spacing: 0 !important;
+  text-indent: 0 !important;
 }
 
 html body .tmjs-modal .header.underline,
@@ -973,7 +1034,7 @@ html body .tmjs-modal-flat .header.underline {
   display: flex !important;
   flex: 0 0 auto !important;
   justify-content: space-between !important;
-  padding: 0rem 4.5rem 0rem !important;
+  padding: 0 72px !important;
   position: relative !important;
   width: 100% !important;
   z-index: 1002 !important;
@@ -986,11 +1047,11 @@ html body .tmjs-modal-flat .header.underline {
 html body .tmjs-modal .header.underline .om-headline-2xl,
 html body .tmjs-modal-flat .header.underline .om-headline-2xl {
   color: #121212 !important;
-  font-size: 2.3rem !important;
+  font-size: 20px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
-  line-height: 2rem !important;
-  margin: 2rem 0 2rem !important;
+  line-height: 0px !important;
+  margin: 30px 0 !important;
   padding: 0 !important;
 }
 
@@ -1047,9 +1108,9 @@ html body .tmjs-modal-flat .header.underline .ico-close::after {
 html body .tmjs-modal .tmjs-map-search,
 html body .tmjs-modal-flat .tmjs-map-search {
   left: 8px !important;
-  padding-left: 3.5rem !important;
-  padding-right: 3.5rem !important;
-  padding-top: 1rem !important;
+  padding-left: 56px !important;
+  padding-right: 56px !important;
+  padding-top: 16px !important;
   right: auto !important;
   width: 45% !important;
 }
@@ -1064,11 +1125,11 @@ html body .tmjs-modal-flat .tmjs-map-search {
   }
   html body .tmjs-modal .header.underline .om-headline-2xl,
   html body .tmjs-modal-flat .header.underline .om-headline-2xl {
-    font-size: 1.8rem !important;
+    font-size: 29px !important;
   }
   html body .tmjs-modal .header.underline,
   html body .tmjs-modal-flat .header.underline {
-    padding: 0rem 1rem 0rem !important;
+    padding: 0 16px !important;
   }
 }
 
@@ -1404,6 +1465,74 @@ html body .tmjs-modal-flat .tmjs-map-search__result {
   position: relative !important;
 }
 
+/* Prevent theme button and list defaults from changing search results. */
+html body .tmjs-modal ul.tmjs-map-search__results,
+html body .tmjs-modal-flat ul.tmjs-map-search__results {
+  list-style: none !important;
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+}
+
+html body .tmjs-container ul.tmjs-terminal-list.tmjs-dropdown-list {
+  list-style: none !important;
+  margin: 8px 0 0 !important;
+  padding: 0 0 2em !important;
+}
+
+html body .tmjs-modal .tmjs-map-search__results > li,
+html body .tmjs-modal-flat .tmjs-map-search__results > li {
+  list-style: none !important;
+  margin: 0 10px !important;
+  padding: 12px 16px !important;
+  text-indent: 0 !important;
+}
+
+html body .tmjs-container .tmjs-dropdown-list > li,
+html body .tmjs-modal .tmjs-terminal-list > li,
+html body .tmjs-modal-flat .tmjs-terminal-list > li {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-indent: 0 !important;
+}
+
+html body .tmjs-container .tmjs-dropdown-list > li:not(.tmjs-city) {
+  padding: 10px 12px !important;
+}
+
+html body .tmjs-modal .tmjs-terminal-list > li:not(.tmjs-city),
+html body .tmjs-modal-flat .tmjs-terminal-list > li:not(.tmjs-city) {
+  padding: 13px !important;
+}
+
+html body .tmjs-modal button.tmjs-map-search__result-select,
+html body .tmjs-modal-flat button.tmjs-map-search__result-select {
+  align-items: center !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #121212 !important;
+  cursor: pointer !important;
+  display: grid !important;
+  font:
+    500 14px/20px 'TT Wellingtons',
+    sans-serif !important;
+  grid-template-columns: 24px minmax(0, 1fr) !important;
+  margin: 0 !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  text-align: left !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+  width: 100% !important;
+}
+
+html body .tmjs-modal .tmjs-map-search__result-select span,
+html body .tmjs-modal-flat .tmjs-map-search__result-select span {
+  text-decoration: none !important;
+}
+
 html body .tmjs-modal .tmjs-map-search__result::before,
 html body .tmjs-modal-flat .tmjs-map-search__result::before {
   background: transparent;
@@ -1430,12 +1559,23 @@ html body .tmjs-modal-flat .tmjs-map-search__result-map {
   align-items: center !important;
   background: transparent !important;
   border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #121212 !important;
   column-gap: 6px !important;
+  cursor: pointer !important;
   display: grid !important;
+  font:
+    500 12px/16px 'TT Wellingtons',
+    sans-serif !important;
   grid-template-columns: 24px minmax(0, 1fr) !important;
   height: 24px !important;
   justify-content: start !important;
+  margin: 0 !important;
+  min-height: 0 !important;
   min-width: 90px !important;
+  padding: 0 !important;
+  text-transform: none !important;
   width: 90px !important;
 }
 
@@ -1494,7 +1634,7 @@ html body .tmjs-modal-flat .tmjs-map {
 html body .tmjs-modal .tmjs-map-search__results,
 html body .tmjs-modal-flat .tmjs-map-search__results {
   border-radius: 8px !important;
-  max-height: calc(-15.375rem + 100vh) !important;
+  max-height: calc(-246px + 100vh) !important;
   overflow-y: auto !important;
   scrollbar-color: #818181 transparent !important;
   scrollbar-width: thin !important;

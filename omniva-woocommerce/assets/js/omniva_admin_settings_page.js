@@ -570,12 +570,36 @@ jQuery(function($) {
     });
   }
 
+  function syncSettingsTabUrl($tab) {
+    var selectedTab = $tab.attr('data-settings-tab');
+    var $form = $('#omnivalt-settings-root form').first();
+    var pageUrl;
+    var formUrl;
+
+    if (!selectedTab || !window.URL) {
+      return;
+    }
+
+    pageUrl = new window.URL(window.location.href);
+    pageUrl.searchParams.set('tab', selectedTab);
+    window.history.replaceState({}, '', pageUrl.toString());
+
+    if (!$form.length) {
+      return;
+    }
+
+    formUrl = new window.URL($form.attr('action'), window.location.href);
+    formUrl.searchParams.set('tab', selectedTab);
+    $form.attr('action', formUrl.toString());
+  }
+
   $('#omnivalt-settings-root .omniva-tabs__tab').on('click', function() {
     var $tab = $(this);
 
     $tab.addClass('is-active').attr('aria-current', 'page');
     $tab.siblings('.omniva-tabs__tab').removeClass('is-active').removeAttr('aria-current');
     refreshSettingsTab($tab);
+    syncSettingsTabUrl($tab);
   });
 
   refreshSettingsTab($('#omnivalt-settings-root .omniva-tabs__tab.is-active').first());

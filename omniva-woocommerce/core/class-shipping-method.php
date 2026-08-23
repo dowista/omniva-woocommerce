@@ -157,7 +157,6 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       $fields['api_user'] = array(
         'title' => __('API user', 'omnivalt'),
         'type' => 'text',
-        'description' => __('Please contact Omniva for API access codes.', 'omnivalt'),
       );
       $fields['api_pass'] = array(
         'title' => __('API password', 'omnivalt'),
@@ -197,7 +196,6 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       $fields['shop_postcode'] = array(
         'title' => $this->add_required_mark(__('Shop postcode', 'omnivalt')),
         'type' => 'text',
-        'description' => sprintf(__('Example for Latvia: %1$s. Example for other countries: %2$s.', 'omnivalt'), '<code>LV-0123</code>', '<code>01234</code>'),
       );
       $fields['shop_countrycode'] = array(
         'title' => $this->add_required_mark(__('Shop country code', 'omnivalt')),

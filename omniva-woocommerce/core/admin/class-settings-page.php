@@ -52,10 +52,10 @@ class OmnivaLt_Settings_Page
   {
     return array(
       'tabs' => array(
-        'general' => __('General', 'omnivalt'),
-        'rules' => __('Rules & Exclusions', 'omnivalt'),
-        'workflow' => __('Workflow', 'omnivalt'),
-        'advanced' => __('Advanced', 'omnivalt'),
+        'general' => __('Setup', 'omnivalt'),
+        'rules' => __('Delivery & checkout', 'omnivalt'),
+        'workflow' => __('Order fulfilment', 'omnivalt'),
+        'advanced' => __('Diagnostics', 'omnivalt'),
       ),
       'cards' => array(
         'general' => array(
@@ -72,6 +72,21 @@ class OmnivaLt_Settings_Page
           'type' => 'settings',
           'section' => 'shop',
           'tab' => 'general',
+          'fields' => array(
+            'company',
+            'shop_name',
+            'shop_address',
+            'shop_city',
+            'shop_postcode',
+            'shop_countrycode',
+            'shop_phone',
+            'shop_mobile',
+            'shop_email',
+            'bank_account',
+            'pick_up_start',
+            'pick_up_end',
+            'send_off',
+          ),
         ),
         'shipping_methods' => array(
           'type' => 'shipping_methods',

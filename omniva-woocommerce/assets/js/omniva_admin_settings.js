@@ -81,12 +81,18 @@ jQuery('document').ready(function($){
       } else {
         if ( ! existing_notice ) {
           const span = document.createElement('span');
+          const save_notices = document.querySelector('[data-settings-save-notices]');
           span.id = notice_id;
+          span.className = 'omnivalt-settings-page__save-notice';
           span.textContent = omnivalt_params.txt.disabled_notice;
-          span.style.marginRight = '10px';
-          span.style.color = 'red';
 
-          save_button.parentNode.insertBefore(span, save_button);
+          if (save_notices) {
+            save_notices.appendChild(span);
+          } else {
+            span.style.marginRight = '10px';
+            span.style.color = 'red';
+            save_button.parentNode.insertBefore(span, save_button);
+          }
         }
       }
     },
