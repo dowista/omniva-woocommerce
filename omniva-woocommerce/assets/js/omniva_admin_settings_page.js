@@ -1,155 +1,263 @@
 jQuery(function($) {
   'use strict';
 
-  initializeShippingMethodsLayout();
-  initializePositionSortable();
+  var $root = $('#omnivalt-settings-root');
+  var pageSettings = window.omnivaltSettingsPage || {};
+  var textSettings = pageSettings.txt || {};
 
-  function initializeShippingMethodsLayout() {
-    var $layout = $('#omnivalt-settings-root').find('[data-omniva-shipping-layout]');
-    if (!$layout.length) {
-      return;
+  if (!$root.length) {
+    return;
+  }
+
+  var refreshShippingMethodsLayout = initializeShippingMethodsLayout();
+
+  initializeSettingsDependencies(refreshShippingMethodsLayout);
+  initializePriceTables();
+  initializePositionSortable();
+  $root.removeClass('is-layout-pending');
+
+  function getAvailableMethods() {
+    var apiCountry = $root.find('#woocommerce_omnivalt_api_country').val();
+    var availableMethods = pageSettings.available_methods || {};
+
+    return availableMethods[apiCountry] || {};
+  }
+
+  function isMethodAvailable(countryMethods, methodKey) {
+    if (!countryMethods) {
+      return false;
     }
 
-    var $source = $layout.find('[data-omniva-delivery-source]');
-    var $groups = $layout.find('[data-omniva-method-group]');
-    var $internationalGroup = $groups.filter(function() {
-      return $(this).attr('data-method-key') === 'international';
-    });
-    var destinationIndex = 0;
+    var aliases = {
+      'pt': ['pt', 'terminal', 'pickup'],
+      'c': ['c', 'courier'],
+      'cp': ['cp', 'courier_plus'],
+      'pc': ['pc', 'private_customer'],
+      'pn': ['pn', 'post_near'],
+      'ps': ['ps', 'post_specific'],
+      'lc': ['lc', 'letter_courier'],
+      'lp': ['lp', 'letter_post']
+    };
+    var methodAliases = aliases[methodKey] || [methodKey];
 
-    $source.find('.prices_box').each(function() {
-      var $sourceBox = $(this);
-      var countryCode = ($sourceBox.attr('data-country') || '').toUpperCase();
-      var planKey = $sourceBox.attr('data-plan') || '';
-      var destinationType = countryCode ? 'country' : 'plan';
-      var destinationKey = countryCode || planKey;
-      var destinationTitle = $.trim($sourceBox.find('.pb-lang span').first().text());
-      var imageSource = $sourceBox.find('.pb-lang img').first().attr('src');
+    for (var i = 0; i < methodAliases.length; i++) {
+      if ($.inArray(methodAliases[i], countryMethods) !== -1) {
+        return true;
+      }
+    }
 
-      $sourceBox.find('.block-prices[data-method]').each(function() {
-        var $block = $(this);
-        var methodKey = $block.attr('data-method-key') || $block.attr('data-method');
-        var $group = $groups.filter(function() {
-          return $(this).attr('data-method-key') === methodKey;
+    return false;
+  }
+
+  function initializeSettingsDependencies(refreshLayout) {
+    var methodFieldClasses = {
+      'pt': 'terminal',
+      'c': 'courier',
+      'cp': 'courier_plus',
+      'pc': 'private_customer',
+      'pn': 'post_near',
+      'ps': 'post_specific',
+      'lc': 'letter_courier',
+      'lp': 'letter_post'
+    };
+
+    function toggleRows($checkbox, fieldsSelector) {
+      $root.find(fieldsSelector).closest('tr').toggleClass('hidden', !$checkbox.is(':checked'));
+    }
+
+    function refreshMethodRows($checkbox) {
+      var methodKey = $checkbox.closest('[data-omniva-method-group]').attr('data-method-key');
+      var fieldClass = methodFieldClasses[methodKey];
+
+      if (fieldClass) {
+        toggleRows($checkbox, '.omniva_' + fieldClass);
+      }
+    }
+
+    function refreshApiCountryMethods() {
+      var availableMethods = getAvailableMethods();
+
+      $root.find('input[id^="woocommerce_omnivalt_method_"]').each(function() {
+        var $checkbox = $(this);
+        var methodKey = $checkbox.closest('[data-omniva-method-group]').attr('data-method-key');
+        var methodAvailable = false;
+
+        $.each(availableMethods, function(countryCode, countryMethods) {
+          if (isMethodAvailable(countryMethods, methodKey)) {
+            methodAvailable = true;
+            return false;
+          }
         });
 
-        if (!$group.length) {
-          $group = $internationalGroup;
+        if (!methodAvailable) {
+          $checkbox.prop('checked', false);
         }
-        if (!$group.length || !destinationKey) {
+
+        $checkbox.prop('disabled', !methodAvailable);
+        refreshMethodRows($checkbox);
+      });
+    }
+
+    function refreshPluginState() {
+      var $enabled = $root.find('#woocommerce_omnivalt_enabled');
+      var $notice = $root.find('#omnivalt-plugin-disabled-notice');
+
+      if (!$enabled.length || $enabled.is(':checked')) {
+        $notice.remove();
+        return;
+      }
+
+      if (!$notice.length) {
+        $('<span id="omnivalt-plugin-disabled-notice" class="omnivalt-settings-page__save-notice"></span>')
+          .text(textSettings.disabled_notice || '')
+          .appendTo($root.find('[data-settings-save-notices]').first());
+      }
+    }
+
+    function refreshDebugFields() {
+      var $debug = $root.find('#woocommerce_omnivalt_debug_mode');
+      var debugEnabled = !$debug.length || $debug.is(':checked');
+      var showDeveloperFields = window.location.hash.slice(1) === 'dev';
+
+      if ($debug.length) {
+        toggleRows($debug, '.omniva_debug');
+      }
+
+      $root.find('.omniva_dev').closest('tr').toggleClass('hidden', !debugEnabled || !showDeveloperFields);
+    }
+
+    function refreshAutoLabelFields() {
+      var $autoLabels = $root.find('#woocommerce_omnivalt_auto_generate_labels');
+
+      if ($autoLabels.length) {
+        toggleRows($autoLabels, '.omniva_auto_labels');
+      }
+    }
+
+    function refreshFreeShippingField($checkbox) {
+      var $field = $checkbox.closest('.prices-free').find('.price_free');
+
+      $field
+        .toggleClass('disabled', !$checkbox.is(':checked'))
+        .prop('readonly', !$checkbox.is(':checked'));
+    }
+
+    function refreshCouponField($checkbox) {
+      var $field = $checkbox.closest('.prices-coupon').find('.price_coupon');
+
+      $field
+        .toggleClass('disabled', !$checkbox.is(':checked'))
+        .prop('disabled', !$checkbox.is(':checked'));
+    }
+
+    $.each(methodFieldClasses, function(methodKey) {
+      var $checkbox = $root.find('#woocommerce_omnivalt_method_' + methodKey);
+
+      if ($checkbox.length) {
+        refreshMethodRows($checkbox);
+      }
+    });
+
+    $root.find('.prices-free input[type="checkbox"]').each(function() {
+      refreshFreeShippingField($(this));
+    });
+    $root.find('.prices-coupon input[type="checkbox"]').each(function() {
+      refreshCouponField($(this));
+    });
+
+    refreshApiCountryMethods();
+    refreshPluginState();
+    refreshDebugFields();
+    refreshAutoLabelFields();
+    refreshLayout();
+
+    $root.on('change', '#woocommerce_omnivalt_enabled', refreshPluginState);
+    $root.on('change', '#woocommerce_omnivalt_debug_mode', refreshDebugFields);
+    $root.on('change', '#woocommerce_omnivalt_auto_generate_labels', refreshAutoLabelFields);
+    $root.on('change', '#woocommerce_omnivalt_api_country', function() {
+      refreshApiCountryMethods();
+      refreshLayout();
+    });
+    $root.on('change', 'input[id^="woocommerce_omnivalt_method_"]', function() {
+      refreshMethodRows($(this));
+      refreshLayout();
+    });
+    $root.on('change', '.prices-free input[type="checkbox"]', function() {
+      refreshFreeShippingField($(this));
+    });
+    $root.on('change', '.prices-coupon input[type="checkbox"]', function() {
+      refreshCouponField($(this));
+    });
+    $root.on('click', '.debug-row .date', function() {
+      var $date = $(this);
+
+      $date.toggleClass('active');
+      $date.siblings('textarea').stop(true, true).slideToggle('slow');
+    });
+
+    window.addEventListener('hashchange', refreshDebugFields);
+  }
+
+  function initializeShippingMethodsLayout() {
+    var $layout = $root.find('[data-omniva-shipping-layout]');
+    if (!$layout.length) {
+      return $.noop;
+    }
+
+    var $groups = $layout.find('[data-omniva-method-group]');
+
+    $groups.each(function() {
+      var $group = $(this);
+
+      $group.find('[data-omniva-destination]').each(function() {
+        var $destination = $(this);
+        var destinationId = $destination.attr('id');
+        var destinationTitle = $.trim($destination.find('.omniva-delivery-country__destination-header .omniva-delivery-country__title').first().text());
+        var $destinationTab = $group.find('[data-omniva-country-tab]').filter(function() {
+          return $(this).attr('data-omniva-destination-id') === destinationId;
+        }).first();
+        var $destinationButton = $destinationTab.find('[role="tab"]').first();
+        var $destinationToggle = $destinationTab.find('input[data-omniva-destination-toggle]').first();
+
+        $destination.data('omniva-destination-tab', $destinationTab);
+        $destinationTab.data('omniva-destination', $destination);
+        $destinationButton.data('omniva-destination', $destination);
+        $destinationToggle.data('omniva-destination', $destination);
+
+        $destinationButton.on('click', function() {
+          activateDestination($(this).data('omniva-destination'));
+        });
+
+        if ($destination.attr('data-destination-type') === 'country') {
+          var $countryToggle = $destinationTab.find('[data-omniva-country-toggle-wrap] input[type="checkbox"]').first();
+
+          $countryToggle
+            .attr('data-omniva-country-toggle', 'true')
+            .attr('aria-label', destinationTitle)
+            .data('omniva-destination', $destination);
+
+          $destination.find('.block-prices[data-method]').each(function() {
+            $(this).data('omniva-country-toggle', $countryToggle);
+          });
           return;
         }
 
-        var $list = $group.find('[data-method-country-list]').first();
-        var $tabs = $group.find('[data-method-country-tabs]').first();
-        var $destination = $list.children('[data-omniva-destination]').filter(function() {
-          return $(this).attr('data-destination-type') === destinationType
-            && $(this).attr('data-destination-key') === destinationKey;
-        }).first();
+        $destination.find('.block-prices[data-method]').each(function() {
+          var $block = $(this);
+          var $methodHeader = $block.prev('.omniva-delivery-country__method-header');
+          var $regionToggle = $methodHeader.find('input[type="checkbox"]').first();
+          var regionTitle = $.trim($methodHeader.find('label').first().text()) || destinationTitle;
 
-        if (!$destination.length) {
-          var $destinationBox = $('<div class="prices_box omniva-delivery-country__box"></div>');
-          if (destinationType === 'country') {
-            $destinationBox.attr('data-country', destinationKey);
-          } else {
-            $destinationBox.attr('data-plan', destinationKey);
-          }
-
-          destinationIndex += 1;
-          var destinationId = 'omniva-delivery-country-' + destinationIndex;
-          var destinationTabId = destinationId + '-tab';
-          var $destinationTab = $('<div class="omniva-delivery-country-tab" data-omniva-country-tab role="presentation"></div>');
-          var $destinationButton = $('<button type="button" class="omniva-delivery-country-tab__button" role="tab" aria-selected="false"></button>');
-          var $destinationTitle = $('<span class="omniva-delivery-country-tab__title"></span>');
-          if (imageSource) {
-            $destinationTitle.append(
-              $('<img class="omniva-delivery-country__flag" alt="">').attr('src', imageSource)
-            );
-          }
-          $destinationTitle.append($('<span></span>').text(destinationTitle));
-          $destinationButton.append($destinationTitle);
-          $destinationButton.attr('id', destinationTabId);
-          var $destinationToggle = $('<span class="omniva-delivery-country-tab__toggle" data-omniva-country-toggle-wrap></span>');
-          $destinationTab.append($destinationButton, $destinationToggle).appendTo($tabs);
-
-          var $destinationHeader = $('<div class="omniva-delivery-country__header omniva-delivery-country__destination-header"></div>');
-          var $destinationHeaderTitle = $('<span class="omniva-delivery-country__title"></span>');
-          if (imageSource) {
-            $destinationHeaderTitle.append(
-              $('<img class="omniva-delivery-country__flag" alt="">').attr('src', imageSource)
-            );
-          }
-          $destinationHeaderTitle.append($('<span></span>').text(destinationTitle));
-          $destinationHeader.append($destinationHeaderTitle);
-
-          var $destinationBody = $('<div class="omniva-delivery-country__body" data-destination-body></div>');
-          $destinationBox.append($destinationHeader, $destinationBody);
-          $destination = $('<table class="form-table omniva-settings omniva-delivery-country" data-omniva-destination role="tabpanel"><tbody><tr><td></td></tr></tbody></table>')
-            .attr('id', destinationId)
-            .attr('aria-labelledby', destinationTabId)
-            .attr('aria-hidden', 'true')
-            .attr('hidden', 'hidden')
-            .attr('data-destination-type', destinationType)
-            .attr('data-destination-key', destinationKey)
-            .appendTo($list);
-          $destination.find('td').append($destinationBox);
-          $destination.data('omniva-destination-tab', $destinationTab);
-          $destinationTab.data('omniva-destination', $destination);
-          $destinationButton.data('omniva-destination', $destination);
-          $destinationButton.on('click', function() {
-            activateDestination($(this).data('omniva-destination'));
-          });
-
-          if (destinationType === 'plan') {
-            var $planToggle = $('<div class="switcher" title=""></div>');
-            var $planToggleInput = $('<input type="checkbox" class="omniva-international-toggle" data-omniva-destination-toggle>');
-            var $planToggleLabel = $('<label class="switch"></label>');
-            $planToggleLabel.append($planToggleInput, '<span class="slider round"></span>');
-            $planToggle.append($planToggleLabel);
-            $planToggle.attr('title', destinationTitle);
-            $planToggleInput.data('omniva-destination', $destination);
-            $destinationToggle.append($planToggle);
-          }
-        }
-
-        $destinationTab = $destination.data('omniva-destination-tab');
-
-        $block.appendTo($destination.find('[data-destination-body]'));
-
-        var $switcher = $block.find('.sec-title .switcher').first();
-        var $methodLabel = $block.find('.sec-title > label').first();
-        if ($switcher.length) {
-          var $countryToggle = $switcher.find('input[type="checkbox"]').first();
-          $countryToggle
+          $regionToggle
             .attr('data-omniva-country-toggle', 'true')
-            .attr('aria-label', $.trim($methodLabel.text()) || destinationTitle);
-          $block.data('omniva-country-toggle', $countryToggle);
-          $countryToggle.data('omniva-destination', $destination);
-
-          if (destinationType === 'country') {
-            $destinationTab.find('[data-omniva-country-toggle-wrap]').append($switcher);
-            $methodLabel.remove();
-            $block.find('.sec-title').remove();
-          } else {
-            var $methodHeader = $('<div class="omniva-delivery-country__header omniva-delivery-country__method-header"></div>');
-            if ($methodLabel.length) {
-              $methodHeader.append($methodLabel);
-            }
-            $methodHeader.append($switcher);
-            $block.find('.sec-title').remove();
-            $methodHeader.insertBefore($block);
-          }
-        }
+            .attr('aria-label', regionTitle)
+            .data('omniva-destination', $destination);
+          $block.data('omniva-country-toggle', $regionToggle);
+        });
       });
     });
 
-    $source.remove();
-
-    $('#omnivalt-settings-root').on('change', '#woocommerce_omnivalt_api_country, input[id^="woocommerce_omnivalt_method_"]', function() {
-      // The legacy handler also updates the checkbox state. Refresh after it has finished.
-      window.setTimeout(refreshShippingMethodsLayout, 0);
-    });
-    $('#omnivalt-settings-root').on('change', 'input[data-omniva-country-toggle]', function() {
+    $root.on('change', 'input[data-omniva-country-toggle]', function() {
       var $destination = getDestinationForControl($(this));
 
       if (!$destination.length) {
@@ -166,7 +274,7 @@ jQuery(function($) {
         refreshDestinationTabs($destination.closest('[data-omniva-method-group]'));
       }
     });
-    $('#omnivalt-settings-root').on('change', 'input[data-omniva-destination-toggle]', function() {
+    $root.on('change', 'input[data-omniva-destination-toggle]', function() {
       var $destination = getDestinationForControl($(this));
 
       if (!$destination.length) {
@@ -190,7 +298,7 @@ jQuery(function($) {
     });
 
     refreshShippingMethodsLayout();
-    $('#omnivalt-settings-root').removeClass('is-layout-pending');
+    return refreshShippingMethodsLayout;
 
     function refreshShippingMethodsLayout() {
       var availableMethods = getAvailableMethods();
@@ -207,7 +315,7 @@ jQuery(function($) {
           return;
         }
 
-        var $globalField = $('#woocommerce_omnivalt_method_' + methodKey);
+        var $globalField = $root.find('#woocommerce_omnivalt_method_' + methodKey);
         var methodEnabled = !$globalField.length || ($globalField.is(':checked') && !$globalField.is(':disabled'));
         $group.toggleClass('is-method-disabled', !methodEnabled);
 
@@ -336,44 +444,214 @@ jQuery(function($) {
         .attr('tabindex', '-1');
     }
 
-    function getAvailableMethods() {
-      var apiCountry = $('#woocommerce_omnivalt_api_country').val();
-      if (window.omnivalt_params && window.omnivalt_params.available_methods && window.omnivalt_params.available_methods[apiCountry]) {
-        return window.omnivalt_params.available_methods[apiCountry];
+  }
+
+  function initializePriceTables() {
+    var rowSequence = 0;
+
+    $root.find('.prices-table > table').each(function() {
+      var $table = $(this);
+      var initialRows = $table.find('.row-values').toArray();
+
+      checkAllRows($table);
+      checkTableAddRowButton($table);
+
+      $table.data('omnivaltPricesReset', function() {
+        var $footer = $table.find('.row-footer').first();
+
+        $table.find('.row-values').detach();
+        $.each(initialRows, function(index, row) {
+          $(row).insertBefore($footer);
+        });
+        checkAllRows($table);
+        checkTableAddRowButton($table);
+      });
+    });
+
+    $root.find('.sec-prices .price_type').each(function() {
+      showPricesSection($(this), false);
+    });
+
+    $root.on('change', '.prices-table .row-values .column-value input[type="number"]', function() {
+      var $table = $(this).closest('table');
+
+      checkAllRows($table);
+      checkTableAddRowButton($table);
+    });
+    $root.on('click', '.omniva-fake-btn', function() {
+      var action = $(this).attr('data-action');
+
+      if (action === 'add_prices_table_row') {
+        addPricesTableRow($(this));
+      } else if (action === 'remove_prices_table_row') {
+        removePricesTableRow($(this));
       }
+    });
+    $root.on('change', '.price_type', function() {
+      showPricesSection($(this), true);
+    });
 
-      return {};
-    }
+    function addPricesTableRow($button) {
+      var $buttonRow = $button.closest('tr');
+      var $table = $button.closest('table');
+      var $previousRows = $buttonRow.parent().find('.row-values');
+      var valueStep = $table.attr('data-step1');
+      var priceStep = $table.attr('data-step2');
+      var decimals = countDecimals(valueStep);
+      var valueFrom = 0;
+      var fromLabel = valueFrom.toFixed(decimals);
+      var rowKey = String(new Date().getTime()) + String(rowSequence++);
 
-    function isMethodAvailable(countryMethods, methodKey) {
-      if (!countryMethods) {
-        return false;
-      }
+      if ($previousRows.length) {
+        var previousValue = $previousRows.last().find('.column-value input[type="number"]').val();
 
-      var aliases = {
-        'pt': ['pt', 'terminal', 'pickup'],
-        'c': ['c', 'courier'],
-        'cp': ['cp', 'courier_plus'],
-        'pc': ['pc', 'private_customer'],
-        'pn': ['pn', 'post_near'],
-        'ps': ['ps', 'post_specific'],
-        'lc': ['lc', 'letter_courier'],
-        'lp': ['lp', 'letter_post']
-      };
-      var methodAliases = aliases[methodKey] || [methodKey];
-
-      for (var i = 0; i < methodAliases.length; i++) {
-        if ($.inArray(methodAliases[i], countryMethods) !== -1) {
-          return true;
+        if (previousValue) {
+          valueFrom = parseFloat(previousValue) + parseFloat(valueStep);
+          fromLabel = valueFrom.toFixed(decimals);
+        } else if (previousValue === '') {
+          fromLabel = '???';
         }
       }
 
-      return false;
+      var $valueColumn = $('<td class="column-value"></td>');
+      var $from = $('<span class="row-from"></span>');
+      var $fromValue = $('<span class="value-from"></span>')
+        .attr('data-step', parseFloat(valueStep))
+        .text(fromLabel);
+      var $valueInput = $('<input type="number" class="input-text regular-input" placeholder="...">')
+        .attr({
+          'name': $table.attr('data-name') + '[' + rowKey + '][value]',
+          'id': $table.attr('data-id') + '_value_' + rowKey,
+          'step': valueStep,
+          'min': valueFrom
+        });
+      var $priceInput = $('<input type="number" class="input-text regular-input">')
+        .attr({
+          'name': $table.attr('data-name') + '[' + rowKey + '][price]',
+          'id': $table.attr('data-id') + '_price_' + rowKey,
+          'step': priceStep,
+          'min': 0
+        });
+      var $remove = $('<div class="omniva-fake-btn" data-action="remove_prices_table_row">X</div>');
+      var $newRow = $('<tr class="row-values"></tr>');
+
+      $from.append($fromValue, document.createTextNode(' - '));
+      $valueColumn.append($from, $valueInput);
+      $newRow.append(
+        $valueColumn,
+        $('<td class="column-price"></td>').append($priceInput),
+        $('<td class="column-actions"></td>').append($remove)
+      );
+      $newRow.insertBefore($buttonRow);
+      checkTableAddRowButton($table);
+    }
+
+    function removePricesTableRow($button) {
+      var $table = $button.closest('table');
+
+      $button.closest('tr').remove();
+      checkAllRows($table);
+      checkTableAddRowButton($table);
+    }
+
+    function countDecimals(value) {
+      var numericValue = parseFloat(value);
+
+      if (numericValue % 1 !== 0) {
+        return String(value).split('.')[1].length;
+      }
+
+      return 0;
+    }
+
+    function checkTableAddRowButton($table) {
+      var $button = $table.find('.row-footer .column-add .omniva-fake-btn');
+      var $valueFields = $table.find('.row-values .column-value input[type="number"]');
+
+      if (!$button.length) {
+        return;
+      }
+
+      if (!$valueFields.length || $valueFields.last().val()) {
+        $button.removeClass('disabled');
+      } else {
+        $button.addClass('disabled');
+      }
+    }
+
+    function checkAllRows($table) {
+      var valueStep = $table.attr('data-step1');
+      var decimals;
+      var $rows;
+      var previousValue = 0;
+
+      if (valueStep === undefined || valueStep === null || valueStep === '') {
+        return;
+      }
+
+      decimals = countDecimals(valueStep);
+      $rows = $table.find('.row-values').filter(function() {
+        return $(this).find('.column-value .value-from').length &&
+          $(this).find('.column-value input[type="number"]').length;
+      });
+
+      $rows.each(function(index) {
+        var $row = $(this);
+        var $input = $row.find('.column-value input[type="number"]').first();
+        var $from = $row.find('.column-value .value-from').first();
+        var nextValue = index + 1 < $rows.length
+          ? $rows.eq(index + 1).find('.column-value input[type="number"]').val()
+          : '';
+        var fromValue = index === 0 ? 0 : parseFloat(previousValue) + parseFloat(valueStep);
+        var minimum = index === 0 ? 0 : parseFloat(previousValue) + parseFloat(valueStep);
+
+        $from.text(fromValue.toFixed(decimals));
+        $input.attr('min', minimum.toFixed(decimals));
+
+        if (index + 1 < $rows.length) {
+          if ($input.val() === '') {
+            $input.val((index === 0 ? parseFloat(previousValue) : minimum).toFixed(decimals));
+          } else if (parseFloat($input.val()) <= parseFloat(previousValue)) {
+            $input.val(minimum.toFixed(decimals));
+          }
+        } else if ($input.val() !== '' && parseFloat($input.val()) <= parseFloat(previousValue)) {
+          $input.val(minimum.toFixed(decimals));
+        }
+
+        if (nextValue) {
+          $input.attr('max', (parseFloat(nextValue) - parseFloat(valueStep)).toFixed(decimals));
+        } else {
+          $input.removeAttr('max');
+        }
+
+        previousValue = $input.val();
+      });
+    }
+
+    function showPricesSection($select, animate) {
+      var $section = $select.closest('.sec-prices');
+      var selectedType = $select.val();
+      var sections = {
+        'simple': $section.find('.prices-single'),
+        'weight': $section.find('.prices-table.table-weight'),
+        'amount': $section.find('.prices-table.table-amount'),
+        'boxsize': $section.find('.prices-table.table-boxsize')
+      };
+
+      $.each(sections, function(type, $elements) {
+        var visible = selectedType === type;
+
+        if (animate) {
+          $elements.stop(true, true)[visible ? 'slideDown' : 'slideUp']('slow');
+        } else {
+          $elements.toggle(visible);
+        }
+      });
     }
   }
 
   function initializePositionSortable() {
-    $('#omnivalt-settings-root .field-position').each(function() {
+    $root.find('.field-position').each(function() {
       var $fieldset = $(this);
       var $table = $fieldset.children('table').first();
       var $rows = $table.find('tr');
@@ -506,7 +784,7 @@ jQuery(function($) {
 
   // Keep sender details visually grouped as a compact data-entry form while
   // preserving WooCommerce's generated field names and values.
-  $( [
+  $root.find( [
     '#woocommerce_omnivalt_company',
     '#woocommerce_omnivalt_shop_name',
     '#woocommerce_omnivalt_shop_city',
@@ -537,17 +815,15 @@ jQuery(function($) {
     updateFloatingLabel();
   });
 
-  var $pickupStart = $('#woocommerce_omnivalt_pick_up_start');
-  var $pickupEnd = $('#woocommerce_omnivalt_pick_up_end');
+  var $pickupStart = $root.find('#woocommerce_omnivalt_pick_up_start');
+  var $pickupEnd = $root.find('#woocommerce_omnivalt_pick_up_end');
 
   if ($pickupStart.length && $pickupEnd.length) {
     function validatePickupWindow() {
       var startTime = $pickupStart.val();
       var endTime = $pickupEnd.val();
       var isInvalid = startTime && endTime && startTime >= endTime;
-      var message = window.omnivaltSettingsPhone && window.omnivaltSettingsPhone.pickup_window_invalid
-        ? window.omnivaltSettingsPhone.pickup_window_invalid
-        : 'End time must be later than start time.';
+      var message = textSettings.pickup_window_invalid || '';
 
       $pickupEnd[0].setCustomValidity(isInvalid ? message : '');
 
@@ -555,14 +831,14 @@ jQuery(function($) {
     }
 
     $pickupStart.add($pickupEnd).on('input change', validatePickupWindow);
-    $('#omnivalt-settings-root form').on('submit', validatePickupWindow);
+    $root.find('form').on('submit', validatePickupWindow);
     validatePickupWindow();
   }
 
   function refreshSettingsTab($tab) {
     var selectedTab = $tab.attr('data-settings-tab');
 
-    $('#omnivalt-settings-root [data-settings-card]').each(function() {
+    $root.find('[data-settings-card]').each(function() {
       var $card = $(this);
       var cardTab = $card.attr('data-settings-tab');
 
@@ -572,7 +848,7 @@ jQuery(function($) {
 
   function syncSettingsTabUrl($tab) {
     var selectedTab = $tab.attr('data-settings-tab');
-    var $form = $('#omnivalt-settings-root form').first();
+    var $form = $root.find('form').first();
     var pageUrl;
     var formUrl;
 
@@ -593,7 +869,7 @@ jQuery(function($) {
     $form.attr('action', formUrl.toString());
   }
 
-  $('#omnivalt-settings-root .omniva-tabs__tab').on('click', function() {
+  $root.find('.omniva-tabs__tab').on('click', function() {
     var $tab = $(this);
 
     $tab.addClass('is-active').attr('aria-current', 'page');
@@ -602,19 +878,20 @@ jQuery(function($) {
     syncSettingsTabUrl($tab);
   });
 
-  refreshSettingsTab($('#omnivalt-settings-root .omniva-tabs__tab.is-active').first());
+  refreshSettingsTab($root.find('.omniva-tabs__tab.is-active').first());
 
-  if (window.omnivaltSettingsPhone) {
-    var phoneSettings = window.omnivaltSettingsPhone;
+  if (pageSettings.phone && pageSettings.phone.countries) {
+    var phoneSettings = pageSettings.phone;
 
     // Replace the visible phone control with a country-aware input and keep the original field for submission.
-    $('#woocommerce_omnivalt_shop_phone, #woocommerce_omnivalt_shop_mobile').each(function() {
+    $root.find('#woocommerce_omnivalt_shop_phone, #woocommerce_omnivalt_shop_mobile').each(function() {
       var $original = $(this);
       var isMobile = $original.attr('id') === 'woocommerce_omnivalt_shop_mobile';
-      var selectedCountry = $('#woocommerce_omnivalt_shop_countrycode').val() || 'LT';
+      var selectedCountry = $root.find('#woocommerce_omnivalt_shop_countrycode').val() || 'LT';
       var storedValue = $original.val() || '';
       var $wrapper = $('<span class="omnivalt-phone-input"></span>');
-      var $country = $('<button type="button" class="omnivalt-phone-input__country" aria-label="Country calling code" aria-expanded="false"></button>');
+      var $country = $('<button type="button" class="omnivalt-phone-input__country" aria-expanded="false"></button>')
+        .attr('aria-label', textSettings.country_calling_code || '');
       var $number = $('<input type="tel" class="omnivalt-phone-input__number" inputmode="tel" autocomplete="tel-national">');
       var $dropdown = $('<div class="omnivalt-phone-input__dropdown" role="listbox"></div>').hide();
 
@@ -678,7 +955,7 @@ jQuery(function($) {
         $dropdown.toggle(!isOpen);
         $country.attr('aria-expanded', isOpen ? 'false' : 'true');
       });
-      $(document).on('mousedown', function(event) {
+      $root.on('mousedown', function(event) {
         if (!$(event.target).closest($wrapper).length) {
           $dropdown.hide();
           $country.attr('aria-expanded', 'false');
@@ -714,33 +991,32 @@ jQuery(function($) {
     });
   }
 
-  $('#omnivalt-settings-root select.wc-enhanced-select[multiple]').each(function() {
+  $root.find('select.omnivalt-multiselect[multiple]').each(function() {
     // Keep the original select in the form and use a searchable UI for selecting multiple values.
     var $select = $(this);
-    var $select2 = $select.next('.select2-container');
     var $picker = $('<div class="omniva-picker"></div>');
     var $selectedWrap = $('<div class="omniva-picker__selected-wrap"></div>');
     var $selectedHeader = $('<div class="omniva-picker__selected-header"></div>');
     var $selectedCount = $('<span class="omniva-picker__selected-count"></span>');
-    var $clear = $('<button type="button" class="omniva-picker__clear"></button>').text('Clear all');
+    var $clear = $('<button type="button" class="omniva-picker__clear"></button>').text(textSettings.clear_all || '');
     var $selected = $('<div class="omniva-picker__selected"></div>');
     var $inputWrap = $('<div class="omniva-picker__input-wrap"></div>');
     var $input = $('<input type="search" class="omniva-input omniva-picker__search" autocomplete="off" aria-expanded="false" aria-haspopup="listbox">');
     var $dropdown = $('<div class="omniva-picker__dropdown" role="listbox" aria-multiselectable="true"></div>').hide();
 
     if ($select.attr('id') === 'woocommerce_omnivalt_restricted_categories') {
-      $input.attr('placeholder', 'Search categories...');
+      $input.attr('placeholder', textSettings.search_categories || '');
     } else if ($select.attr('id') === 'woocommerce_omnivalt_restricted_shipclass') {
-      $input.attr('placeholder', 'Search shipping classes...');
+      $input.attr('placeholder', textSettings.search_shipping_classes || '');
     } else {
-      $input.attr('placeholder', 'Search...');
+      $input.attr('placeholder', textSettings.search || '');
     }
     $selectedHeader.append($selectedCount, $clear);
     $selectedWrap.append($selectedHeader, $selected);
     $inputWrap.append($input);
     $picker.append($selectedWrap, $inputWrap, $dropdown);
-    $picker.insertAfter($select2);
-    $select2.hide();
+    $select.addClass('omnivalt-multiselect__source');
+    $picker.insertAfter($select);
 
     function getValues() {
       return $select.val() || [];
@@ -760,11 +1036,12 @@ jQuery(function($) {
       }
 
       $selectedWrap.show();
-      $selectedCount.text(values.length + ' selected');
+      $selectedCount.text((textSettings.selected_count || '%d').replace('%d', values.length));
       $select.find('option:selected').each(function() {
         var optionValue = $(this).val();
         var $tag = $('<span class="omniva-picker__tag"></span>');
-        var $remove = $('<button type="button" class="omniva-picker__remove" aria-label="Remove selected item">&times;</button>');
+        var $remove = $('<button type="button" class="omniva-picker__remove">&times;</button>')
+          .attr('aria-label', textSettings.remove_selected_item || '');
 
         $tag.append($('<span></span>').text($(this).text()), $remove);
         $remove.on('click', function() {
@@ -811,13 +1088,12 @@ jQuery(function($) {
           }
 
           setValues(nextValues);
-          renderOptions();
         });
         $list.append($option);
       });
 
       if (!count) {
-        $list.append($('<p class="omniva-picker__empty"></p>').text('No matches found.'));
+        $list.append($('<p class="omniva-picker__empty"></p>').text(textSettings.no_matches || ''));
       }
 
       $dropdown.empty().append($list);
@@ -831,13 +1107,24 @@ jQuery(function($) {
       $dropdown.show();
       $input.attr('aria-expanded', 'true');
     });
-    $input.on('blur', function() {
-      window.setTimeout(function() {
+    $input.on('keydown', function(event) {
+      if (event.key === 'Escape') {
         $dropdown.hide();
         $input.attr('aria-expanded', 'false');
-      }, 150);
+      }
     });
-    $select.on('change', renderSelected);
+    $root.on('mousedown', function(event) {
+      if (!$(event.target).closest($picker).length) {
+        $dropdown.hide();
+        $input.attr('aria-expanded', 'false');
+      }
+    });
+    $select.on('change', function() {
+      renderSelected();
+      if ($dropdown.is(':visible')) {
+        renderOptions();
+      }
+    });
 
     renderSelected();
   });
@@ -845,7 +1132,6 @@ jQuery(function($) {
   initializeSettingsSaveBar();
 
   function initializeSettingsSaveBar() {
-    var $root = $('#omnivalt-settings-root');
     var $form = $root.find('form').first();
     var $status = $root.find('[data-settings-save-status]');
     var $statusText = $status.find('[data-settings-save-status-text]');
@@ -913,7 +1199,13 @@ jQuery(function($) {
         }
       });
 
-      $form.find(':input').trigger('change');
+      $form.find('.prices-table > table').each(function() {
+        var resetPrices = $(this).data('omnivaltPricesReset');
+
+        if ($.isFunction(resetPrices)) {
+          resetPrices();
+        }
+      });
       $form.find('.omnivalt-phone-input__value').each(function() {
         var resetPhone = $(this).data('omnivaltPhoneReset');
 
@@ -929,6 +1221,7 @@ jQuery(function($) {
         }
       });
 
+      $form.find(':input').trigger('change');
       renderSaveState();
     });
 

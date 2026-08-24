@@ -48,7 +48,7 @@ do_action('omniva_admin_manifest_head');
       <?php endif; ?>
     </header>
   <?php if ( ! $shipping_settings ) : ?>
-    <?php echo wp_kses_post( OmnivaLt_Helper::build_notice( sprintf( esc_html__('Please configure the plugin on %s.', 'omnivalt'), '<a href="' . esc_url( admin_url('admin.php?page=wc-settings&tab=shipping&section=omnivalt') ) . '">' . esc_html__('Omniva settings page', 'omnivalt') . '</a>' ), 'error', 'Omniva' ) ); ?>
+    <?php echo wp_kses_post( OmnivaLt_Helper::build_notice( sprintf( esc_html__('Please configure the plugin on %s.', 'omnivalt'), '<a href="' . esc_url( OmnivaLt_Settings_Page::get_page_url() ) . '">' . esc_html__('Omniva settings page', 'omnivalt') . '</a>' ), 'error', 'Omniva' ) ); ?>
   <?php else : ?>
       <?php if ( ! empty($current_courier_calls) ) : ?>
         <section class="call-courier-container omnivalt-manifest-page__scheduled-card">
