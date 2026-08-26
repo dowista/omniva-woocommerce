@@ -11,11 +11,45 @@ import { debounce } from 'lodash';
  * Internal dependencies
  */
 import { getDestination, getActiveShippingRates } from '../global/wc-cart';
-import { getOmnivaData, getDynamicOmnivaData, isOmnivaMethod, isOmnivaTerminalMethod } from '../global/omniva';
+import { getOmnivaData, getPicapacData, getDynamicOmnivaData, isOmnivaMethod, isOmnivaTerminalMethod } from '../global/omniva';
 import { getTerminalsByCountry, loadMap, removeMap, loadCustomSelect } from '../global/terminals';
 import { txt } from '../global/text';
 import { addTokenToValue, isObjectEmpty, findArrayElemByObjProp} from '../global/utils';
 import { debug, enableStateDebug } from '../global/debug';
+
+const getShippingRateOption = (rateId) => {
+    const shippingRatesControl = document.querySelector(
+        '.wc-block-components-shipping-rates-control'
+    );
+
+    if ( ! shippingRatesControl ) {
+        return null;
+    }
+
+    const rateInputs = shippingRatesControl.querySelectorAll(
+        'input[type="radio"]'
+    );
+
+    for ( let i = 0; i < rateInputs.length; i++ ) {
+        if ( rateInputs[i].value.split(':')[0] !== rateId ) {
+            continue;
+        }
+
+        const rateOption = rateInputs[i].closest(
+            '.wc-block-components-radio-control__option'
+        ) || rateInputs[i].closest('label');
+
+        if ( rateOption ) {
+            rateOption.classList.add('omnivalt-picapac-option');
+
+            return {
+                container: rateOption,
+            };
+        }
+    }
+
+    return null;
+};
 
 export const Block = ({ checkoutExtensionData, extensions }) => {
     const terminalValidationErrorId = 'omnivalt_terminal';
@@ -50,8 +84,13 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
     const [containerErrorClass, setContainerErrorClass] = useState('');
     const elemTerminalSelectField = useRef(null);
     const elemMapContainer = useRef(null);
+    const picapacInfoContainer = useRef(null);
     const map = loadMap();
     const customSelect = loadCustomSelect();
+    const picapacData = getPicapacData();
+    const picapacRateId = picapacData.rate_id || '';
+    const picapacInfoUrl = picapacData.info_url || 'https://picapac.com';
+    const picapacInfoLabel = picapacData.info_label || 'What is Picapac?';
 
     enableStateDebug('Block show', showBlock);
     enableStateDebug('Terminals list', terminals);
@@ -390,11 +429,77 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         selectedRateId
     ]);
 
+    useEffect(() => {
+        const removeInfoLink = () => {
+            if ( picapacInfoContainer.current ) {
+                picapacInfoContainer.current.remove();
+                picapacInfoContainer.current = null;
+            }
+        };
+
+        if ( picapacRateId === '' || ! document.body || ! window.MutationObserver ) {
+            removeInfoLink();
+            return undefined;
+        }
+
+        const placeInfoLink = () => {
+            const target = getShippingRateOption(picapacRateId);
+            const currentContainer = picapacInfoContainer.current;
+
+            if (
+                currentContainer &&
+                currentContainer.isConnected &&
+                target &&
+                currentContainer.parentNode === target.container
+            ) {
+                return;
+            }
+
+            removeInfoLink();
+
+            if ( ! target ) {
+                return;
+            }
+
+            const newInfoContainer = document.createElement('span');
+            newInfoContainer.className = 'omnivalt-picapac-info';
+
+            const newInfoLink = document.createElement('a');
+            newInfoLink.href = picapacInfoUrl;
+            newInfoLink.target = '_blank';
+            newInfoLink.rel = 'noopener noreferrer';
+            newInfoLink.textContent = picapacInfoLabel;
+            newInfoLink.addEventListener('click', (event) => event.stopPropagation());
+
+            newInfoContainer.appendChild(newInfoLink);
+            target.container.appendChild(newInfoContainer);
+
+            picapacInfoContainer.current = newInfoContainer;
+        };
+
+        placeInfoLink();
+
+        const observer = new MutationObserver(placeInfoLink);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+        });
+
+        return () => {
+            observer.disconnect();
+            removeInfoLink();
+        };
+    }, [
+        picapacRateId,
+        picapacInfoUrl,
+        picapacInfoLabel
+    ]);
+
     if ( ! isOmnivaMethod(selectedRateId) ) {
         return null;
     }
 
-    return (
+    const blockContent = (
         <div className="omnivalt-container">
             <div className="omnivalt-general-errors">
                 {(phoneValidationError && !phoneValidationError.hidden) && (
@@ -427,4 +532,6 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             )}
         </div>
     );
+
+    return blockContent;
 };
