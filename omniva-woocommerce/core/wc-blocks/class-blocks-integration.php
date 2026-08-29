@@ -123,6 +123,7 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
                     'select_post' => __('Select post office', 'omnivalt'),
                     'select_terminal' => __('Select terminal', 'omnivalt'),
                     'search_placeholder' => __('Enter postcode', 'omnivalt'),
+                    'map_search_placeholder' => __('Start typing parcel machine name or address', 'omnivalt'),
                     'search_button' => __('Search', 'omnivalt'),
                     'select_button' => __('Select', 'omnivalt'),
                     'modal_open_button' => __('Select parcel machine', 'omnivalt'),
@@ -132,7 +133,19 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
                     'my_position' => __('Distance calculated from this point', 'omnivalt'),
                     'not_found' => __('Place not found', 'omnivalt'),
                     'no_cities_found' => __('There were no cities found for your search term', 'omnivalt'),
-                    'geo_not_supported' => __('Geolocation is not supported', 'omnivalt')
+                    'geo_not_supported' => __('Geolocation is not supported', 'omnivalt'),
+                    'delivery_location' => __('Delivery location', 'omnivalt'),
+                    'close_button' => __('Close map', 'omnivalt'),
+                    'search_label' => __('Search delivery locations', 'omnivalt'),
+                    'clear_search' => __('Clear search', 'omnivalt'),
+                    'clear_selection' => __('Clear selected delivery location', 'omnivalt'),
+                    'search_results_label' => __('Delivery location search results', 'omnivalt'),
+                    'show_on_map' => __('Show on map', 'omnivalt'),
+                    'terminal_list_label' => __('Delivery locations list', 'omnivalt'),
+                    'geolocation_error' => __('Location unavailable', 'omnivalt'),
+                    'close_popup' => __('Close popup', 'omnivalt'),
+                    'selected_button' => __('Selected', 'omnivalt'),
+                    'clear_button' => __('Clear', 'omnivalt')
                 ),
                 'select' => array(
                     'not_found' => __('Place not found', 'omnivalt'),
@@ -156,7 +169,8 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
             'omnivalt-block-frontend-checkout' => array(
                 'js' => 'terminal-selection-block/checkout/frontend.js',
                 'asset' => 'terminal-selection-block/checkout/frontend.asset.php',
-                'css' => 'terminal-selection-block/checkout/frontend.css'
+                'css' => 'terminal-selection-block/checkout/frontend.css',
+                'dependencies' => array('omnivalt-library-mapping', 'omnivalt-library-leaflet')
             ),
             'omnivalt-block-frontend-cart' => array(
                 'js' => 'terminal-selection-block/cart/frontend.js',
@@ -195,11 +209,16 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
                 'dependencies' => array(),
                 'version' => $this->get_file_version($script_asset_path),
             );
+            $script_dependencies = isset($script_asset['dependencies']) ? $script_asset['dependencies'] : array();
+
+            if ( isset($script_files['dependencies']) ) {
+                $script_dependencies = array_values(array_unique(array_merge($script_dependencies, $script_files['dependencies'])));
+            }
 
             wp_register_script(
                 $script_id,
                 $script_url,
-                $script_asset['dependencies'],
+                $script_dependencies,
                 $script_asset['version'],
                 true
             );
@@ -319,26 +338,26 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
 
     public function register_external_scripts()
     {
-        $js_url = OMNIVALT_URL . 'assets/js/';
-        $css_url = OMNIVALT_URL . 'assets/css/';
+        $assets_url = OMNIVALT_URL . 'assets/';
+        $assets_dir = OMNIVALT_DIR . 'assets/';
 
         $scripts = array(
             'omnivalt-library-mapping' => array(
-                'js' => 'terminal-mapping.js',
-                'css' => 'terminal-mapping.css'
+                'js' => 'terminal-mapping/terminal-mapping.omniva-fullwidth.js',
+                'css' => 'terminal-mapping/terminal-mapping.omniva-fullwidth.css'
             ),
             'omnivalt-library-leaflet' => array(
-                'js' => 'leaflet.js',
-                'css' => 'leaflet.css'
+                'js' => 'js/leaflet.js',
+                'css' => 'css/leaflet.css'
             ),
         );
 
         foreach ( $scripts as $script_id => $script_files ) {
             if ( ! empty($script_files['js']) ) {
-                wp_enqueue_script($script_id, $js_url . $script_files['js'], array('jquery'), $this->get_file_version(OMNIVALT_DIR . 'assets/js/' . $script_files['js']), true);
+                wp_enqueue_script($script_id, $assets_url . $script_files['js'], array('jquery'), $this->get_file_version($assets_dir . $script_files['js']), true);
             }
             if ( ! empty($script_files['css']) ) {
-                wp_enqueue_style($script_id, $css_url . $script_files['css'], array(), $this->get_file_version(OMNIVALT_DIR . 'assets/css/' . $script_files['css']));
+                wp_enqueue_style($script_id, $assets_url . $script_files['css'], array(), $this->get_file_version($assets_dir . $script_files['css']));
             }
         }
     }

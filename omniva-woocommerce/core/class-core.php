@@ -260,17 +260,18 @@ class OmnivaLt_Core
   {
     $folder_css = '/assets/css/';
     $folder_js = '/assets/js/';
+    $folder_mapping = '/assets/terminal-mapping/';
 
     if (is_cart() || is_checkout()) {
-      $mapping_js_file = OMNIVALT_DIR . $folder_js . 'terminal-mapping.js';
-      $mapping_css_file = OMNIVALT_DIR . $folder_css . 'terminal-mapping.css';
+      $mapping_js_file = OMNIVALT_DIR . $folder_mapping . 'terminal-mapping.omniva-fullwidth.js';
+      $mapping_css_file = OMNIVALT_DIR . $folder_mapping . 'terminal-mapping.omniva-fullwidth.css';
       $mapping_js_version = file_exists($mapping_js_file) ? filemtime($mapping_js_file) : OMNIVALT_VERSION;
       $mapping_css_version = file_exists($mapping_css_file) ? filemtime($mapping_css_file) : OMNIVALT_VERSION;
-      wp_enqueue_script('omnivalt_mapping', plugins_url($folder_js . 'terminal-mapping.js', self::$main_file_path), array('jquery'), $mapping_js_version, true);
-      wp_enqueue_style('omnivalt_mapping', plugins_url($folder_css . 'terminal-mapping.css', self::$main_file_path), array(), $mapping_css_version);
+      wp_enqueue_script('omnivalt_mapping', plugins_url($folder_mapping . 'terminal-mapping.omniva-fullwidth.js', self::$main_file_path), array('jquery'), $mapping_js_version, true);
+      wp_enqueue_style('omnivalt_mapping', plugins_url($folder_mapping . 'terminal-mapping.omniva-fullwidth.css', self::$main_file_path), array(), $mapping_css_version);
 
       wp_enqueue_script('omnivalt-helper', plugins_url($folder_js . 'omniva_helper.js', self::$main_file_path), array('jquery'), OMNIVALT_VERSION);
-      wp_enqueue_script('omnivalt', plugins_url($folder_js . 'omniva.js', self::$main_file_path), array('jquery'), OMNIVALT_VERSION);
+      wp_enqueue_script('omnivalt', plugins_url($folder_js . 'omniva.js', self::$main_file_path), array('jquery', 'omnivalt-helper', 'omnivalt_mapping', 'omnivalt_leaflet'), OMNIVALT_VERSION);
       wp_enqueue_style('omnivalt', plugins_url($folder_css . 'omniva.css', self::$main_file_path), array(), OMNIVALT_VERSION);
       
       if ( file_exists(OMNIVALT_DIR . $folder_css . 'custom.css') ) { //Allow custom CSS file which not include in plugin by default
@@ -297,6 +298,7 @@ class OmnivaLt_Core
           'select_post' => __('Select post office', 'omnivalt'),
           'modal_open_button' => __('Select in map', 'omnivalt'),
           'search_placeholder' => __('Enter postcode', 'omnivalt'),
+          'map_search_placeholder' => __('Start typing parcel machine name or address', 'omnivalt'),
           'search_button' => __('Search', 'omnivalt'),
           'select_button' => __('Select', 'omnivalt'),
           'not_found' => __('Place not found', 'omnivalt'),
@@ -307,6 +309,19 @@ class OmnivaLt_Core
           'geolocation_loading' => __('Locating...', 'omnivalt'),
           'my_position' => __('Distance calculated from this point', 'omnivalt'),
           'geo_not_supported' => __('Geolocation is not supported', 'omnivalt'),
+          'delivery_location' => __('Delivery location', 'omnivalt'),
+          'close_button' => __('Close map', 'omnivalt'),
+          'search_label' => __('Search delivery locations', 'omnivalt'),
+          'clear_search' => __('Clear search', 'omnivalt'),
+          'clear_selection' => __('Clear selected delivery location', 'omnivalt'),
+          'search_results_label' => __('Delivery location search results', 'omnivalt'),
+          'show_on_map' => __('Show on map', 'omnivalt'),
+          'terminal_list_label' => __('Delivery locations list', 'omnivalt'),
+          'geolocation_error' => __('Location unavailable', 'omnivalt'),
+          'close_popup' => __('Close popup', 'omnivalt'),
+          'selected_button' => __('Selected', 'omnivalt'),
+          'change_button' => __('Change', 'omnivalt'),
+          'clear_button' => __('Clear', 'omnivalt'),
         )
       ));
       wp_localize_script('omnivalt', 'omnivadata', array( //Old method (for dropdown)

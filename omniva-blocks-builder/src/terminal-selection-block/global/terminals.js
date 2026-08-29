@@ -2,90 +2,30 @@ import { txt } from './text';
 import { getOmnivaData } from './omniva';
 import { isObjectEmpty, insertAfter, getJsonDataFromUrl } from './utils';
 
+/* global OmnivaFullwidthTheme, OmnivaTerminalMapping */
+
 const markSelectControlValue = ( selectElem, value ) => {
     selectElem.value = value;
     const event = new Event('change', { bubbles: true });
     selectElem.dispatchEvent(event);
 };
 
-const renderSelectedTerminal = ( map, location ) => {
-    if ( ! map.elements.map_container || ! location ) {
+const clearTerminalPersistence = () => {
+    document.cookie = 'omniva_terminal=;expires=Thu, 01 Jan 1970 00:00:00 GMT;max-age=0;path=/;SameSite=Lax';
+
+    const data = getOmnivaData();
+    if ( ! data.ajax_url || ! data.clear_terminal_nonce || typeof fetch !== 'function' ) {
         return;
     }
 
-    const selectedTerminal = map.elements.map_container.querySelector('.tmjs-selected-terminal');
-
-    if ( ! selectedTerminal ) {
-        return;
-    }
-
-    const primaryText = String(location.name || location.address || location.city || '').trim();
-    const secondaryText = [location.address, location.city]
-        .map(value => value == null ? '' : String(value).trim())
-        .filter(value => value !== '')
-        .join(', ');
-
-    selectedTerminal.textContent = '';
-
-    const primary = document.createElement('span');
-    primary.className = 'tmjs-selected-primary';
-    primary.textContent = primaryText;
-    selectedTerminal.appendChild(primary);
-
-    if ( secondaryText && secondaryText !== primaryText ) {
-        const secondary = document.createElement('span');
-        secondary.className = 'tmjs-selected-secondary';
-        secondary.textContent = secondaryText;
-        selectedTerminal.appendChild(secondary);
-    }
-};
-
-const syncSelectedTerminalState = ( map ) => {
-    if ( ! map.elements.map_container ) {
-        return;
-    }
-
-    const selectedTerminal = map.elements.map_container.querySelector('.tmjs-selected-terminal');
-    const openButton = map.elements.map_container.querySelector('.tmjs-open-modal-btn');
-    const hasSelection = Boolean(
-        selectedTerminal && selectedTerminal.querySelector('.tmjs-selected-primary')
-    );
-
-    if ( selectedTerminal ) {
-        selectedTerminal.classList.toggle('tmjs-terminal-selected', hasSelection);
-    }
-
-    if ( openButton ) {
-        openButton.textContent = hasSelection
-            ? (txt.map.change_button || txt.map.modal_open_button)
-            : txt.map.modal_open_button;
-    }
-};
-
-const observeSelectedTerminal = ( map ) => {
-    if ( ! map.elements.map_container ) {
-        return;
-    }
-
-    if ( map.selectionObserver ) {
-        map.selectionObserver.disconnect();
-    }
-
-    const selectedTerminal = map.elements.map_container.querySelector('.tmjs-selected-terminal');
-
-    if ( ! selectedTerminal ) {
-        return;
-    }
-
-    map.selectionObserver = new MutationObserver(() => syncSelectedTerminalState(map));
-    map.selectionObserver.observe(selectedTerminal, {
-        childList: true,
-        characterData: true,
-        subtree: true,
-    });
-    map.elements.map_container._omnivaltTerminalSelectionObserver = map.selectionObserver;
-
-    syncSelectedTerminalState(map);
+    fetch(data.ajax_url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+        },
+        body: 'action=omnivalt_clear_terminal&nonce=' + encodeURIComponent(data.clear_terminal_nonce)
+    }).catch(() => null);
 };
 
 export const getTerminalsByCountry = ( country, type ) => {
@@ -112,7 +52,6 @@ export const loadMap = () => {
         variables: {
             allow_close_modal: true
         },
-        selectionObserver: null,
 
         load_data: function ( params ) {
             this.elements = {
@@ -124,22 +63,13 @@ export const loadMap = () => {
                 terminals_type: this.set_param(params, 'terminals_type', 'terminal'),
                 selected_terminal: this.set_param(params, 'selected_terminal', ''),
                 autoselect: this.set_param(params, 'autoselect', true),
-                icons_url: this.set_param(params, 'icons_url', `${getOmnivaData().plugin_url}assets/img/terminal-mapping/`),
+                icons_url: this.set_param(params, 'icons_url', `${getOmnivaData().plugin_url}assets/terminal-mapping/images/`),
+                marker_icons_url: this.set_param(params, 'marker_icons_url', `${getOmnivaData().plugin_url}assets/img/terminal-mapping/`),
                 country: this.set_param(params, 'country', 'LT'),
                 //show_map: getOmnivaData().show_map,
-                map_icon: this.set_param(params, 'map_icon', 'omnivalt_icon.png')
+                map_icon: this.set_param(params, 'map_icon', 'omnivalt_icon.png'),
+                on_clear: this.set_param(params, 'on_clear', null)
             };
-
-            if ( this.elements.map_container ) {
-                this.elements.map_container.style.setProperty(
-                    '--omnivalt-terminal-location-icon',
-                    `url("${this.params.icons_url}location.svg")`
-                );
-                this.elements.map_container.style.setProperty(
-                    '--omnivalt-terminal-icon',
-                    `url("${this.params.icons_url}terminal.svg")`
-                );
-            }
 
             const modal_header = (this.params.terminals_type == 'post') ? txt.map.modal_title_post : txt.map.modal_title_terminal;
             const provider = (this.params.provider in txt.providers) ? txt.providers[this.params.provider] : txt.providers.omniva;
@@ -171,46 +101,72 @@ export const loadMap = () => {
                 this.error('Failed to get a container for the map');
                 return;
             }
-            this.lib = new TerminalMappingOmnivalt();
+            this.lib = new OmnivaTerminalMapping();
             
             this.lib.setImagesPath(this.params.icons_url);
             this.lib.setTranslation(this.translations);
             this.lib.dom.setContainerParent(this.elements.map_container);
 
-            this.lib.setParseMapTooltip(( location, leafletCoords ) => {
-                let tip = location.address + " [" + location.id + "]";
-                if ( location.comment ) {
-                    tip += "<br/><i>" + location.comment + "</i>";
-                }
-                return tip;
-            });
-
             this.build_actions(this);
 
-            this.lib.init({
+            const themeOverrides = OmnivaFullwidthTheme.apply(this.lib, {
+                container: this.elements.map_container,
+                strings: {
+                    delivery_location: txt.map.delivery_location,
+                    close_button: txt.map.close_button,
+                    search_label: txt.map.search_label,
+                    // Keep the full-width map hint separate from the legacy
+                    // postcode placeholder so both texts can be translated.
+                    search_placeholder: txt.map.map_search_placeholder,
+                    clear_search: txt.map.clear_search,
+                    clear_selection: txt.map.clear_selection,
+                    search_results_label: txt.map.search_results_label,
+                    no_search_results: txt.map.no_cities_found,
+                    show_on_map: txt.map.show_on_map,
+                    terminal_list_label: txt.map.terminal_list_label,
+                    geolocation_button: txt.map.use_my_location,
+                    geolocation_loading: txt.map.geolocation_loading,
+                    geolocation_error: txt.map.geolocation_error,
+                    your_position: txt.map.my_position,
+                    close_popup: txt.map.close_popup,
+                    select_pickup_point: this.translations.select_pickup_point,
+                    modal_open_button: txt.map.modal_open_button,
+                    select_btn: txt.map.select_button,
+                    selected_btn: txt.map.selected_button,
+                    change_button: txt.map.change_button,
+                    clear_button: txt.map.clear_button
+                },
+                icons: {
+                    search: this.params.icons_url + 'input_search.svg',
+                    clear: this.params.icons_url + 'input_x.svg',
+                    geolocation: this.params.icons_url + 'geolocation.svg',
+                    location: this.params.icons_url + 'location.svg',
+                    terminal: this.params.icons_url + 'terminal.svg'
+                },
+                onClear: () => this.clear_selection()
+            });
+
+            this.lib.init(Object.assign({
                 country_code: this.params.country,
                 identifier: 'omnivalt',
                 isModal: true,
                 modalParent: this.elements.map_container,
                 hideContainer: true,
                 hideSelectBtn: true,
-                cssThemeRule: 'tmjs-default-theme',
                 customTileServerUrl: 'https://maps.omnivasiunta.lt/tile/{z}/{x}/{y}.png',
                 customTileAttribution: '&copy; <a href="https://www.omniva.lt">Omniva</a>' + ' | Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
                 terminalList: terminals,
-            });
-
-            observeSelectedTerminal(this);
+            }, themeOverrides));
         },
 
         build_actions: function( thisMap ) {
             this.lib.sub('tmjs-ready', function( data ) {
-                thisMap.lib.map.createIcon('omnivalt_icon', thisMap.params.icons_url + thisMap.params.map_icon);
+                thisMap.lib.map.createIcon('omnivalt_icon', thisMap.params.marker_icons_url + thisMap.params.map_icon);
                 thisMap.lib.map.refreshMarkerIcons();
                 
                 let selected_location = data.map.getLocationById(thisMap.params.selected_terminal);
                 if ( typeof(selected_location) != 'undefined' && selected_location != null ) {
-                    thisMap.lib.dom.setActiveTerminal(selected_location);
+                    thisMap.lib.dom.setActiveTerminal(selected_location.id);
                     thisMap.lib.publish('terminal-selected', selected_location);
                 }
             });
@@ -228,10 +184,20 @@ export const loadMap = () => {
                 thisMap.variables.allow_close_modal = true;
             });
 
-            this.lib.sub('terminal-selected', function( data ) {
-                renderSelectedTerminal(thisMap, data);
-                syncSelectedTerminalState(thisMap);
-            });
+        },
+
+        clear_selection: function() {
+            this.params.selected_terminal = '';
+
+            if ( this.elements.org_field ) {
+                markSelectControlValue(this.elements.org_field, '');
+            }
+
+            if ( typeof this.params.on_clear === 'function' ) {
+                this.params.on_clear();
+            }
+
+            clearTerminalPersistence();
         },
 
         set_search_value: function( value ) {
@@ -263,11 +229,6 @@ export const loadMap = () => {
 };
 
 export const removeMap = ( mapContainer ) => {
-    if ( mapContainer && mapContainer._omnivaltTerminalSelectionObserver ) {
-        mapContainer._omnivaltTerminalSelectionObserver.disconnect();
-        mapContainer._omnivaltTerminalSelectionObserver = null;
-    }
-
     while ( mapContainer.firstChild ) {
         mapContainer.removeChild(mapContainer.lastChild);
     }

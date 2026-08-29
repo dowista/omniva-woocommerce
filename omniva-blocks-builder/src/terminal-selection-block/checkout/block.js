@@ -342,7 +342,8 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
                     country: mapValues.country,
                     map_icon: omnivaData.map_icon,
                     selected_terminal: selectedOmnivaTerminal,
-                    autoselect: autoselect
+                    autoselect: autoselect,
+                    on_clear: () => setSelectedOmnivaTerminal('')
                 });
                 map.init(terminals);
                 map.set_search_value(mapValues.postcode);
