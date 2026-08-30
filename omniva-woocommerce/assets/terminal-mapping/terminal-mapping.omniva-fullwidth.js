@@ -2258,6 +2258,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
   var SEARCH_RESULT_LIMIT = 20;
   var NEAREST_RESULT_LIMIT = 10;
   var MAP_RESULT_ZOOM = 15;
+  var REVERSE_GEOCODE_URL = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode';
   var STATE_PROPERTY = '__omnivaFullwidthThemeState';
   var themeStates = typeof global.WeakMap === 'function' ? new global.WeakMap() : null;
 
@@ -2381,10 +2382,20 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var input = modal.querySelector('.tmjs-map-search__input');
     var clearButton = modal.querySelector('.tmjs-map-search__clear');
     var resetButton = modal.querySelector('.tmjs-map-search__reset');
+    var resultsBlock = modal.querySelector('.tmjs-map-search__results-block');
+    var origin = modal.querySelector('.tmjs-map-search__origin');
     var results = modal.querySelector('.tmjs-map-search__results');
     var geolocation = modal.querySelector('.tmjs-map-search__location');
 
-    if (!overlay || !input || !clearButton || !resetButton || !results) {
+    if (
+      !overlay
+      || !input
+      || !clearButton
+      || !resetButton
+      || !resultsBlock
+      || !origin
+      || !results
+    ) {
       return null;
     }
 
@@ -2394,9 +2405,372 @@ window.OmnivaTerminalMapping = TerminalMapping;
       input: input,
       clearButton: clearButton,
       resetButton: resetButton,
+      resultsBlock: resultsBlock,
+      origin: origin,
       results: results,
       geolocation: geolocation
     };
+  }
+
+  function getLegacySearchInput(state) {
+    if (
+      !state
+      || !state.layout
+      || !state.layout.modal
+      || typeof state.layout.modal.querySelector !== 'function'
+    ) {
+      return null;
+    }
+
+    return state.layout.modal.querySelector('.tmjs-search-input');
+  }
+
+  function getLegacySearchValue(state) {
+    var input = getLegacySearchInput(state);
+
+    return input && hasText(input.value) ? String(input.value).trim() : '';
+  }
+
+  function hideDistanceOrigin(state) {
+    if (!state || !state.layout || !state.layout.origin) {
+      return;
+    }
+
+    state.layout.origin.textContent = '';
+    state.layout.origin.hidden = true;
+    state.layout.origin.classList.remove('tmjs-map-search__origin--editing');
+    state.distanceOriginEditing = false;
+  }
+
+  function getOriginLabel(tmjs, state, origin) {
+    if (origin && origin.type === 'location') {
+      return getString(
+        tmjs,
+        state.options,
+        'sorted_by_location',
+        null,
+        'Sorted by distance from your location:'
+      );
+    }
+
+    return getString(
+      tmjs,
+      state.options,
+      'sorted_by_zip',
+      null,
+      'Sorted by distance from your ZIP:'
+    );
+  }
+
+  function getOriginInputLabel(tmjs, state) {
+    return getString(
+      tmjs,
+      state.options,
+      'postcode_input_label',
+      null,
+      'Postcode'
+    );
+  }
+
+  function getOriginInputPlaceholder(tmjs, state) {
+    return getString(
+      tmjs,
+      state.options,
+      'postcode_placeholder',
+      null,
+      'Enter postcode'
+    );
+  }
+
+  function getOriginChangeLabel(tmjs, state) {
+    return getString(
+      tmjs,
+      state.options,
+      'change_button',
+      null,
+      'Change'
+    );
+  }
+
+  function getOriginDocument(state) {
+    return state.layout && state.layout.origin && state.layout.origin.ownerDocument
+      ? state.layout.origin.ownerDocument
+      : global.document;
+  }
+
+  function getReverseGeocodeAddress(response) {
+    if (!response || !isPlainObject(response.address)) {
+      return '';
+    }
+
+    var address = response.address;
+    var parts = [];
+    var addPart = function (value) {
+      var normalized = hasText(value) ? String(value).trim() : '';
+
+      if (
+        normalized
+        && parts.every(function (part) {
+          return part.toLocaleLowerCase() !== normalized.toLocaleLowerCase();
+        })
+      ) {
+        parts.push(normalized);
+      }
+    };
+
+    // Keep the origin compact: postal code, street address, and city only.
+    addPart(address.Postal || address.postal);
+    addPart(address.Address || address.Street || address.address);
+    addPart(address.City || address.Municipality || address.Locality || address.city);
+
+    if (parts.length) {
+      return parts.join(', ');
+    }
+
+    return '';
+  }
+
+  function isMobileViewport(state) {
+    var documentRef = state && state.layout && state.layout.modal
+      ? state.layout.modal.ownerDocument
+      : global.document;
+    var viewportWidth = global.innerWidth
+      || (documentRef && documentRef.documentElement
+        ? documentRef.documentElement.clientWidth
+        : 0);
+
+    return viewportWidth > 0 && viewportWidth <= 768;
+  }
+
+  function renderNearestResultsIfVisible(tmjs, state) {
+    if (
+      !state.layout
+      || !state.distanceOrigin
+      || !state.layout.resultsBlock
+      || state.layout.resultsBlock.hidden
+    ) {
+      return;
+    }
+
+    renderSearchResults(tmjs, state, true);
+  }
+
+  function requestLocationOriginAddress(tmjs, state, coords) {
+    if (
+      !coords
+      || typeof global.fetch !== 'function'
+      || typeof coords.lat !== 'number'
+      || typeof coords.lng !== 'number'
+      || !isFinite(coords.lat)
+      || !isFinite(coords.lng)
+    ) {
+      return;
+    }
+
+    state.distanceOriginRequestId += 1;
+    var requestId = state.distanceOriginRequestId;
+    var query = [
+      'location=' + encodeURIComponent(coords.lng + ',' + coords.lat),
+      'f=pjson'
+    ].join('&');
+
+    global.fetch(REVERSE_GEOCODE_URL + '?' + query)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error(String(response.status));
+        }
+
+        return response.json();
+      })
+      .then(function (response) {
+        if (
+          requestId !== state.distanceOriginRequestId
+          || !state.distanceOrigin
+          || state.distanceOrigin.type !== 'location'
+        ) {
+          return;
+        }
+
+        var address = getReverseGeocodeAddress(response);
+        state.distanceOrigin.text = address;
+        state.distanceOrigin.pending = false;
+        renderNearestResultsIfVisible(tmjs, state);
+      })
+      .catch(function () {
+        if (
+          requestId !== state.distanceOriginRequestId
+          || !state.distanceOrigin
+          || state.distanceOrigin.type !== 'location'
+        ) {
+          return;
+        }
+
+        state.distanceOrigin.text = '';
+        state.distanceOrigin.pending = false;
+        renderNearestResultsIfVisible(tmjs, state);
+      });
+  }
+
+  function renderDistanceOrigin(tmjs, state) {
+    if (!state.layout || !state.layout.origin || !state.distanceOrigin) {
+      hideDistanceOrigin(state);
+      return;
+    }
+
+    var origin = state.layout.origin;
+    var documentRef = getOriginDocument(state);
+    var originData = state.distanceOrigin;
+    var label = createElement(documentRef, 'span', 'tmjs-map-search__origin-label');
+
+    origin.textContent = '';
+    origin.hidden = false;
+    origin.classList.toggle(
+      'tmjs-map-search__origin--editing',
+      state.distanceOriginEditing === true
+    );
+
+    if (state.distanceOriginEditing && originData.type === 'zip') {
+      var form = createElement(documentRef, 'form', 'tmjs-map-search__origin-form');
+      var input = createElement(documentRef, 'input', 'tmjs-map-search__origin-input');
+      var submit = createElement(documentRef, 'button', 'tmjs-map-search__origin-submit');
+
+      form.setAttribute('novalidate', 'novalidate');
+      input.type = 'text';
+      input.autocomplete = 'postal-code';
+      input.inputMode = 'numeric';
+      input.value = hasText(originData.query)
+        ? String(originData.query)
+        : getLegacySearchValue(state);
+      input.placeholder = getOriginInputPlaceholder(tmjs, state);
+      input.setAttribute('aria-label', getOriginInputLabel(tmjs, state));
+      submit.type = 'submit';
+      submit.textContent = getOriginChangeLabel(tmjs, state);
+      form.addEventListener('mousedown', function (event) {
+        event.stopPropagation();
+      });
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        submitDistanceOrigin(tmjs, state, input);
+      });
+
+      form.appendChild(input);
+      form.appendChild(submit);
+      origin.appendChild(form);
+      return;
+    }
+
+    label.textContent = getOriginLabel(tmjs, state, originData);
+    origin.appendChild(label);
+
+    if (hasText(originData.text)) {
+      var value = createElement(documentRef, 'span', 'tmjs-map-search__origin-value');
+
+      value.textContent = String(originData.text);
+      origin.appendChild(value);
+    }
+
+    if (originData.type === 'zip') {
+      var change = createElement(documentRef, 'button', 'tmjs-map-search__origin-change');
+
+      change.type = 'button';
+      change.textContent = getOriginChangeLabel(tmjs, state);
+      change.setAttribute('aria-label', getOriginChangeLabel(tmjs, state));
+      change.addEventListener('mousedown', function (event) {
+        event.stopPropagation();
+      });
+      change.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        state.distanceOriginEditing = true;
+        // Re-render the complete nearest-results block so the list remains
+        // open while only the origin line changes into the postcode editor.
+        renderSearchResults(tmjs, state, true);
+
+        var editorInput = state.layout.origin.querySelector(
+          '.tmjs-map-search__origin-input'
+        );
+        if (editorInput) {
+          editorInput.focus();
+          editorInput.select();
+        }
+      });
+
+      origin.appendChild(change);
+    }
+  }
+
+  function setDistanceOriginFromCandidate(tmjs, state, candidate) {
+    var attributes = candidate && candidate.attributes && isPlainObject(candidate.attributes)
+      ? candidate.attributes
+      : {};
+    var query = state.distanceOrigin && hasText(state.distanceOrigin.query)
+      ? String(state.distanceOrigin.query).trim()
+      : getLegacySearchValue(state);
+    var postalCode = attributes.Postal || attributes.postal || attributes.postal_code || '';
+    var text = candidate && hasText(candidate.address)
+      ? String(candidate.address).trim()
+      : (hasText(postalCode) ? String(postalCode).trim() : query);
+
+    state.distanceOrigin = {
+      type: 'zip',
+      text: text,
+      query: query || String(postalCode || text).trim()
+    };
+    state.distanceOriginEditing = false;
+    state.distanceOriginRequestId += 1;
+  }
+
+  function submitDistanceOrigin(tmjs, state, input) {
+    var query = input && hasText(input.value) ? String(input.value).trim() : '';
+
+    if (!query) {
+      if (input) {
+        input.focus();
+      }
+      return;
+    }
+
+    var previousQuery = state.distanceOrigin && state.distanceOrigin.query
+      ? String(state.distanceOrigin.query).trim()
+      : '';
+    var legacyInput = getLegacySearchInput(state);
+
+    if (legacyInput) {
+      legacyInput.value = query;
+    }
+
+    state.distanceOriginEditing = false;
+    state.distanceOriginRequestId += 1;
+
+    if (
+      previousQuery === query
+      && tmjs.map
+      && Array.isArray(tmjs.map.locations)
+      && tmjs.map.locations.some(hasDistance)
+    ) {
+      state.distanceOrigin = {
+        type: 'zip',
+        text: state.distanceOrigin.text || query,
+        query: query
+      };
+      renderDistanceOrigin(tmjs, state);
+      renderSearchResults(tmjs, state, true);
+      return;
+    }
+
+    state.distanceOrigin = {
+      type: 'zip',
+      text: query,
+      query: query
+    };
+    // Keep the nearest-results panel visible while ArcGIS resolves the new
+    // postcode. The list is refreshed by the existing `list-updated` event.
+    renderSearchResults(tmjs, state, true);
+
+    if (tmjs.dom && typeof tmjs.dom.searchNearest === 'function') {
+      tmjs.dom.searchNearest(query);
+    }
   }
 
   function hideSearchResults(state) {
@@ -2406,7 +2780,9 @@ window.OmnivaTerminalMapping = TerminalMapping;
 
     state.layout.results.textContent = '';
     state.layout.results.hidden = true;
+    state.layout.resultsBlock.hidden = true;
     state.layout.input.setAttribute('aria-expanded', 'false');
+    hideDistanceOrigin(state);
   }
 
   function updateSearchControl(state) {
@@ -2872,8 +3248,15 @@ window.OmnivaTerminalMapping = TerminalMapping;
       });
     }
 
+    state.layout.resultsBlock.hidden = false;
     results.hidden = false;
     state.layout.input.setAttribute('aria-expanded', 'true');
+
+    if (showNearest && state.distanceOrigin) {
+      renderDistanceOrigin(tmjs, state);
+    } else {
+      hideDistanceOrigin(state);
+    }
   }
 
   function refreshSearchAfterListUpdate(tmjs, state) {
@@ -2920,17 +3303,30 @@ window.OmnivaTerminalMapping = TerminalMapping;
     }
 
     layout.input.addEventListener('input', function () {
+      var search = normalizeSearchText(layout.input.value);
+
       updateSearchControl(state);
-      renderSearchResults(tmjs, state, false);
+
+      if (search.length >= SEARCH_MIN_LENGTH) {
+        renderSearchResults(tmjs, state, false);
+      } else if (state.distanceOrigin) {
+        renderSearchResults(tmjs, state, true);
+      } else {
+        hideSearchResults(state);
+      }
     });
     layout.input.addEventListener('focus', function () {
       if (normalizeSearchText(layout.input.value).length >= SEARCH_MIN_LENGTH) {
         renderSearchResults(tmjs, state, false);
+      } else if (state.distanceOrigin) {
+        renderSearchResults(tmjs, state, true);
       }
     });
     layout.input.addEventListener('click', function () {
       if (normalizeSearchText(layout.input.value).length >= SEARCH_MIN_LENGTH) {
         renderSearchResults(tmjs, state, false);
+      } else if (state.distanceOrigin) {
+        renderSearchResults(tmjs, state, true);
       }
     });
     layout.input.addEventListener('keydown', function (event) {
@@ -2941,6 +3337,10 @@ window.OmnivaTerminalMapping = TerminalMapping;
     });
     layout.clearButton.addEventListener('click', function () {
       clearLocalSearch(state, true);
+
+      if (state.distanceOrigin) {
+        renderSearchResults(tmjs, state, true);
+      }
     });
     layout.resetButton.addEventListener('click', function () {
       clearThemeSelection(tmjs, state);
@@ -3635,6 +4035,24 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var existingOverlay = modal.querySelector('.tmjs-map-search');
 
     if (existingOverlay) {
+      var existingOrigin = existingOverlay.querySelector('.tmjs-map-search__origin');
+      var existingResults = existingOverlay.querySelector('.tmjs-map-search__results');
+      var existingResultsBlock = existingOverlay.querySelector(
+        '.tmjs-map-search__results-block'
+      );
+
+      if (!existingResultsBlock && existingOrigin && existingResults) {
+        existingResultsBlock = createElement(
+          documentRef,
+          'div',
+          'tmjs-map-search__results-block'
+        );
+        existingResultsBlock.hidden = existingResults.hidden;
+        existingOverlay.insertBefore(existingResultsBlock, existingOrigin);
+        existingResultsBlock.appendChild(existingOrigin);
+        existingResultsBlock.appendChild(existingResults);
+      }
+
       return existingOverlay;
     }
 
@@ -3694,6 +4112,12 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var searchIcon = createElement(documentRef, 'span', 'tmjs-map-search__icon');
     var searchInput = createElement(documentRef, 'input', 'tmjs-map-search__input');
     var clearSearch = createElement(documentRef, 'button', 'tmjs-map-search__clear');
+    var resultsBlock = createElement(
+      documentRef,
+      'div',
+      'tmjs-map-search__results-block'
+    );
+    var origin = createElement(documentRef, 'div', 'tmjs-map-search__origin');
     var clearSelection = createElement(documentRef, 'button', 'tmjs-map-search__reset');
     var results = createElement(documentRef, 'ul', 'tmjs-map-search__results');
 
@@ -3722,6 +4146,10 @@ window.OmnivaTerminalMapping = TerminalMapping;
     results.hidden = true;
     results.setAttribute('aria-label', resultsLabel);
     results.setAttribute('aria-live', 'polite');
+    origin.hidden = true;
+    origin.setAttribute('role', 'status');
+    origin.setAttribute('aria-live', 'polite');
+    resultsBlock.hidden = true;
 
     field.appendChild(searchIcon);
     field.appendChild(searchInput);
@@ -3758,7 +4186,9 @@ window.OmnivaTerminalMapping = TerminalMapping;
     }
 
     overlay.appendChild(field);
-    overlay.appendChild(results);
+    resultsBlock.appendChild(origin);
+    resultsBlock.appendChild(results);
+    overlay.appendChild(resultsBlock);
     mapContainer.insertBefore(overlay, mapElement);
 
     return overlay;
@@ -3859,7 +4289,10 @@ window.OmnivaTerminalMapping = TerminalMapping;
         markerObserver: null,
         markerSyncTimer: null,
         selectedLocation: null,
-        clearInProgress: false
+        clearInProgress: false,
+        distanceOrigin: null,
+        distanceOriginEditing: false,
+        distanceOriginRequestId: 0
       };
       setThemeState(tmjs, state);
 
@@ -3918,7 +4351,11 @@ window.OmnivaTerminalMapping = TerminalMapping;
 
         if (state.layout) {
           setGeolocationState(tmjs, state, state.geolocationStatus);
-          state.layout.input.focus();
+
+          // Do not open the software keyboard automatically on phones.
+          if (!isMobileViewport(state)) {
+            state.layout.input.focus();
+          }
         }
 
         if (
@@ -3926,6 +4363,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
           && normalizeSearchText(state.layout.input.value).length >= SEARCH_MIN_LENGTH
         ) {
           renderSearchResults(tmjs, state, false);
+        } else if (state.distanceOrigin) {
+          renderSearchResults(tmjs, state, true);
         }
       });
 
@@ -3933,19 +4372,38 @@ window.OmnivaTerminalMapping = TerminalMapping;
         hideSearchResults(state);
       });
 
-      tmjs.sub('geolocation', function () {
+      tmjs.sub('geolocation', function (coords) {
         state.forceNearestResults = true;
+        state.distanceOriginRequestId += 1;
+        state.distanceOrigin = {
+          type: 'location',
+          text: '',
+          query: '',
+          coords: coords,
+          pending: true
+        };
+        state.distanceOriginEditing = false;
         setGeolocationState(tmjs, state, 'active');
+        requestLocationOriginAddress(tmjs, state, coords);
       });
 
       tmjs.sub('reset-search-result', function () {
         state.forceNearestResults = false;
+        state.distanceOriginRequestId += 1;
+        state.distanceOrigin = null;
+        state.distanceOriginEditing = false;
+        hideDistanceOrigin(state);
         setGeolocationState(tmjs, state, 'idle');
       });
 
-      tmjs.sub('search-result', function () {
+      tmjs.sub('search-result', function (candidate) {
         state.forceNearestResults = false;
+        setDistanceOriginFromCandidate(tmjs, state, candidate);
         setGeolocationState(tmjs, state, 'idle');
+
+        if (state.layout) {
+          renderSearchResults(tmjs, state, true);
+        }
       });
 
       tmjs.sub('terminal-selected', function (location) {
