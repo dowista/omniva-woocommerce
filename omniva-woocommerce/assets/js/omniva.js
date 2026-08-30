@@ -80,7 +80,6 @@ function omnivalt_init_map() {
                 search_results_label: omnivalt_data.text.search_results_label,
                 no_search_results: omnivalt_data.text.no_cities_found,
                 show_on_map: omnivalt_data.text.show_on_map,
-                terminal_list_label: omnivalt_data.text.terminal_list_label,
                 sorted_by_zip: omnivalt_data.text.sorted_by_zip,
                 sorted_by_location: omnivalt_data.text.sorted_by_location,
                 postcode_input_label: omnivalt_data.text.postcode_input_label,
@@ -88,6 +87,10 @@ function omnivalt_init_map() {
                 geolocation_button: omnivalt_data.text.use_my_location,
                 geolocation_loading: omnivalt_data.text.geolocation_loading,
                 geolocation_error: omnivalt_data.text.geolocation_error,
+                search_error: omnivalt_data.text.search_error,
+                sort_by_zip: omnivalt_data.text.sort_by_zip,
+                use_zip: omnivalt_data.text.use_zip,
+                enter_zip: omnivalt_data.text.enter_zip,
                 your_position: omnivalt_data.text.my_position,
                 close_popup: omnivalt_data.text.close_popup,
                 select_pickup_point: this.translations.select_pickup_point,
@@ -179,8 +182,19 @@ function omnivalt_init_map() {
                 return;
             }
 
-            this.lib.dom.searchNearest(selected_postcode);
-            this.lib.dom.UI.modal.querySelector('.tmjs-search-input').value = selected_postcode;
+            var runSearch = function() {
+                if ( ! omnivaltMap.lib || ! omnivaltMap.lib.map ) {
+                    return;
+                }
+
+                omnivaltMap.lib.dom.searchNearest(selected_postcode);
+            };
+
+            if ( this.lib.map ) {
+                runSearch();
+            } else {
+                this.lib.sub('tmjs-ready', runSearch);
+            }
         },
 
         clear_selection: function() {

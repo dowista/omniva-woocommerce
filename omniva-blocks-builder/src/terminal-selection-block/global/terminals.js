@@ -123,7 +123,6 @@ export const loadMap = () => {
                     search_results_label: txt.map.search_results_label,
                     no_search_results: txt.map.no_cities_found,
                     show_on_map: txt.map.show_on_map,
-                    terminal_list_label: txt.map.terminal_list_label,
                     sorted_by_zip: txt.map.sorted_by_zip,
                     sorted_by_location: txt.map.sorted_by_location,
                     postcode_input_label: txt.map.postcode_input_label,
@@ -131,6 +130,10 @@ export const loadMap = () => {
                     geolocation_button: txt.map.use_my_location,
                     geolocation_loading: txt.map.geolocation_loading,
                     geolocation_error: txt.map.geolocation_error,
+                    search_error: txt.map.search_error,
+                    sort_by_zip: txt.map.sort_by_zip,
+                    use_zip: txt.map.use_zip,
+                    enter_zip: txt.map.enter_zip,
                     your_position: txt.map.my_position,
                     close_popup: txt.map.close_popup,
                     select_pickup_point: this.translations.select_pickup_point,
@@ -206,12 +209,23 @@ export const loadMap = () => {
 
         set_search_value: function( value ) {
             value = value.trim();
-            if ( value == '' || ! this.lib.map ) {
+            if ( value == '' || ! this.lib ) {
                 return;
             }
 
-            this.lib.dom.searchNearest(value);
-            this.lib.dom.UI.modal.querySelector('.tmjs-search-input').value = value;
+            const runSearch = () => {
+                if ( ! this.lib.map ) {
+                    return;
+                }
+
+                this.lib.dom.searchNearest(value);
+            };
+
+            if ( this.lib.map ) {
+                runSearch();
+            } else {
+                this.lib.sub('tmjs-ready', runSearch);
+            }
         },
 
         activate_autoselect: function() {

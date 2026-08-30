@@ -244,6 +244,7 @@ var DOMManipulator = /*#__PURE__*/function () {
       modal: null,
       map: null,
       overlay: null,
+      terminalList: null,
       // dropdown mode
       dropdownPanel: null,
       dropdownTrigger: null
@@ -561,7 +562,9 @@ var DOMManipulator = /*#__PURE__*/function () {
     key: "addModal",
     value: function addModal(id, strings) {
       var close_button_class = this.isModal ? '' : 'tmjs-hidden';
-      var template = "\n      <div class=\"tmjs-modal-content\">\n\n        <div class=\"tmjs-modal-body ".concat(this.modalBodyClass, "\">\n          <div class=\"tmjs-map-container\"><div class=\"tmjs-map\"></div></div>\n          <div class=\"tmjs-terminal-sidebar\">\n            <div class=\"tmjs-terminal-finder\">\n              <h2 data-tmjs-string=\"modal_header\">").concat(strings.modal_header, "</h2>\n              <div class=\"tmjs-close-modal-btn ").concat(close_button_class, "\"></div>\n              <h3 class=\"tmjs-pt-2\" data-tmjs-string=\"seach_header\">").concat(strings.seach_header, "</h3>\n\n              <div class=\"tmjs-d-block\">\n                <input type=\"text\" class=\"tmjs-search-input\">\n                <a href=\"#search\" class=\"tmjs-search-btn\" ><img src=\"").concat(this.TMJS.imagePath, "search.svg\" width=\"18\"></a>\n              </div>\n\n              <div class=\"tmjs-d-block tmjs-pt-1\">\n                <a href=\"#useMyLocation\" class=\"tmjs-geolocation-btn\"><img src=\"").concat(this.TMJS.imagePath, "gps.svg\" width=\"15\"><span data-tmjs-string=\"geolocation_btn\">").concat(strings.geolocation_btn, "</span></a>\n              </div>\n              <div class=\"tmjs-search-result tmjs-d-block tmjs-pt-2\"></div>\n            </div>\n\n            <div class=\"tmjs-terminal-block\">\n              <h3 data-tmjs-string=\"terminal_list_header\">").concat(strings.terminal_list_header, "</h3>\n              <ul class=\"tmjs-terminal-list\"></ul>\n            </div>\n          </div>\n        </div>\n      </div>\n    ");
+      var omitTerminalSidebar = this.TMJS.coreFeatures && this.TMJS.coreFeatures.omitTerminalSidebar === true;
+      var terminalSidebar = omitTerminalSidebar ? '' : "\n          <div class=\"tmjs-terminal-sidebar\">\n            <div class=\"tmjs-terminal-finder\">\n              <h2 data-tmjs-string=\"modal_header\">".concat(strings.modal_header, "</h2>\n              <div class=\"tmjs-close-modal-btn ").concat(close_button_class, "\"></div>\n              <h3 class=\"tmjs-pt-2\" data-tmjs-string=\"seach_header\">").concat(strings.seach_header, "</h3>\n\n              <div class=\"tmjs-d-block\">\n                <input type=\"text\" class=\"tmjs-search-input\">\n                <a href=\"#search\" class=\"tmjs-search-btn\" ><img src=\"").concat(this.TMJS.imagePath, "search.svg\" width=\"18\"></a>\n              </div>\n\n              <div class=\"tmjs-d-block tmjs-pt-1\">\n                <a href=\"#useMyLocation\" class=\"tmjs-geolocation-btn\"><img src=\"").concat(this.TMJS.imagePath, "gps.svg\" width=\"15\"><span data-tmjs-string=\"geolocation_btn\">").concat(strings.geolocation_btn, "</span></a>\n              </div>\n              <div class=\"tmjs-search-result tmjs-d-block tmjs-pt-2\"></div>\n            </div>\n\n            <div class=\"tmjs-terminal-block\">\n              <h3 data-tmjs-string=\"terminal_list_header\">").concat(strings.terminal_list_header, "</h3>\n              <ul class=\"tmjs-terminal-list\"></ul>\n            </div>\n          </div>");
+      var template = "\n      <div class=\"tmjs-modal-content\">\n\n        <div class=\"tmjs-modal-body ".concat(this.modalBodyClass, "\">\n          <div class=\"tmjs-map-container\"><div class=\"tmjs-map\"></div></div>\n          ").concat(terminalSidebar, "\n        </div>\n      </div>\n    ");
       var modal = this.createElement('div', {
         classList: [this.cssThemeRule, this.isModal ? 'tmjs-modal' : 'tmjs-modal-flat', this.isModal ? 'tmjs-hidden' : ''],
         innerHTML: template
@@ -576,6 +579,11 @@ var DOMManipulator = /*#__PURE__*/function () {
       this.UI.modal = modal;
       this.UI.map = modal.querySelector('.tmjs-map');
       this.UI.terminalList = modal.querySelector('.tmjs-terminal-list');
+      if (!this.UI.terminalList && omitTerminalSidebar) {
+        this.UI.terminalList = this.createElement('ul', {
+          classList: ['tmjs-terminal-list']
+        });
+      }
       this.attachContainerToParent(modal, this.modalParent);
       //document.body.appendChild(this.UI.modal);
     }
@@ -583,31 +591,51 @@ var DOMManipulator = /*#__PURE__*/function () {
     key: "attachListeners",
     value: function attachListeners() {
       var _this2 = this;
-      this.UI.container.querySelector('.tmjs-open-modal-btn').addEventListener('click', function (e) {
-        e.preventDefault();
-        _this2.openModal();
-      });
-      this.UI.modal.querySelector('.tmjs-close-modal-btn').addEventListener('click', function (e) {
-        e.preventDefault();
-        _this2.closeModal();
-      });
-      this.UI.modal.querySelector('.tmjs-terminal-list').addEventListener('click', function (event) {
-        _this2.handleTerminalListEvents(event, _this2.findTerminalElement(event.target));
-      });
-      this.UI.modal.querySelector('.tmjs-search-input').addEventListener('keyup', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        _this2.searchNearestDebounce(e.target.value, e.keyCode == '13');
-      });
-      this.UI.modal.querySelector('.tmjs-search-btn').addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        _this2.searchNearest(_this2.UI.modal.querySelector('.tmjs-search-input').value);
-      });
-      this.UI.modal.querySelector('.tmjs-geolocation-btn').addEventListener('click', function (e) {
-        e.preventDefault();
-        _this2.useGeolocation();
-      });
+      var openButton = this.UI.container.querySelector('.tmjs-open-modal-btn');
+      var closeButton = this.UI.modal.querySelector('.tmjs-close-modal-btn');
+      var terminalList = this.UI.modal.querySelector('.tmjs-terminal-list');
+      var searchInput = this.UI.modal.querySelector('.tmjs-search-input');
+      var searchButton = this.UI.modal.querySelector('.tmjs-search-btn');
+      var geolocationButton = this.UI.modal.querySelector('.tmjs-geolocation-btn');
+      if (openButton) {
+        openButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          _this2.openModal();
+        });
+      }
+      if (closeButton) {
+        closeButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          _this2.closeModal();
+        });
+      }
+      if (terminalList) {
+        terminalList.addEventListener('click', function (event) {
+          _this2.handleTerminalListEvents(event, _this2.findTerminalElement(event.target));
+        });
+      }
+      if (searchInput) {
+        searchInput.addEventListener('keyup', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          _this2.searchNearestDebounce(e.target.value, e.keyCode == '13');
+        });
+      }
+      if (searchButton) {
+        searchButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (searchInput) {
+            _this2.searchNearest(searchInput.value);
+          }
+        });
+      }
+      if (geolocationButton) {
+        geolocationButton.addEventListener('click', function (e) {
+          e.preventDefault();
+          _this2.useGeolocation();
+        });
+      }
     }
 
     /**
@@ -980,9 +1008,10 @@ var DOMManipulator = /*#__PURE__*/function () {
     }
   }, {
     key: "geoLocationError",
-    value: function geoLocationError() {
+    value: function geoLocationError(error) {
       var sr = this._searchResultEl();
       if (sr) sr.innerText = this.TMJS.strings.geolocation_not_supported;
+      this.TMJS.publish('geolocation-error', error || null);
       console.log('wasnt able to retrieve position');
     }
 
@@ -1199,6 +1228,7 @@ var DOMManipulator = /*#__PURE__*/function () {
   }, {
     key: "candidateError",
     value: function candidateError(error) {
+      this.TMJS.publish('search-error', error || null);
       console.log(error);
     }
   }, {
@@ -1207,6 +1237,7 @@ var DOMManipulator = /*#__PURE__*/function () {
       if (typeof json.candidates === 'undefined' || !json.candidates.length) {
         var sr = this._searchResultEl();
         if (sr) sr.innerText = this.TMJS.strings.no_cities_found;
+        this.TMJS.publish('search-error', null);
         console.log('Response had no candidates');
         return false;
       }
@@ -1939,6 +1970,7 @@ function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input ==
 
 var DEFAULT_CORE_FEATURES = {
   overlayInContainer: false,
+  omitTerminalSidebar: false,
   deferMarkersUntilModalVisible: false,
   activeLocationBeforeZoom: false,
   zoomActiveOnRepeat: false,
@@ -2412,21 +2444,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
     };
   }
 
-  function getLegacySearchInput(state) {
-    if (
-      !state
-      || !state.layout
-      || !state.layout.modal
-      || typeof state.layout.modal.querySelector !== 'function'
-    ) {
-      return null;
-    }
-
-    return state.layout.modal.querySelector('.tmjs-search-input');
-  }
-
-  function getLegacySearchValue(state) {
-    var input = getLegacySearchInput(state);
+  function getSearchInputValue(state) {
+    var input = state && state.layout ? state.layout.input : null;
 
     return input && hasText(input.value) ? String(input.value).trim() : '';
   }
@@ -2440,6 +2459,84 @@ window.OmnivaTerminalMapping = TerminalMapping;
     state.layout.origin.hidden = true;
     state.layout.origin.classList.remove('tmjs-map-search__origin--editing');
     state.distanceOriginEditing = false;
+    state.distanceOriginError = '';
+  }
+
+  function createEmptyZipOrigin() {
+    return {
+      type: 'zip',
+      text: '',
+      query: ''
+    };
+  }
+
+  function rememberZipOrigin(state, origin) {
+    if (!origin || origin.type !== 'zip') {
+      return;
+    }
+
+    state.lastZipOrigin = {
+      type: 'zip',
+      text: hasText(origin.text) ? String(origin.text) : '',
+      query: hasText(origin.query) ? String(origin.query) : ''
+    };
+  }
+
+  function getStoredZipOrigin(state) {
+    if (!state || !state.lastZipOrigin) {
+      return createEmptyZipOrigin();
+    }
+
+    return {
+      type: 'zip',
+      text: hasText(state.lastZipOrigin.text)
+        ? String(state.lastZipOrigin.text)
+        : '',
+      query: hasText(state.lastZipOrigin.query)
+        ? String(state.lastZipOrigin.query)
+        : ''
+    };
+  }
+
+  function renderDistanceOriginError(tmjs, state, message) {
+    if (!state || !state.layout || !state.layout.origin) {
+      return;
+    }
+
+    var documentRef = getOriginDocument(state);
+    var origin = state.layout.origin;
+    var originData = state.distanceOrigin;
+    var error = createElement(documentRef, 'span', 'tmjs-map-search__origin-error');
+
+    origin.textContent = '';
+    origin.hidden = false;
+    origin.classList.remove('tmjs-map-search__origin--editing');
+
+    if (originData) {
+      var label = createElement(
+        documentRef,
+        'span',
+        'tmjs-map-search__origin-label'
+      );
+      label.textContent = getOriginLabel(tmjs, state, originData);
+      origin.appendChild(label);
+    }
+
+    error.textContent = hasText(message)
+      ? String(message)
+      : getString(
+        tmjs,
+        state.options,
+        'search_error',
+        null,
+        'Unable to find a location'
+      );
+    error.classList.add('tmjs-map-search__origin-value');
+    origin.appendChild(error);
+
+    if (originData) {
+      appendDistanceOriginChangeButton(tmjs, state, origin);
+    }
   }
 
   function getOriginLabel(tmjs, state, origin) {
@@ -2450,6 +2547,19 @@ window.OmnivaTerminalMapping = TerminalMapping;
         'sorted_by_location',
         null,
         'Sorted by distance from your location:'
+      );
+    }
+
+    if (
+      !origin
+      || (!hasText(origin.text) && !hasText(origin.query))
+    ) {
+      return getString(
+        tmjs,
+        state.options,
+        'sort_by_zip',
+        null,
+        'Sort by distance from your ZIP'
       );
     }
 
@@ -2482,7 +2592,32 @@ window.OmnivaTerminalMapping = TerminalMapping;
     );
   }
 
-  function getOriginChangeLabel(tmjs, state) {
+  function getOriginChangeLabel(tmjs, state, origin) {
+    if (origin && origin.type === 'location') {
+      return getString(
+        tmjs,
+        state.options,
+        'use_zip',
+        null,
+        'Use ZIP'
+      );
+    }
+
+    if (
+      origin
+      && origin.type === 'zip'
+      && !hasText(origin.text)
+      && !hasText(origin.query)
+    ) {
+      return getString(
+        tmjs,
+        state.options,
+        'enter_zip',
+        null,
+        'Enter ZIP'
+      );
+    }
+
     return getString(
       tmjs,
       state.options,
@@ -2555,6 +2690,21 @@ window.OmnivaTerminalMapping = TerminalMapping;
     renderSearchResults(tmjs, state, true);
   }
 
+  function showDistanceOriginError(tmjs, state, message) {
+    state.distanceOriginError = hasText(message) ? String(message) : '';
+
+    if (!state.layout) {
+      return;
+    }
+
+    if (state.layout.resultsBlock && !state.layout.resultsBlock.hidden) {
+      renderSearchResults(tmjs, state, true);
+      return;
+    }
+
+    renderDistanceOriginError(tmjs, state, state.distanceOriginError);
+  }
+
   function requestLocationOriginAddress(tmjs, state, coords) {
     if (
       !coords
@@ -2611,6 +2761,89 @@ window.OmnivaTerminalMapping = TerminalMapping;
       });
   }
 
+  function appendDistanceOriginChangeButton(tmjs, state, origin) {
+    if (!state.distanceOrigin || !origin) {
+      return;
+    }
+
+    var documentRef = getOriginDocument(state);
+    var change = createElement(documentRef, 'button', 'tmjs-map-search__origin-change');
+    var originData = state.distanceOrigin;
+
+    change.type = 'button';
+    change.textContent = getOriginChangeLabel(tmjs, state, originData);
+    change.setAttribute(
+      'aria-label',
+      getOriginChangeLabel(tmjs, state, originData)
+    );
+    change.addEventListener('mousedown', function (event) {
+      event.stopPropagation();
+    });
+    change.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (originData.type === 'location') {
+        switchToZipOrigin(tmjs, state);
+        return;
+      }
+
+      state.distanceOriginEditing = true;
+      // Re-render the complete nearest-results block so the list remains
+      // open while only the origin line changes into the postcode editor.
+      renderSearchResults(tmjs, state, true);
+
+      var editorInput = state.layout.origin.querySelector(
+        '.tmjs-map-search__origin-input'
+      );
+      if (editorInput) {
+        editorInput.focus();
+        editorInput.select();
+      }
+    });
+
+    origin.appendChild(change);
+  }
+
+  function switchToZipOrigin(tmjs, state) {
+    var zipOrigin = getStoredZipOrigin(state);
+    var hasZip = hasText(zipOrigin.query);
+
+    state.distanceOrigin = zipOrigin;
+    state.distanceOriginError = '';
+    state.distanceOriginEditing = !hasZip;
+    state.distanceOriginRequestId += 1;
+
+    if (!hasZip) {
+      if (state.layout) {
+        renderSearchResults(tmjs, state, true);
+      }
+      return;
+    }
+
+    // A geolocation search replaces the distances calculated from the ZIP.
+    // Reset the core search cache before searching the same ZIP again.
+    if (
+      tmjs.dom
+      && typeof tmjs.dom.resetSearch === 'function'
+      && tmjs.map
+    ) {
+      tmjs.dom.resetSearch();
+      state.distanceOrigin = zipOrigin;
+      state.distanceOriginError = '';
+      state.distanceOriginEditing = false;
+      state.lastZipOrigin = zipOrigin;
+    }
+
+    if (state.layout) {
+      renderSearchResults(tmjs, state, true);
+    }
+
+    if (tmjs.dom && typeof tmjs.dom.searchNearest === 'function') {
+      tmjs.dom.searchNearest(zipOrigin.query);
+    }
+  }
+
   function renderDistanceOrigin(tmjs, state) {
     if (!state.layout || !state.layout.origin || !state.distanceOrigin) {
       hideDistanceOrigin(state);
@@ -2622,6 +2855,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var originData = state.distanceOrigin;
     var label = createElement(documentRef, 'span', 'tmjs-map-search__origin-label');
 
+    state.distanceOriginError = '';
     origin.textContent = '';
     origin.hidden = false;
     origin.classList.toggle(
@@ -2640,7 +2874,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       input.inputMode = 'numeric';
       input.value = hasText(originData.query)
         ? String(originData.query)
-        : getLegacySearchValue(state);
+        : getSearchInputValue(state);
       input.placeholder = getOriginInputPlaceholder(tmjs, state);
       input.setAttribute('aria-label', getOriginInputLabel(tmjs, state));
       submit.type = 'submit';
@@ -2670,34 +2904,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       origin.appendChild(value);
     }
 
-    if (originData.type === 'zip') {
-      var change = createElement(documentRef, 'button', 'tmjs-map-search__origin-change');
-
-      change.type = 'button';
-      change.textContent = getOriginChangeLabel(tmjs, state);
-      change.setAttribute('aria-label', getOriginChangeLabel(tmjs, state));
-      change.addEventListener('mousedown', function (event) {
-        event.stopPropagation();
-      });
-      change.addEventListener('click', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        state.distanceOriginEditing = true;
-        // Re-render the complete nearest-results block so the list remains
-        // open while only the origin line changes into the postcode editor.
-        renderSearchResults(tmjs, state, true);
-
-        var editorInput = state.layout.origin.querySelector(
-          '.tmjs-map-search__origin-input'
-        );
-        if (editorInput) {
-          editorInput.focus();
-          editorInput.select();
-        }
-      });
-
-      origin.appendChild(change);
-    }
+    appendDistanceOriginChangeButton(tmjs, state, origin);
   }
 
   function setDistanceOriginFromCandidate(tmjs, state, candidate) {
@@ -2706,7 +2913,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       : {};
     var query = state.distanceOrigin && hasText(state.distanceOrigin.query)
       ? String(state.distanceOrigin.query).trim()
-      : getLegacySearchValue(state);
+      : getSearchInputValue(state);
     var postalCode = attributes.Postal || attributes.postal || attributes.postal_code || '';
     var text = candidate && hasText(candidate.address)
       ? String(candidate.address).trim()
@@ -2717,6 +2924,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
       text: text,
       query: query || String(postalCode || text).trim()
     };
+    rememberZipOrigin(state, state.distanceOrigin);
+    state.distanceOriginError = '';
     state.distanceOriginEditing = false;
     state.distanceOriginRequestId += 1;
   }
@@ -2734,13 +2943,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var previousQuery = state.distanceOrigin && state.distanceOrigin.query
       ? String(state.distanceOrigin.query).trim()
       : '';
-    var legacyInput = getLegacySearchInput(state);
-
-    if (legacyInput) {
-      legacyInput.value = query;
-    }
-
     state.distanceOriginEditing = false;
+    state.distanceOriginError = '';
     state.distanceOriginRequestId += 1;
 
     if (
@@ -2754,6 +2958,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
         text: state.distanceOrigin.text || query,
         query: query
       };
+      state.distanceOriginError = '';
       renderDistanceOrigin(tmjs, state);
       renderSearchResults(tmjs, state, true);
       return;
@@ -2764,6 +2969,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
       text: query,
       query: query
     };
+    rememberZipOrigin(state, state.distanceOrigin);
+    state.distanceOriginError = '';
     // Keep the nearest-results panel visible while ArcGIS resolves the new
     // postcode. The list is refreshed by the existing `list-updated` event.
     renderSearchResults(tmjs, state, true);
@@ -2820,7 +3027,6 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var compact = status === 'active'
       || (
         status !== 'loading'
-        && status !== 'error'
         && state.layout.input.value.trim().length > 0
       );
 
@@ -2853,33 +3059,19 @@ window.OmnivaTerminalMapping = TerminalMapping;
       null,
       'Locating...'
     );
-    var errorLabel = getString(
-      tmjs,
-      state.options,
-      'geolocation_error',
-      'geolocation_not_supported',
-      'Location unavailable'
-    );
     var currentLabel = defaultLabel;
     if (status === 'loading') {
       currentLabel = loadingLabel;
-    } else if (status === 'error') {
-      currentLabel = errorLabel;
     }
 
     button.classList.toggle('tmjs-map-search__location--loading', status === 'loading');
     button.classList.toggle('tmjs-map-search__location--active', status === 'active');
-    button.classList.toggle('tmjs-map-search__location--error', status === 'error');
     button.setAttribute('data-geolocation-state', status);
     button.setAttribute('aria-busy', status === 'loading' ? 'true' : 'false');
     button.setAttribute('aria-disabled', status === 'loading' ? 'true' : 'false');
     button.setAttribute('aria-label', currentLabel);
 
-    if (status === 'error') {
-      button.setAttribute('aria-invalid', 'true');
-    } else {
-      button.removeAttribute('aria-invalid');
-    }
+    button.removeAttribute('aria-invalid');
 
     if (label) {
       label.textContent = currentLabel;
@@ -2895,39 +3087,6 @@ window.OmnivaTerminalMapping = TerminalMapping;
       && typeof global.navigator.geolocation.getCurrentPosition === 'function';
   }
 
-  function setupGeolocationErrorObserver(tmjs, state) {
-    if (state.geolocationObserver) {
-      state.geolocationObserver.disconnect();
-      state.geolocationObserver = null;
-    }
-
-    if (!state.layout || typeof global.MutationObserver !== 'function') {
-      return;
-    }
-
-    var legacyResult = state.layout.modal.querySelector('.tmjs-search-result');
-    if (!legacyResult) {
-      return;
-    }
-
-    state.geolocationObserver = new global.MutationObserver(function () {
-      if (
-        state.geolocationStatus !== 'loading'
-        || legacyResult.querySelector('.tmjs-loading')
-        || !hasText(legacyResult.textContent)
-      ) {
-        return;
-      }
-
-      setGeolocationState(tmjs, state, 'error');
-    });
-    state.geolocationObserver.observe(legacyResult, {
-      childList: true,
-      characterData: true,
-      subtree: true
-    });
-  }
-
   function setupGeolocationInteractions(tmjs, state) {
     var layout = state.layout;
     var button = layout ? layout.geolocation : null;
@@ -2935,8 +3094,6 @@ window.OmnivaTerminalMapping = TerminalMapping;
     if (!button) {
       return;
     }
-
-    setupGeolocationErrorObserver(tmjs, state);
 
     if (button.getAttribute('data-omniva-fullwidth-geolocation') === 'ready') {
       setGeolocationState(tmjs, state, state.geolocationStatus || 'idle');
@@ -2953,24 +3110,40 @@ window.OmnivaTerminalMapping = TerminalMapping;
       if (!supportsGeolocation()) {
         event.preventDefault();
         event.stopImmediatePropagation();
+        rememberZipOrigin(state, state.distanceOrigin);
+        state.distanceOrigin = {
+          type: 'location',
+          text: '',
+          query: '',
+          coords: null,
+          pending: false
+        };
         setGeolocationState(tmjs, state, 'error');
-
-        var legacyResult = state.layout && state.layout.modal
-          ? state.layout.modal.querySelector('.tmjs-search-result')
-          : null;
-        if (legacyResult) {
-          legacyResult.textContent = getString(
+        showDistanceOriginError(
+          tmjs,
+          state,
+          getString(
             tmjs,
             state.options,
-            'geolocation_not_supported',
+            'geolocation_error',
             'geolocation_not_supported',
             'Geolocation is not supported'
-          );
-        }
+          )
+        );
         return;
       }
 
+      state.distanceOriginError = '';
       setGeolocationState(tmjs, state, 'loading');
+
+      if (
+        tmjs.coreFeatures
+        && tmjs.coreFeatures.omitTerminalSidebar === true
+        && tmjs.dom
+        && typeof tmjs.dom.useGeolocation === 'function'
+      ) {
+        tmjs.dom.useGeolocation();
+      }
     }, true);
 
     button.setAttribute('data-omniva-fullwidth-geolocation', 'ready');
@@ -3252,7 +3425,9 @@ window.OmnivaTerminalMapping = TerminalMapping;
     results.hidden = false;
     state.layout.input.setAttribute('aria-expanded', 'true');
 
-    if (showNearest && state.distanceOrigin) {
+    if (showNearest && state.distanceOriginError && !state.distanceOriginEditing) {
+      renderDistanceOriginError(tmjs, state, state.distanceOriginError);
+    } else if (showNearest && state.distanceOrigin) {
       renderDistanceOrigin(tmjs, state);
     } else {
       hideDistanceOrigin(state);
@@ -3842,12 +4017,12 @@ window.OmnivaTerminalMapping = TerminalMapping;
   }
 
   function clearTerminalListHighlight(tmjs) {
-    var modal = tmjs.dom && tmjs.dom.UI ? tmjs.dom.UI.modal : null;
-    if (!modal || typeof modal.querySelectorAll !== 'function') {
+    var terminalList = tmjs.dom && tmjs.dom.UI ? tmjs.dom.UI.terminalList : null;
+    if (!terminalList || typeof terminalList.querySelectorAll !== 'function') {
       return;
     }
 
-    var activeItems = modal.querySelectorAll('.tmjs-terminal-list li.tmjs-active');
+    var activeItems = terminalList.querySelectorAll('li.tmjs-active');
     for (var i = 0; i < activeItems.length; i++) {
       activeItems[i].classList.remove('tmjs-active');
     }
@@ -3856,19 +4031,6 @@ window.OmnivaTerminalMapping = TerminalMapping;
   function resetMapSearch(tmjs, state) {
     clearLocalSearch(state, false);
     setGeolocationState(tmjs, state, 'idle');
-
-    var modal = tmjs.dom && tmjs.dom.UI ? tmjs.dom.UI.modal : null;
-    if (modal && typeof modal.querySelector === 'function') {
-      var legacyInput = modal.querySelector('.tmjs-search-input');
-      var legacyResult = modal.querySelector('.tmjs-search-result');
-
-      if (legacyInput) {
-        legacyInput.value = '';
-      }
-      if (legacyResult) {
-        legacyResult.textContent = '';
-      }
-    }
 
     if (tmjs.dom && typeof tmjs.dom.resetSearch === 'function') {
       // Use the core reset so its search cache, distances, reference marker,
@@ -3993,42 +4155,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       closeButton.hidden = true;
     }
 
-    var legacyTitle = modal.querySelector('.tmjs-terminal-finder h2');
-    var legacyClose = modal.querySelector('.tmjs-close-modal-btn');
-
-    if (legacyTitle) {
-      legacyTitle.hidden = true;
-      legacyTitle.setAttribute('aria-hidden', 'true');
-    }
-
-    if (legacyClose) {
-      legacyClose.hidden = true;
-      legacyClose.setAttribute('aria-hidden', 'true');
-      legacyClose.setAttribute('tabindex', '-1');
-    }
-
     return header;
-  }
-
-  function setupTerminalPanel(tmjs, options, modal, sidebar) {
-    var label = getString(
-      tmjs,
-      options,
-      'terminal_list_label',
-      'terminal_list_header',
-      'Parcel machine list'
-    );
-    var terminalList = sidebar.querySelector('.tmjs-terminal-list');
-
-    sidebar.classList.add('omniva-fullwidth-terminal-panel');
-    sidebar.setAttribute('role', 'region');
-    sidebar.setAttribute('aria-label', label);
-
-    if (terminalList) {
-      terminalList.setAttribute('aria-label', label);
-    }
-
-    modal.setAttribute('data-omniva-fullwidth-terminal-panel', 'ready');
   }
 
   function setupSearchOverlay(tmjs, options, modal, mapContainer, mapElement, documentRef) {
@@ -4157,32 +4284,45 @@ window.OmnivaTerminalMapping = TerminalMapping;
     field.appendChild(clearSelection);
 
     var geolocation = modal.querySelector('.tmjs-geolocation-btn');
-    if (geolocation) {
-      var geolocationWrapper = geolocation.parentNode;
-      var geolocationIcon = geolocation.querySelector('img');
+    var geolocationWrapper = geolocation ? geolocation.parentNode : null;
 
-      geolocation.classList.add('tmjs-map-search__location');
-      geolocation.setAttribute('aria-label', geolocationLabel);
+    if (!geolocation) {
+      geolocation = createElement(documentRef, 'button', 'tmjs-geolocation-btn');
+      geolocation.type = 'button';
 
-      if (geolocationIcon) {
-        if (options.icons && hasText(options.icons.geolocation)) {
-          geolocationIcon.src = String(options.icons.geolocation);
-        }
-        geolocationIcon.width = 20;
-        geolocationIcon.height = 20;
-        geolocationIcon.setAttribute('aria-hidden', 'true');
+      var generatedGeolocationIcon = createElement(documentRef, 'img');
+      var generatedGeolocationLabel = createElement(documentRef, 'span');
+
+      generatedGeolocationIcon.src = tmjs.imagePath + 'gps.svg';
+      generatedGeolocationLabel.textContent = geolocationLabel;
+      generatedGeolocationLabel.setAttribute('data-tmjs-string', 'geolocation_btn');
+      geolocation.appendChild(generatedGeolocationIcon);
+      geolocation.appendChild(generatedGeolocationLabel);
+    }
+
+    var geolocationIcon = geolocation.querySelector('img');
+
+    geolocation.classList.add('tmjs-map-search__location');
+    geolocation.setAttribute('aria-label', geolocationLabel);
+
+    if (geolocationIcon) {
+      if (options.icons && hasText(options.icons.geolocation)) {
+        geolocationIcon.src = String(options.icons.geolocation);
       }
+      geolocationIcon.width = 20;
+      geolocationIcon.height = 20;
+      geolocationIcon.setAttribute('aria-hidden', 'true');
+    }
 
-      field.appendChild(geolocation);
+    field.appendChild(geolocation);
 
-      if (
-        geolocationWrapper
-        && geolocationWrapper !== field
-        && geolocationWrapper.parentNode
-        && geolocationWrapper.children.length === 0
-      ) {
-        geolocationWrapper.parentNode.removeChild(geolocationWrapper);
-      }
+    if (
+      geolocationWrapper
+      && geolocationWrapper !== field
+      && geolocationWrapper.parentNode
+      && geolocationWrapper.children.length === 0
+    ) {
+      geolocationWrapper.parentNode.removeChild(geolocationWrapper);
     }
 
     overlay.appendChild(field);
@@ -4209,9 +4349,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
     var modalBody = modal.querySelector('.tmjs-modal-body');
     var mapContainer = modal.querySelector('.tmjs-map-container');
     var mapElement = modal.querySelector('.tmjs-map');
-    var sidebar = modal.querySelector('.tmjs-terminal-sidebar');
 
-    if (!modalContent || !modalBody || !mapContainer || !mapElement || !sidebar) {
+    if (!modalContent || !modalBody || !mapContainer || !mapElement) {
       return null;
     }
 
@@ -4219,7 +4358,6 @@ window.OmnivaTerminalMapping = TerminalMapping;
 
     setupHeader(tmjs, options, modal, modalContent, modalBody, documentRef);
     setupSearchOverlay(tmjs, options, modal, mapContainer, mapElement, documentRef);
-    setupTerminalPanel(tmjs, options, modal, sidebar);
 
     modal.setAttribute('data-omniva-fullwidth-layout', 'ready');
     scheduleMapResize(tmjs);
@@ -4281,7 +4419,6 @@ window.OmnivaTerminalMapping = TerminalMapping;
         layout: null,
         geolocationStatus: 'idle',
         forceNearestResults: false,
-        geolocationObserver: null,
         selectedLocationId: null,
         openPopup: null,
         leafletMap: null,
@@ -4291,6 +4428,8 @@ window.OmnivaTerminalMapping = TerminalMapping;
         selectedLocation: null,
         clearInProgress: false,
         distanceOrigin: null,
+        lastZipOrigin: null,
+        distanceOriginError: '',
         distanceOriginEditing: false,
         distanceOriginRequestId: 0
       };
@@ -4302,6 +4441,10 @@ window.OmnivaTerminalMapping = TerminalMapping;
         setupGeolocationInteractions(tmjs, state);
         setupMapInteractions(tmjs, state);
         renderSelectedLocation(tmjs, state, state.selectedLocation);
+
+        if (state.distanceOriginError) {
+          showDistanceOriginError(tmjs, state, state.distanceOriginError);
+        }
       });
 
       tmjs.sub('list-updated', function () {
@@ -4350,6 +4493,10 @@ window.OmnivaTerminalMapping = TerminalMapping;
         }
 
         if (state.layout) {
+          // The postcode used for nearest-terminal sorting belongs to the
+          // origin row, not to the free-text terminal search field.
+          state.layout.input.value = '';
+          updateSearchControl(state);
           setGeolocationState(tmjs, state, state.geolocationStatus);
 
           // Do not open the software keyboard automatically on phones.
@@ -4358,12 +4505,17 @@ window.OmnivaTerminalMapping = TerminalMapping;
           }
         }
 
-        if (
+        if (state.layout && state.distanceOriginError) {
+          showDistanceOriginError(tmjs, state, state.distanceOriginError);
+        } else if (
           state.layout
           && normalizeSearchText(state.layout.input.value).length >= SEARCH_MIN_LENGTH
         ) {
           renderSearchResults(tmjs, state, false);
         } else if (state.distanceOrigin) {
+          renderSearchResults(tmjs, state, true);
+        } else {
+          state.distanceOrigin = createEmptyZipOrigin();
           renderSearchResults(tmjs, state, true);
         }
       });
@@ -4375,6 +4527,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       tmjs.sub('geolocation', function (coords) {
         state.forceNearestResults = true;
         state.distanceOriginRequestId += 1;
+        rememberZipOrigin(state, state.distanceOrigin);
         state.distanceOrigin = {
           type: 'location',
           text: '',
@@ -4382,15 +4535,61 @@ window.OmnivaTerminalMapping = TerminalMapping;
           coords: coords,
           pending: true
         };
+        state.distanceOriginError = '';
         state.distanceOriginEditing = false;
         setGeolocationState(tmjs, state, 'active');
         requestLocationOriginAddress(tmjs, state, coords);
+      });
+
+      tmjs.sub('geolocation-error', function () {
+        state.forceNearestResults = false;
+        rememberZipOrigin(state, state.distanceOrigin);
+        state.distanceOrigin = {
+          type: 'location',
+          text: '',
+          query: '',
+          coords: null,
+          pending: false
+        };
+        setGeolocationState(tmjs, state, 'error');
+        showDistanceOriginError(
+          tmjs,
+          state,
+          getString(
+            tmjs,
+            state.options,
+            'geolocation_error',
+            'geolocation_not_supported',
+            'Location unavailable'
+          )
+        );
+      });
+
+      tmjs.sub('search-error', function () {
+        state.forceNearestResults = false;
+
+        if (!state.distanceOrigin) {
+          state.distanceOrigin = createEmptyZipOrigin();
+        }
+
+        showDistanceOriginError(
+          tmjs,
+          state,
+          getString(
+            tmjs,
+            state.options,
+            'search_error',
+            null,
+            'Unable to find a location'
+          )
+        );
       });
 
       tmjs.sub('reset-search-result', function () {
         state.forceNearestResults = false;
         state.distanceOriginRequestId += 1;
         state.distanceOrigin = null;
+        state.lastZipOrigin = null;
         state.distanceOriginEditing = false;
         hideDistanceOrigin(state);
         setGeolocationState(tmjs, state, 'idle');
@@ -4446,6 +4645,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       // keep the legacy defaults unless they explicitly pass these flags.
       coreFeatures: {
         overlayInContainer: true,
+        omitTerminalSidebar: true,
         deferMarkersUntilModalVisible: true,
         activeLocationBeforeZoom: true,
         zoomActiveOnRepeat: true,
