@@ -133,6 +133,7 @@ class Omnivalt_Blocks_Integration implements IntegrationInterface
                     'my_position' => __('Distance calculated from this point', 'omnivalt'),
                     'not_found' => __('Place not found', 'omnivalt'),
                     'no_cities_found' => __('There were no cities found for your search term', 'omnivalt'),
+                    'no_search_results' => __('No results', 'omnivalt'),
                     'geo_not_supported' => __('Geolocation is not supported', 'omnivalt'),
                     'delivery_location' => __('Delivery location', 'omnivalt'),
                     'close_button' => __('Close map', 'omnivalt'),

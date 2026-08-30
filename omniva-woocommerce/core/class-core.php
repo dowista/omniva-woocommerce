@@ -303,6 +303,7 @@ class OmnivaLt_Core
           'select_button' => __('Select', 'omnivalt'),
           'not_found' => __('Place not found', 'omnivalt'),
           'no_cities_found' => __('There were no cities found for your search term', 'omnivalt'),
+          'no_search_results' => __('No results', 'omnivalt'),
           'enter_address' => __('Enter postcode/address', 'omnivalt'),
           'show_more' => __('Show more', 'omnivalt'),
           'use_my_location' => __('Use my location', 'omnivalt'),

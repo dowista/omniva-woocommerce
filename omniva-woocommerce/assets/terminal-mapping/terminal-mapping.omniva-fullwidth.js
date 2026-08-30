@@ -2411,6 +2411,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
 
   function getSearchLayout(modal) {
     var overlay = modal.querySelector('.tmjs-map-search');
+    var searchIcon = modal.querySelector('.tmjs-map-search__icon');
     var input = modal.querySelector('.tmjs-map-search__input');
     var clearButton = modal.querySelector('.tmjs-map-search__clear');
     var resetButton = modal.querySelector('.tmjs-map-search__reset');
@@ -2434,6 +2435,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
     return {
       modal: modal,
       overlay: overlay,
+      searchIcon: searchIcon,
       input: input,
       clearButton: clearButton,
       resetButton: resetButton,
@@ -2458,6 +2460,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
     state.layout.origin.textContent = '';
     state.layout.origin.hidden = true;
     state.layout.origin.classList.remove('tmjs-map-search__origin--editing');
+    state.layout.origin.classList.remove('tmjs-map-search__origin--without-value');
     state.distanceOriginEditing = false;
     state.distanceOriginError = '';
   }
@@ -2511,6 +2514,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
     origin.textContent = '';
     origin.hidden = false;
     origin.classList.remove('tmjs-map-search__origin--editing');
+    origin.classList.remove('tmjs-map-search__origin--without-value');
 
     if (originData) {
       var label = createElement(
@@ -2675,6 +2679,35 @@ window.OmnivaTerminalMapping = TerminalMapping;
         : 0);
 
     return viewportWidth > 0 && viewportWidth <= 768;
+  }
+
+  function setMobileSearchMode(state, active) {
+    if (!state || !state.layout || !state.layout.searchIcon) {
+      return;
+    }
+
+    var searchIcon = state.layout.searchIcon;
+    var isActive = isMobileViewport(state) && active === true;
+
+    state.mobileSearchActive = isActive;
+
+    searchIcon.classList.toggle(
+      'tmjs-map-search__icon--back',
+      isActive
+    );
+
+    if (isActive) {
+      searchIcon.removeAttribute('aria-hidden');
+      searchIcon.setAttribute('aria-label', 'Back to map');
+      searchIcon.setAttribute('role', 'button');
+      searchIcon.setAttribute('tabindex', '0');
+      return;
+    }
+
+    searchIcon.setAttribute('aria-hidden', 'true');
+    searchIcon.removeAttribute('aria-label');
+    searchIcon.removeAttribute('role');
+    searchIcon.removeAttribute('tabindex');
   }
 
   function renderNearestResultsIfVisible(tmjs, state) {
@@ -2862,6 +2895,10 @@ window.OmnivaTerminalMapping = TerminalMapping;
       'tmjs-map-search__origin--editing',
       state.distanceOriginEditing === true
     );
+    origin.classList.toggle(
+      'tmjs-map-search__origin--without-value',
+      state.distanceOriginEditing !== true && !hasText(originData.text)
+    );
 
     if (state.distanceOriginEditing && originData.type === 'zip') {
       var form = createElement(documentRef, 'form', 'tmjs-map-search__origin-form');
@@ -2989,6 +3026,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
     state.layout.results.hidden = true;
     state.layout.resultsBlock.hidden = true;
     state.layout.input.setAttribute('aria-expanded', 'false');
+    setMobileSearchMode(state, false);
     hideDistanceOrigin(state);
   }
 
@@ -3398,6 +3436,30 @@ window.OmnivaTerminalMapping = TerminalMapping;
     return item;
   }
 
+  function createEmptySearchResult(tmjs, state, documentRef) {
+    var item = createElement(documentRef, 'li', 'tmjs-map-search__empty');
+    var image = createElement(documentRef, 'img', 'tmjs-map-search__empty-image');
+    var text = createElement(documentRef, 'span', 'tmjs-map-search__empty-text');
+    var imagePath = tmjs && typeof tmjs.imagePath === 'string'
+      ? tmjs.imagePath
+      : '';
+
+    image.src = imagePath + 'no-terminals.svg';
+    image.alt = '';
+    image.setAttribute('aria-hidden', 'true');
+    text.textContent = getString(
+      tmjs,
+      state.options,
+      'no_search_results',
+      null,
+      'No results'
+    );
+    item.appendChild(image);
+    item.appendChild(text);
+
+    return item;
+  }
+
   function renderSearchResults(tmjs, state, showNearest) {
     if (!state.layout || !tmjs.map) {
       return;
@@ -3419,11 +3481,14 @@ window.OmnivaTerminalMapping = TerminalMapping;
       locations.forEach(function (location) {
         results.appendChild(createSearchResult(tmjs, state, location, documentRef));
       });
+    } else if (!showNearest && search.length >= SEARCH_MIN_LENGTH) {
+      results.appendChild(createEmptySearchResult(tmjs, state, documentRef));
     }
 
     state.layout.resultsBlock.hidden = false;
     results.hidden = false;
     state.layout.input.setAttribute('aria-expanded', 'true');
+    setMobileSearchMode(state, true);
 
     if (showNearest && state.distanceOriginError && !state.distanceOriginEditing) {
       renderDistanceOriginError(tmjs, state, state.distanceOriginError);
@@ -3436,6 +3501,11 @@ window.OmnivaTerminalMapping = TerminalMapping;
 
   function refreshSearchAfterListUpdate(tmjs, state) {
     if (!state.layout) {
+      return;
+    }
+
+    if (isMobileViewport(state) && !state.mobileSearchActive) {
+      hideSearchResults(state);
       return;
     }
 
@@ -3490,20 +3560,47 @@ window.OmnivaTerminalMapping = TerminalMapping;
         hideSearchResults(state);
       }
     });
-    layout.input.addEventListener('focus', function () {
-      if (normalizeSearchText(layout.input.value).length >= SEARCH_MIN_LENGTH) {
+    var showSearchResultsForInput = function () {
+      var search = normalizeSearchText(layout.input.value);
+
+      if (isMobileViewport(state)) {
+        setMobileSearchMode(state, true);
+      }
+
+      if (search.length >= SEARCH_MIN_LENGTH) {
         renderSearchResults(tmjs, state, false);
       } else if (state.distanceOrigin) {
         renderSearchResults(tmjs, state, true);
-      }
-    });
-    layout.input.addEventListener('click', function () {
-      if (normalizeSearchText(layout.input.value).length >= SEARCH_MIN_LENGTH) {
-        renderSearchResults(tmjs, state, false);
-      } else if (state.distanceOrigin) {
+      } else if (isMobileViewport(state)) {
+        state.distanceOrigin = createEmptyZipOrigin();
         renderSearchResults(tmjs, state, true);
       }
-    });
+    };
+
+    layout.input.addEventListener('focus', showSearchResultsForInput);
+    layout.input.addEventListener('click', showSearchResultsForInput);
+    if (layout.searchIcon) {
+      var hideSearchFromBackButton = function (event) {
+        if (
+          !isMobileViewport(state)
+          || !layout.searchIcon.classList.contains('tmjs-map-search__icon--back')
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        hideSearchResults(state);
+        layout.input.blur();
+      };
+
+      layout.searchIcon.addEventListener('click', hideSearchFromBackButton);
+      layout.searchIcon.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          hideSearchFromBackButton(event);
+        }
+      });
+    }
     layout.input.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -4419,6 +4516,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
         layout: null,
         geolocationStatus: 'idle',
         forceNearestResults: false,
+        mobileSearchActive: false,
         selectedLocationId: null,
         openPopup: null,
         leafletMap: null,
@@ -4505,6 +4603,13 @@ window.OmnivaTerminalMapping = TerminalMapping;
           }
         }
 
+        // On phones the map is the initial view. Open the search panel only
+        // after the visitor focuses the input.
+        if (state.layout && isMobileViewport(state)) {
+          hideSearchResults(state);
+          return;
+        }
+
         if (state.layout && state.distanceOriginError) {
           showDistanceOriginError(tmjs, state, state.distanceOriginError);
         } else if (
@@ -4527,6 +4632,9 @@ window.OmnivaTerminalMapping = TerminalMapping;
       tmjs.sub('geolocation', function (coords) {
         state.forceNearestResults = true;
         state.distanceOriginRequestId += 1;
+        if (isMobileViewport(state)) {
+          setMobileSearchMode(state, true);
+        }
         rememberZipOrigin(state, state.distanceOrigin);
         state.distanceOrigin = {
           type: 'location',
@@ -4600,8 +4708,13 @@ window.OmnivaTerminalMapping = TerminalMapping;
         setDistanceOriginFromCandidate(tmjs, state, candidate);
         setGeolocationState(tmjs, state, 'idle');
 
-        if (state.layout) {
+        if (
+          state.layout
+          && (!isMobileViewport(state) || state.mobileSearchActive)
+        ) {
           renderSearchResults(tmjs, state, true);
+        } else if (state.layout) {
+          hideSearchResults(state);
         }
       });
 

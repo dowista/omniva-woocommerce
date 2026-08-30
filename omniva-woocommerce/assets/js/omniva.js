@@ -78,7 +78,7 @@ function omnivalt_init_map() {
                 clear_search: omnivalt_data.text.clear_search,
                 clear_selection: omnivalt_data.text.clear_selection,
                 search_results_label: omnivalt_data.text.search_results_label,
-                no_search_results: omnivalt_data.text.no_cities_found,
+                no_search_results: omnivalt_data.text.no_search_results,
                 show_on_map: omnivalt_data.text.show_on_map,
                 sorted_by_zip: omnivalt_data.text.sorted_by_zip,
                 sorted_by_location: omnivalt_data.text.sorted_by_location,

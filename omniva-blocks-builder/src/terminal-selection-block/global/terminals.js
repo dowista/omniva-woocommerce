@@ -121,7 +121,7 @@ export const loadMap = () => {
                     clear_search: txt.map.clear_search,
                     clear_selection: txt.map.clear_selection,
                     search_results_label: txt.map.search_results_label,
-                    no_search_results: txt.map.no_cities_found,
+                    no_search_results: txt.map.no_search_results,
                     show_on_map: txt.map.show_on_map,
                     sorted_by_zip: txt.map.sorted_by_zip,
                     sorted_by_location: txt.map.sorted_by_location,
