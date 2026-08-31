@@ -24,6 +24,11 @@ class OmnivaLt_Picapac
         return self::PICAPAC_TERMINAL_ID;
     }
 
+    public static function is_terminal_id( $terminal_id )
+    {
+        return self::PICAPAC_TERMINAL_ID === (string) $terminal_id;
+    }
+
     public static function get_method_key()
     {
         return self::PICAPAC_METHOD_KEY;

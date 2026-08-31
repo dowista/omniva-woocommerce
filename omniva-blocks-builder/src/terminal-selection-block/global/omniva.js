@@ -60,5 +60,5 @@ export const isPicapacMethod = (methodKey) => {
     const picapacData = getPicapacData();
     const baseMethodKey = methodKey ? methodKey.split(':')[0] : '';
 
-    return picapacData.rate_id && baseMethodKey == picapacData.rate_id;
+    return Boolean(picapacData.rate_id) && baseMethodKey === picapacData.rate_id;
 };

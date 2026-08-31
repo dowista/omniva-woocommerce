@@ -11,27 +11,19 @@ import { debounce } from 'lodash';
  * Internal dependencies
  */
 import { getDestination, getActiveShippingRates } from '../global/wc-cart';
-import { getOmnivaData, getPicapacData, getDynamicOmnivaData, isOmnivaMethod, isOmnivaTerminalMethod } from '../global/omniva';
+import { getOmnivaData, getPicapacData, getDynamicOmnivaData, isOmnivaMethod, isOmnivaTerminalMethod, isPicapacMethod } from '../global/omniva';
 import { getTerminalsByCountry, loadMap, removeMap, loadCustomSelect } from '../global/terminals';
 import { txt } from '../global/text';
 import { addTokenToValue, isObjectEmpty, findArrayElemByObjProp} from '../global/utils';
 import { debug, enableStateDebug } from '../global/debug';
 
-const getShippingRateOption = (rateId) => {
-    const shippingRatesControl = document.querySelector(
-        '.wc-block-components-shipping-rates-control'
-    );
-
-    if ( ! shippingRatesControl ) {
-        return null;
-    }
-
+const getShippingRateOption = (shippingRatesControl) => {
     const rateInputs = shippingRatesControl.querySelectorAll(
         'input[type="radio"]'
     );
 
     for ( let i = 0; i < rateInputs.length; i++ ) {
-        if ( rateInputs[i].value.split(':')[0] !== rateId ) {
+        if ( ! isPicapacMethod(rateInputs[i].value) ) {
             continue;
         }
 
@@ -437,13 +429,17 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             }
         };
 
-        if ( picapacRateId === '' || ! document.body || ! window.MutationObserver ) {
+        const shippingRatesControl = document.querySelector(
+            '.wc-block-components-shipping-rates-control'
+        );
+
+        if ( ! shippingRates.length || picapacRateId === '' || ! shippingRatesControl || ! window.MutationObserver ) {
             removeInfoLink();
             return undefined;
         }
 
         const placeInfoLink = () => {
-            const target = getShippingRateOption(picapacRateId);
+            const target = getShippingRateOption(shippingRatesControl);
             const currentContainer = picapacInfoContainer.current;
 
             if (
@@ -480,7 +476,7 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         placeInfoLink();
 
         const observer = new MutationObserver(placeInfoLink);
-        observer.observe(document.body, {
+        observer.observe(shippingRatesControl, {
             childList: true,
             subtree: true,
         });
@@ -492,7 +488,8 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
     }, [
         picapacRateId,
         picapacInfoUrl,
-        picapacInfoLabel
+        picapacInfoLabel,
+        shippingRates
     ]);
 
     if ( ! isOmnivaMethod(selectedRateId) ) {
