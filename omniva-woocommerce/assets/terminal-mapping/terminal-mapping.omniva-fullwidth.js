@@ -143,7 +143,6 @@ var DependencyCheck = /*#__PURE__*/function () {
         this.loadLeafletPlugins(callback);
       } else {
         console.info(this.prefix + 'Loading Leaflet');
-        var that = this;
         this.loadScript(this.leafletJsCdn, function () {
           return _this.loadLeaflet(callback);
         });
@@ -168,7 +167,6 @@ var DependencyCheck = /*#__PURE__*/function () {
         }
       } else {
         console.info(this.prefix + 'Loading Leaflet.markercluster plugin');
-        var that = this;
         this.loadScript(this.leafletMarkerClusterJsCdn, function () {
           return _this2.loadLeafletPlugins(callback);
         });
@@ -273,11 +271,11 @@ var DOMManipulator = /*#__PURE__*/function () {
         var sr = _this._searchResultEl();
         if (sr) sr.innerText = "Lat: ".concat(coords.lat, " Long: ").concat(coords.lng);
       });
-      this.TMJS.sub('add-search-loader', function (data) {
+      this.TMJS.sub('add-search-loader', function () {
         var sr = _this._searchResultEl();
         if (sr) sr.innerHTML = "<div id=\"tmjs-terminals-loader\" class=\"tmjs-loading\"></div>";
       });
-      this.TMJS.sub('reset-search-result', function (data) {
+      this.TMJS.sub('reset-search-result', function () {
         var sr = _this._searchResultEl();
         if (sr) sr.innerText = '';
       });
@@ -286,7 +284,7 @@ var DOMManipulator = /*#__PURE__*/function () {
         if (sr) sr.innerText = data.address;
         console.info('GEOCODE RESPONSE:', data);
       });
-      this.TMJS.sub('list-updated', function (data) {
+      this.TMJS.sub('list-updated', function () {
         if (_this._forceScrollTop) {
           _this._forceScrollTop = false;
           _this.showSelected(false);
@@ -295,10 +293,10 @@ var DOMManipulator = /*#__PURE__*/function () {
           _this.showSelected();
         }
       });
-      this.TMJS.sub('close-map-modal', function (data) {
+      this.TMJS.sub('close-map-modal', function () {
         _this.closeModal();
       });
-      this.TMJS.sub('open-map-modal', function (data) {
+      this.TMJS.sub('open-map-modal', function () {
         _this.openModal();
       });
     }
@@ -1607,7 +1605,7 @@ var Map = /*#__PURE__*/function () {
       };
       this._activeMarkerLayer.on('click', activateMarkerFromClick);
       this._markerLayer.on('click', activateMarkerFromClick);
-      this._markerLayer.on('animationend', function (e) {
+      this._markerLayer.on('animationend', function () {
         _this4.updateActiveMarkerClass();
       });
 
