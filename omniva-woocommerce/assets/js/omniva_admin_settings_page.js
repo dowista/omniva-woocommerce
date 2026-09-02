@@ -808,7 +808,7 @@ jQuery(function($) {
     $label.addClass('omnivalt-floating-input__label').prependTo($wrapper);
 
     function updateFloatingLabel() {
-      $wrapper.toggleClass('is-active', $input.is(':focus') || $input.val().length > 0 || $input.is('[placeholder]'));
+      $wrapper.toggleClass('is-active', $input.is(':focus') || $input.val().length > 0);
     }
 
     $input.on('focus blur input change', updateFloatingLabel);
