@@ -74,13 +74,15 @@ class OmnivaLt_Wc_Blocks
             OmnivaLt_Debug::log_error('Failed to save Omniva shipping method from Blocks Checkout. Received method: ' . print_r($selected_method, true));
         }
 
-        // Fallback: if terminal not in extension data, try cookie
         $cookie_terminal_id = '';
         if ( isset($_COOKIE['omniva_terminal']) ) {
             $cookie_terminal_id = sanitize_text_field(wp_unslash($_COOKIE['omniva_terminal']));
         }
 
-        if ( empty($selected_terminal_id) && ! empty($cookie_terminal_id) ) {
+        if ( OmnivaLt_Picapac::is_rate($selected_method) ) {
+            $selected_terminal_id = OmnivaLt_Picapac::get_terminal_id();
+        } elseif ( empty($selected_terminal_id) && ! empty($cookie_terminal_id) ) {
+            // Fallback: if terminal not in extension data, try cookie
             $selected_terminal_id = $cookie_terminal_id;
         }
 
