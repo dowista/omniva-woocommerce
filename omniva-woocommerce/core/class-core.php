@@ -369,6 +369,7 @@ class OmnivaLt_Core
     $folder_js = '/assets/js/';
     
     wp_enqueue_style('omnivalt_admin_global', plugins_url($folder_css . 'omniva_admin_global.css', self::$main_file_path), array(), OMNIVALT_VERSION);
+    wp_enqueue_script('omnivalt_admin_global', plugins_url($folder_js . 'omniva_admin_global.js', self::$main_file_path), array(), OMNIVALT_VERSION, true);
   }
 
   /**
@@ -420,6 +421,7 @@ class OmnivaLt_Core
         'selected_count' => __('%d selected', 'omnivalt'),
         'remove_selected_item' => __('Remove selected item', 'omnivalt'),
         'no_matches' => __('No matches found.', 'omnivalt'),
+        'unsaved_navigation' => __('You have unsaved changes. Are you sure you want to leave this page?', 'omnivalt'),
       ),
     ));
   }
@@ -523,7 +525,8 @@ class OmnivaLt_Core
     require_once $core_dir . 'class-cronjob.php';
     require_once $core_dir . 'class-terminals.php';
     require_once $core_dir . 'class-manifest.php';
-    require_once $core_dir . 'admin/class-settings-page.php';
+    require_once $core_dir . 'admin/' . 'class-admin-navigation.php';
+    require_once $core_dir . 'admin/' . 'class-settings-page.php';
     require_once $core_dir . 'class-order.php';
     require_once $core_dir . 'class-omniva-order.php';
     require_once $core_dir . 'class-frontend.php';

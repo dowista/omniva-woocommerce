@@ -37,7 +37,7 @@ do_action('omniva_admin_manifest_head');
           <span aria-hidden="true">/</span>
           <span><?php esc_html_e('Omniva', 'omnivalt'); ?></span>
         </div>
-        <h1><?php esc_html_e('Omniva shipping', 'omnivalt'); ?></h1>
+        <?php OmnivaLt_Admin_Navigation::render_page_title(OmnivaLt_Manifest::PAGE_SLUG, 'omnivalt-manifest-page__title'); ?>
         <p><?php esc_html_e('Manage Omniva shipments, labels and courier collection in one place.', 'omnivalt'); ?></p>
       </div>
       <?php if ( $shipping_settings ) : ?>

@@ -1,12 +1,13 @@
 <?php
 class OmnivaLt_Manifest
 {
+  const PAGE_SLUG = 'omniva-manifest';
+
   public static function load_admin_scripts()
   {
     $folder_css = '/assets/css/';
     $folder_js = '/assets/js/';
 
-    wp_enqueue_style('omnivalt_admin_woo', plugins_url($folder_css . 'omniva_admin_woo.css', OmnivaLt_Core::$main_file_path, array(), OMNIVALT_VERSION));
     wp_enqueue_style('omnivalt_admin_manifest', plugins_url($folder_css . 'omniva_admin_manifest.css', OmnivaLt_Core::$main_file_path, array(), OMNIVALT_VERSION));
     wp_enqueue_style('bootstrap-datetimepicker', plugins_url($folder_js . 'datetimepicker/bootstrap-datetimepicker.min.css', OmnivaLt_Core::$main_file_path));
 
@@ -26,12 +27,17 @@ class OmnivaLt_Manifest
 
   public static function register_menu_pages()
   {
+    $page = OmnivaLt_Admin_Navigation::get_page(self::PAGE_SLUG);
+    if ( ! $page ) {
+      return;
+    }
+
     add_submenu_page(
       'woocommerce',
-      __('Omniva shipping', 'omnivalt'),
-      __('Omniva shipping', 'omnivalt'),
-      'manage_woocommerce',
-      'omniva-manifest',
+      $page['title'],
+      $page['title'],
+      $page['capability'],
+      self::PAGE_SLUG,
       'OmnivaLt_Manifest::manifest_page',
       10
     );
@@ -222,7 +228,7 @@ class OmnivaLt_Manifest
 
   public static function page_make_link($args)
   {
-    $query_args = array('page' => 'omniva-manifest');
+    $query_args = array('page' => self::PAGE_SLUG);
     $query_args = array_merge($query_args, $args);
     return add_query_arg($query_args, admin_url('/admin.php'));
   }

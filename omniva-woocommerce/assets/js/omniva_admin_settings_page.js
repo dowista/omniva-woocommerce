@@ -1185,6 +1185,17 @@ jQuery(function($) {
 
     $form.on('input.omnivaltSettingsSave change.omnivaltSettingsSave', ':input', scheduleSaveStateUpdate);
 
+    $root.on('click.omnivaltSettingsNavigation', '[data-omnivalt-page-link]', function(event) {
+      if ($form.serialize() === savedFormState) {
+        return;
+      }
+
+      var message = textSettings.unsaved_navigation || 'You have unsaved changes. Are you sure you want to leave this page?';
+      if (!window.confirm(message)) {
+        event.preventDefault();
+      }
+    });
+
     $discard.on('click', function() {
       $.each(initialControls, function(index, controlState) {
         var $control = $(controlState.element);

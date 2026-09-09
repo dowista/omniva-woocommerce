@@ -13,7 +13,7 @@ if ( ! defined('ABSPATH') ) {
           <span class="omnivalt-settings-page__breadcrumb-sep" aria-hidden="true">/</span>
           <span><?php esc_html_e('Omniva', 'omnivalt'); ?></span>
         </div>
-        <h1 class="omnivalt-settings-page__title"><?php esc_html_e('Omniva settings', 'omnivalt'); ?></h1>
+        <?php OmnivaLt_Admin_Navigation::render_page_title(OmnivaLt_Settings_Page::PAGE_SLUG, 'omnivalt-settings-page__title'); ?>
         <p class="omnivalt-settings-page__subtitle"><?php esc_html_e('Configure Omniva shipping methods, delivery services and labels.', 'omnivalt'); ?></p>
       </div>
 

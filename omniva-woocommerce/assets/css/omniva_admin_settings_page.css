@@ -178,6 +178,14 @@ body.woocommerce_page_omnivalt-settings #wpbody-content {
   letter-spacing: 0;
 }
 
+#omnivalt-settings-root .omnivalt-settings-page__subtitle {
+  margin: 0;
+  color: var(--omniva-muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
 #omnivalt-settings-root
   .omnivalt-settings-page__breadcrumb
   span[aria-hidden='true'] {
