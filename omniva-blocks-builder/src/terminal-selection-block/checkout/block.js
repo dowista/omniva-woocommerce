@@ -29,11 +29,7 @@ const getSavedTerminal = ( extensions ) => {
         : '';
 };
 
-const getShippingRatePortalTarget = ( rateId ) => {
-    const shippingRatesControl = document.querySelector(
-        '.wc-block-components-shipping-rates-control'
-    );
-
+const getShippingRatePortalTarget = ( rateId, shippingRatesControl ) => {
     if ( ! shippingRatesControl ) {
         return null;
     }
@@ -97,6 +93,34 @@ const getShippingRateOption = ( shippingRatesControl ) => {
     }
 
     return null;
+};
+
+const getShippingRatesControl = () => document.querySelector(
+    '.wc-block-components-shipping-rates-control'
+);
+
+const setShippingRateInputsDisabled = ( disabled ) => {
+    const shippingRatesControl = getShippingRatesControl();
+
+    if ( ! shippingRatesControl ) {
+        return;
+    }
+
+    shippingRatesControl.querySelectorAll('input[type="radio"]').forEach((rateInput) => {
+        if ( disabled ) {
+            if ( ! rateInput.disabled ) {
+                rateInput.disabled = true;
+                rateInput.dataset.omnivaltDisabled = 'true';
+            }
+
+            return;
+        }
+
+        if ( rateInput.dataset.omnivaltDisabled === 'true' ) {
+            rateInput.disabled = false;
+            delete rateInput.dataset.omnivaltDisabled;
+        }
+    });
 };
 
 export const Block = ({ checkoutExtensionData, extensions }) => {
@@ -184,6 +208,16 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
         return storeCart.getCartData().shippingRates;
     });
 
+    const isSelectingShippingRate = useSelect((select) => {
+        const storeCart = select('wc/store/cart');
+
+        return typeof storeCart.isShippingRateBeingSelected === 'function'
+            ? storeCart.isShippingRateBeingSelected()
+            : false;
+    });
+
+    const hasShippingRates = shippingRates.length > 0;
+
     const customerData = useSelect((select) => {
         const storeCart = select('wc/store/cart');
         const billingAddress = storeCart.getCartData().billingAddress;
@@ -196,6 +230,38 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             country: shippingAddress.country
         };
     });
+
+    useEffect(() => {
+        setShippingRateInputsDisabled(isSelectingShippingRate);
+
+        if ( ! isSelectingShippingRate || ! window.MutationObserver ) {
+            return undefined;
+        }
+
+        const shippingRatesControl = getShippingRatesControl();
+
+        if ( ! shippingRatesControl ) {
+            return () => setShippingRateInputsDisabled(false);
+        }
+
+        const observerRoot = shippingRatesControl.closest(
+            '.wp-block-woocommerce-checkout-shipping-methods-block'
+        ) || shippingRatesControl.parentElement || shippingRatesControl;
+
+        const observer = new MutationObserver(() => {
+            setShippingRateInputsDisabled(true);
+        });
+
+        observer.observe(observerRoot, {
+            childList: true,
+            subtree: true,
+        });
+
+        return () => {
+            observer.disconnect();
+            setShippingRateInputsDisabled(false);
+        };
+    }, [isSelectingShippingRate]);
 
     useEffect(() => {
         if ( shippingRates.length ) {
@@ -496,13 +562,34 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             setPortalTarget(null);
         };
 
-        if ( ! showBlock.value || selectedRateId === '' ) {
+        const removeInfoLink = () => {
+            if ( picapacInfoContainer.current ) {
+                picapacInfoContainer.current.remove();
+                picapacInfoContainer.current = null;
+            }
+        };
+
+        const shippingRatesControl = getShippingRatesControl();
+
+        const shouldPlacePortalTarget = showBlock.value && selectedRateId !== '';
+        const shouldPlaceInfoLink = hasShippingRates && picapacRateId !== '';
+
+        if (
+            ! shippingRatesControl ||
+            ! window.MutationObserver ||
+            ( ! shouldPlacePortalTarget && ! shouldPlaceInfoLink )
+        ) {
             removePortalTarget();
+            removeInfoLink();
             return undefined;
         }
 
         const placePortalTarget = () => {
-            const target = getShippingRatePortalTarget(selectedRateId);
+            if ( ! shouldPlacePortalTarget ) {
+                removePortalTarget();
+                return;
+            }
+
             const currentTarget = terminalPortalTarget.current;
 
             if (
@@ -512,6 +599,11 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             ) {
                 return;
             }
+
+            const target = getShippingRatePortalTarget(
+                selectedRateId,
+                getShippingRatesControl()
+            );
 
             if ( currentTarget ) {
                 currentTarget.remove();
@@ -537,42 +629,16 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             setPortalTarget(newPortalTarget);
         };
 
-        placePortalTarget();
-
-        const observer = new MutationObserver(placePortalTarget);
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        });
-
-        return () => {
-            observer.disconnect();
-            removePortalTarget();
-        };
-    }, [
-        selectedRateId,
-        showBlock.value
-    ]);
-
-    useEffect(() => {
-        const removeInfoLink = () => {
-            if ( picapacInfoContainer.current ) {
-                picapacInfoContainer.current.remove();
-                picapacInfoContainer.current = null;
-            }
-        };
-
-        const shippingRatesControl = document.querySelector(
-            '.wc-block-components-shipping-rates-control'
-        );
-
-        if ( ! shippingRates.length || picapacRateId === '' || ! shippingRatesControl || ! window.MutationObserver ) {
-            removeInfoLink();
-            return undefined;
-        }
-
         const placeInfoLink = () => {
-            const target = getShippingRateOption(shippingRatesControl);
+            if ( ! shouldPlaceInfoLink ) {
+                removeInfoLink();
+                return;
+            }
+
+            const currentShippingRatesControl = getShippingRatesControl();
+            const target = currentShippingRatesControl
+                ? getShippingRateOption(currentShippingRatesControl)
+                : null;
             const currentContainer = picapacInfoContainer.current;
 
             if (
@@ -606,23 +672,60 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
             picapacInfoContainer.current = newInfoContainer;
         };
 
+        let animationFrame = null;
+        const schedulePlacement = () => {
+            if ( animationFrame !== null ) {
+                return;
+            }
+
+            animationFrame = window.requestAnimationFrame(() => {
+                animationFrame = null;
+                placePortalTarget();
+                placeInfoLink();
+            });
+        };
+
+        placePortalTarget();
         placeInfoLink();
 
-        const observer = new MutationObserver(placeInfoLink);
-        observer.observe(shippingRatesControl, {
+        const observerRoot = shippingRatesControl.closest(
+            '.wp-block-woocommerce-checkout-shipping-methods-block'
+        ) || shippingRatesControl.parentElement || shippingRatesControl;
+
+        const observer = new MutationObserver((mutations) => {
+            const hasExternalMutation = mutations.some((mutation) => (
+                ! mutation.target.closest ||
+                ! mutation.target.closest(
+                    '.omnivalt-terminal-portal, .omnivalt-picapac-info'
+                )
+            ));
+
+            if ( hasExternalMutation ) {
+                schedulePlacement();
+            }
+        });
+        observer.observe(observerRoot, {
             childList: true,
             subtree: true,
         });
 
         return () => {
             observer.disconnect();
+
+            if ( animationFrame !== null ) {
+                window.cancelAnimationFrame(animationFrame);
+            }
+
+            removePortalTarget();
             removeInfoLink();
         };
     }, [
+        selectedRateId,
+        showBlock.value,
+        hasShippingRates,
         picapacRateId,
         picapacInfoUrl,
         picapacInfoLabel,
-        shippingRates
     ]);
 
     if ( ! isOmnivaMethod(selectedRateId) ) {

@@ -469,6 +469,16 @@ body.woocommerce_page_omniva-manifest #wpcontent {
   background: var(--omniva-manifest-card);
 }
 
+.page-omniva_manifest .omnivalt-manifest-page__tabs-select {
+  display: none;
+}
+
+.page-omniva_manifest .omnivalt-manifest-page__mobile-controls,
+.page-omniva_manifest .omnivalt-manifest-page__filter-backdrop,
+.page-omniva_manifest .omnivalt-manifest-page__filter-close {
+  display: none;
+}
+
 .page-omniva_manifest .omnivalt-manifest-page__tab {
   min-height: 48px;
   display: flex;
@@ -542,6 +552,13 @@ body.woocommerce_page_omniva-manifest #wpcontent {
 
 .page-omniva_manifest .selected-orders .title {
   color: var(--omniva-manifest-muted);
+  font-weight: 600;
+}
+
+.page-omniva_manifest .selected-orders .selected-count {
+  display: none;
+  margin-left: 4px;
+  color: var(--omniva-manifest-ink);
   font-weight: 600;
 }
 
@@ -854,6 +871,14 @@ body.woocommerce_page_omniva-manifest #wpcontent {
   padding-left: 18px !important;
 }
 
+.page-omniva_manifest .omnivalt-manifest-page__mobile-details,
+.page-omniva_manifest .omnivalt-manifest-page__mobile-select-all,
+.page-omniva_manifest .omnivalt-manifest-page__mobile-actions-label,
+.page-omniva_manifest .omnivalt-manifest-page__mobile-order-amount,
+.page-omniva_manifest .omnivalt-manifest-page__mobile-order-date {
+  display: none;
+}
+
 .page-omniva_manifest .omnivalt-manifest-page__orders-card .wp-list-table a {
   color: var(--omniva-manifest-ink);
   font-weight: 500;
@@ -1111,27 +1136,304 @@ body.woocommerce_page_omniva-manifest #wpcontent {
     flex-direction: column;
   }
 
+  .page-omniva_manifest .omnivalt-manifest-page__header {
+    gap: 16px;
+    margin-bottom: 15px;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__header::after {
+    position: static;
+    width: 100%;
+    height: 3px;
+    order: 1;
+    border-top: 1px solid var(--omniva-manifest-line);
+    border-radius: 0;
+    background: linear-gradient(
+      to right,
+      var(--omniva-manifest-accent) 0 56px,
+      transparent 56px 100%
+    );
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__header > div {
+    order: 0;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__header
+    > .omnivalt-manifest-page__courier-action {
+    order: 2;
+  }
+
   .page-omniva_manifest .omnivalt-manifest-page__courier-action {
     width: 100%;
   }
 
   .page-omniva_manifest .omnivalt-manifest-page__tabs {
-    grid-template-columns: 1fr;
+    display: none;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    gap: 8px;
     width: 100%;
+    margin: 0 0 18px;
   }
 
-  .page-omniva_manifest .omnivalt-manifest-page__tab,
-  .page-omniva_manifest .omnivalt-manifest-page__tab:last-child {
-    border-right: 0;
-    border-bottom: 1px solid var(--omniva-manifest-ink);
+  .page-omniva_manifest .omnivalt-manifest-page__tabs-select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 38px;
+    min-width: 0;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--omniva-manifest-ink);
+    border-radius: 8px;
+    background: var(--omniva-manifest-card);
+    color: var(--omniva-manifest-ink);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
   }
 
-  .page-omniva_manifest .omnivalt-manifest-page__tab:last-child {
-    border-bottom: 0;
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-controls .button {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    padding: 8px 6px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filter-count {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--omniva-manifest-ink);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filter-backdrop {
+    position: fixed;
+    z-index: 100001;
+    top: 46px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    background: rgba(0, 0, 0, 0.34);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      opacity 180ms ease,
+      visibility 0s linear 180ms;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filter-backdrop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filters {
+    position: fixed;
+    z-index: 100002;
+    top: 46px;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    align-items: stretch;
+    width: min(88vw, 360px);
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: 12px;
+    margin: 0;
+    padding: 56px 16px 18px;
+    overflow-y: auto;
+    border: 0;
+    border-left: 1px solid var(--omniva-manifest-line);
+    background: #fff;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.16);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition:
+      transform 180ms ease,
+      visibility 0s linear 180ms;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__root:not(.is-ready)
+    .omnivalt-manifest-page__filters {
+    transition: none;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filters.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filter-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--omniva-manifest-line);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--omniva-manifest-ink);
+    cursor: pointer;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filter-close:hover,
+  .page-omniva_manifest .omnivalt-manifest-page__filter-close:focus {
+    border-color: var(--omniva-manifest-ink);
+    background: #f4f4f4;
+    color: var(--omniva-manifest-ink);
+    box-shadow: none;
+  }
+
+  body.omnivalt-manifest-page__filter-open {
+    overflow: hidden;
   }
 
   .page-omniva_manifest .omnivalt-manifest-page__bulk-actions {
     align-items: stretch;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__bulk-actions.is-visible {
+    position: fixed;
+    z-index: 100000;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    box-sizing: border-box;
+    align-items: stretch;
+    gap: 6px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--omniva-manifest-line);
+    border-radius: 10px 10px 0 0;
+    background: #fff;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.14);
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__bulk-actions .selected-orders {
+    flex: 0 0 auto;
+    width: 100%;
+    color: var(--omniva-manifest-ink);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions
+    .selected-orders
+    .title {
+    color: var(--omniva-manifest-ink);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions
+    .selected-orders
+    .item {
+    min-height: 24px;
+    margin-bottom: 0;
+    padding: 2px 6px;
+    font-size: 12px;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions
+    .omnivalt-manifest-page__selection-actions {
+    width: 100%;
+    margin: 0;
+    gap: 6px;
+    flex-direction: row;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions
+    .omnivalt-manifest-page__selection-actions
+    .button {
+    width: auto;
+    min-width: 0;
+    height: 32px;
+    min-height: 32px;
+    flex: 1 1 0;
+    padding: 4px 6px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions.has-many-selected {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions.has-many-selected
+    .selected-orders {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    line-height: 1.2;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions.has-many-selected
+    .selected-orders
+    .item {
+    display: none !important;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions.has-many-selected
+    .selected-orders
+    .selected-count {
+    display: inline;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions.has-many-selected
+    .omnivalt-manifest-page__selection-actions {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__bulk-actions.has-many-selected
+    .omnivalt-manifest-page__selection-actions
+    .button {
+    width: auto;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__bottom-actions,
+  .page-omniva_manifest .omnivalt-manifest-page__bottom-actions.is-visible {
+    display: none !important;
   }
 
   .page-omniva_manifest .selected-orders {
@@ -1163,6 +1465,479 @@ body.woocommerce_page_omniva-manifest #wpcontent {
 
   .page-omniva_manifest .omnivalt-manifest-page__pagination .tablenav-pages {
     text-align: left;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__orders-card,
+  .page-omniva_manifest .omnivalt-manifest-page__orders-card form {
+    overflow: visible;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__orders-card {
+    border: 0;
+    background: transparent;
+    margin-right: -7px;
+    margin-left: -7px;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__orders-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__filters {
+    border: 1px solid var(--omniva-manifest-line);
+    border-radius: 10px;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__orders-card .wp-list-table {
+    display: block;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    thead,
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody {
+    display: block;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody {
+    padding: 0;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    thead
+    tr.table-header {
+    display: block;
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+    border: 1px solid var(--omniva-manifest-line);
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    thead
+    tr.table-header
+    > :not(.check-column) {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    thead
+    .check-column {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 10px !important;
+    border: 0;
+    text-align: left;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-select-all {
+    display: inline;
+    color: var(--omniva-manifest-muted);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody
+    tr.data-row {
+    display: grid;
+    grid-template-columns: 28px max-content minmax(0, 1fr) max-content;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid var(--omniva-manifest-line);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody
+    tr.data-row:hover {
+    background: #fff;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody
+    tr.data-row
+    > th,
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody
+    tr.data-row
+    > td {
+    display: block;
+    width: auto;
+    padding: 0 !important;
+    border: 0;
+    background: transparent;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody
+    tr.data-row:hover
+    > th,
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .wp-list-table
+    tbody
+    tr.data-row:hover
+    > td {
+    background: transparent;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .check-column {
+    grid-column: 1;
+    grid-row: 1;
+    padding-top: 3px !important;
+    text-align: left;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_id {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__mobile-order-identity {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    margin-right: 8px;
+    padding-top: 2px;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .column-order_id
+    a {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-details {
+    display: inline-flex !important;
+    width: 16px;
+    min-height: 20px;
+    flex: 0 0 16px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--omniva-manifest-ink);
+    cursor: pointer;
+    transform: translateY(2px);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__mobile-details
+    > span:first-child {
+    display: none;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-order-amount {
+    display: flex !important;
+    min-width: 76px;
+    flex-direction: column !important;
+    align-items: flex-end;
+    grid-column: 4;
+    grid-row: 1;
+    line-height: 1;
+    text-align: right;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-order-amount > span {
+    color: #777;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-order-amount > strong {
+    margin-top: 2px;
+    color: var(--omniva-manifest-ink);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-details:hover,
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-details:focus {
+    color: var(--omniva-manifest-accent);
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-details:focus-visible {
+    border-radius: 3px;
+    outline: 2px solid var(--omniva-manifest-accent);
+    outline-offset: 2px;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-details .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    line-height: 16px;
+    transition: transform 150ms ease;
+  }
+
+  .page-omniva_manifest
+    tr.data-row.is-mobile-expanded
+    .omnivalt-manifest-page__mobile-details
+    .dashicons {
+    transform: rotate(180deg);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_customer {
+    grid-column: 3;
+    grid-row: 1;
+    display: flex !important;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 2px 4px 0 10px !important;
+    font-size: 13px;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_customer
+    .data-grid-cell-content {
+    display: flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    transform: translateY(2px);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_customer
+    .customer-name {
+    display: block;
+    margin-left: 2px;
+    overflow: visible;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_customer
+    .customer-name::after {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_customer
+    .customer-company {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_status {
+    display: block;
+    grid-column: 1 / 4;
+    grid-row: 2;
+    margin-top: 40px;
+    transform: translateX(-1px);
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__mobile-order-date {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 7px;
+    color: #777;
+    font-size: 10px;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__mobile-order-date
+    .dashicons {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__desktop-order-value {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .omnivalt-manifest-page__mobile-detail {
+    grid-column: 1 / -1;
+    margin-top: 10px;
+    padding-top: 10px !important;
+    border-top: 1px solid #ededed;
+    overflow-wrap: anywhere;
+  }
+
+  .page-omniva_manifest
+    .has-mobile-order-toggle
+    .omnivalt-manifest-page__orders-card
+    tr.data-row:not(.is-mobile-expanded)
+    > .omnivalt-manifest-page__mobile-detail {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    [data-mobile-label]::before {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--omniva-manifest-muted);
+    content: attr(data-mobile-label);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_actions {
+    display: flex !important;
+    grid-column: 4;
+    grid-row: 2;
+    align-items: center;
+    align-self: end;
+    justify-content: flex-end;
+    gap: 5px;
+    margin-top: 37px;
+    padding-left: 0 !important;
+  }
+
+  .page-omniva_manifest .omnivalt-manifest-page__mobile-actions-label {
+    display: none;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .column-order_actions
+    .button.action.omnivalt-manifest-page__row-action {
+    width: 36px;
+    min-height: 36px;
+    margin: 0;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_status
+    .order-status {
+    min-height: 24px;
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    tr.data-row
+    > .column-order_status
+    .order-status::before {
+    width: 5px;
+    height: 5px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    content: '';
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__date-row,
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__empty-row {
+    display: block;
+    width: 100%;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__date-row {
+    margin: 4px 0 10px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .manifest-date-title {
+    display: block;
+    width: 100%;
+    padding: 9px 14px !important;
+  }
+
+  .page-omniva_manifest
+    .omnivalt-manifest-page__orders-card
+    .omnivalt-manifest-page__empty-cell {
+    display: block;
+    width: 100%;
   }
 }
 

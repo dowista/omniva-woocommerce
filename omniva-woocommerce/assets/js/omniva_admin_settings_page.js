@@ -14,6 +14,7 @@ jQuery(function($) {
   initializeSettingsDependencies(refreshShippingMethodsLayout);
   initializePriceTables();
   initializePositionSortable();
+  initializeSettingsSidebar();
   $root.removeClass('is-layout-pending');
 
   function getAvailableMethods() {
@@ -21,6 +22,121 @@ jQuery(function($) {
     var availableMethods = pageSettings.available_methods || {};
 
     return availableMethods[apiCountry] || {};
+  }
+
+  function initializeSettingsSidebar() {
+    var $sidebar = $root.find('[data-settings-sidebar]').first();
+    var $toggle = $root.find('[data-settings-sidebar-toggle]').first();
+    var $close = $root.find('[data-settings-sidebar-close]').first();
+    var $backdrop = $root.find('[data-settings-sidebar-backdrop]').first();
+    var isOpen = false;
+    var lastFocusedElement = null;
+
+    if (!$sidebar.length || !$toggle.length || !$close.length || !$backdrop.length) {
+      return;
+    }
+
+    function isDrawerMode() {
+      if (window.matchMedia) {
+        return window.matchMedia('(max-width: 1280px)').matches;
+      }
+
+      return window.innerWidth <= 1280;
+    }
+
+    function setSidebarState(nextOpen) {
+      var drawerMode = isDrawerMode();
+
+      isOpen = Boolean(nextOpen && drawerMode);
+      $sidebar
+        .toggleClass('is-open', isOpen)
+        .attr('aria-hidden', isOpen ? 'false' : (drawerMode ? 'true' : 'false'));
+      $toggle.attr('aria-expanded', isOpen ? 'true' : 'false');
+      $backdrop.prop('hidden', !isOpen);
+      $root.toggleClass('is-sidebar-open', isOpen);
+      $('body').toggleClass('omnivalt-settings-sidebar-open', isOpen);
+    }
+
+    function restoreFocus() {
+      if (lastFocusedElement && $.contains(document.documentElement, lastFocusedElement)) {
+        $(lastFocusedElement).trigger('focus');
+        return;
+      }
+
+      $toggle.trigger('focus');
+    }
+
+    function closeSidebar(shouldRestoreFocus) {
+      var wasOpen = isOpen;
+
+      setSidebarState(false);
+
+      if (shouldRestoreFocus && wasOpen) {
+        restoreFocus();
+      }
+    }
+
+    function getFocusableElements() {
+      return $sidebar.find('a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])').filter(':visible');
+    }
+
+    $toggle.on('click', function() {
+      if (isOpen) {
+        closeSidebar(true);
+        return;
+      }
+
+      if (!isDrawerMode()) {
+        return;
+      }
+
+      lastFocusedElement = document.activeElement;
+      setSidebarState(true);
+      $close.trigger('focus');
+    });
+
+    $close.add($backdrop).on('click', function() {
+      closeSidebar(true);
+    });
+
+    $sidebar.on('keydown', function(event) {
+      var $focusable;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSidebar(true);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !isOpen) {
+        return;
+      }
+
+      $focusable = getFocusableElements();
+      if (!$focusable.length) {
+        event.preventDefault();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === $focusable[0]) {
+        event.preventDefault();
+        $focusable[$focusable.length - 1].focus();
+      } else if (!event.shiftKey && document.activeElement === $focusable[$focusable.length - 1]) {
+        event.preventDefault();
+        $focusable[0].focus();
+      }
+    });
+
+    $(window).on('resize.omnivaltSettingsSidebar', function() {
+      if (!isDrawerMode() && isOpen) {
+        closeSidebar(false);
+        return;
+      }
+
+      setSidebarState(isOpen);
+    });
+
+    setSidebarState(false);
   }
 
   function isMethodAvailable(countryMethods, methodKey) {
@@ -657,6 +773,9 @@ jQuery(function($) {
       var $rows = $table.find('tr');
       var $list = $('<ol class="omnivalt-position-list" data-settings-position-list></ol>');
       var items = [];
+      var defaultOrder;
+      var initialOrder;
+      var sortableOptions;
 
       if (!$table.length || !$rows.length) {
         return;
@@ -694,11 +813,12 @@ jQuery(function($) {
       });
 
       $table.replaceWith($list);
+      defaultOrder = $list.children('.omnivalt-position-list__item').toArray();
       sortPositionItems($list);
-      var initialOrder = $list.children('.omnivalt-position-list__item').toArray();
+      initialOrder = $list.children('.omnivalt-position-list__item').toArray();
 
       if ($.fn.sortable) {
-        $list.sortable({
+        sortableOptions = {
           axis: 'y',
           cursor: 'grabbing',
           forcePlaceholderSize: true,
@@ -706,24 +826,181 @@ jQuery(function($) {
           update: function() {
             updatePositionValues($list);
           }
-        });
+        };
+
+        if ('ontouchstart' in window || (window.navigator && window.navigator.maxTouchPoints > 0)) {
+          sortableOptions.handle = '.omnivalt-position-list__handle';
+        }
+
+        $list.sortable(sortableOptions);
       }
 
       $list.data('omnivaltPositionReset', function() {
-        $.each(initialOrder, function(index, item) {
-          $list.append(item);
-        });
-
-        if ($.fn.sortable && $list.hasClass('ui-sortable')) {
-          $list.sortable('refresh');
-        }
+        restorePositionOrder($list, initialOrder);
       });
+
+      $fieldset.closest('tr').find('[data-settings-position-reset]').on('click', function() {
+        restorePositionOrder($list, defaultOrder);
+        $list.children('.omnivalt-position-list__item').each(function() {
+          $(this).find('input[type="number"]').val('').trigger('change');
+        });
+      });
+
+      initializeTouchSortable($list);
     });
 
     function updatePositionValues($list) {
       $list.children('.omnivalt-position-list__item').each(function(index) {
         $(this).find('input[type="number"]').val(index + 1).trigger('change');
       });
+    }
+
+    function restorePositionOrder($list, order) {
+      $.each(order, function(index, item) {
+        $list.append(item);
+      });
+
+      if ($.fn.sortable && $list.hasClass('ui-sortable')) {
+        $list.sortable('refresh');
+      }
+    }
+
+    function initializeTouchSortable($list) {
+      var $handles = $list.find('.omnivalt-position-list__handle');
+      var hasPointerEvents = typeof window.PointerEvent !== 'undefined';
+      var activeDrag = null;
+
+      if (!$handles.length || !$.fn.sortable) {
+        return;
+      }
+
+      if (hasPointerEvents) {
+        $handles.on('pointerdown.omnivaltPositionDrag', function(event) {
+          var pointerType = event.pointerType || (event.originalEvent && event.originalEvent.pointerType);
+
+          if (pointerType === 'mouse') {
+            return;
+          }
+
+          startTouchSortable(event, getEventPoint(event));
+        });
+        $(document).on('pointermove.omnivaltPositionDrag', function(event) {
+          if (!isActivePointer(event)) {
+            return;
+          }
+
+          moveTouchSortable(event, getEventPoint(event));
+        });
+        $(document).on('pointerup.omnivaltPositionDrag pointercancel.omnivaltPositionDrag', function(event) {
+          if (!isActivePointer(event)) {
+            return;
+          }
+
+          finishTouchSortable(event, getEventPoint(event));
+        });
+      }
+
+      $handles.on('touchstart.omnivaltPositionDrag', function(event) {
+        startTouchSortable(event, getEventPoint(event));
+      });
+      $(document).on('touchmove.omnivaltPositionDrag', function(event) {
+        if (activeDrag) {
+          moveTouchSortable(event, getEventPoint(event));
+        }
+      });
+      $(document).on('touchend.omnivaltPositionDrag touchcancel.omnivaltPositionDrag', function(event) {
+        if (activeDrag) {
+          finishTouchSortable(event, getEventPoint(event));
+        }
+      });
+
+      function getEventPoint(event) {
+        var originalEvent = event.originalEvent || event;
+        var touches = originalEvent.touches;
+        var touch = touches && touches.length ? touches[0] : null;
+
+        if (!touch) {
+          touches = originalEvent.changedTouches;
+          touch = touches && touches.length ? touches[0] : null;
+        }
+
+        if (touch) {
+          return touch;
+        }
+
+        if (typeof originalEvent.clientY !== 'number') {
+          return null;
+        }
+
+        return originalEvent;
+      }
+
+      function isActivePointer(event) {
+        if (!activeDrag) {
+          return false;
+        }
+
+        return activeDrag.pointerId === null
+          || typeof event.pointerId !== 'number'
+          || activeDrag.pointerId === event.pointerId;
+      }
+
+      function startTouchSortable(event, point) {
+        if (!point || activeDrag) {
+          return;
+        }
+
+        activeDrag = {
+          pointerId: typeof event.pointerId === 'number' ? event.pointerId : null,
+          lastPoint: point
+        };
+
+        event.preventDefault();
+        triggerMouseEvent('mousedown', point, event.currentTarget);
+      }
+
+      function moveTouchSortable(event, point) {
+        if (!activeDrag || !point) {
+          return;
+        }
+
+        event.preventDefault();
+        activeDrag.lastPoint = point;
+        triggerMouseEvent('mousemove', point, document);
+      }
+
+      function finishTouchSortable(event, point) {
+        var drag = activeDrag;
+
+        if (!drag) {
+          return;
+        }
+
+        event.preventDefault();
+        triggerMouseEvent('mouseup', point || drag.lastPoint, document);
+
+        activeDrag = null;
+      }
+
+      function triggerMouseEvent(type, point, target) {
+        var pageXOffset = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+        var pageYOffset = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        var mouseEvent = $.Event(type);
+
+        if (!point) {
+          return;
+        }
+
+        mouseEvent.which = 1;
+        mouseEvent.button = 0;
+        mouseEvent.pageX = typeof point.pageX === 'number' ? point.pageX : point.clientX + pageXOffset;
+        mouseEvent.pageY = typeof point.pageY === 'number' ? point.pageY : point.clientY + pageYOffset;
+        mouseEvent.clientX = point.clientX;
+        mouseEvent.clientY = point.clientY;
+        mouseEvent.screenX = point.screenX;
+        mouseEvent.screenY = point.screenY;
+        $(target).trigger(mouseEvent);
+      }
     }
 
     function sortPositionItems($list) {
@@ -904,9 +1181,8 @@ jQuery(function($) {
         }
       });
 
-      $number.val(storedValue.replace(/\D/g, '')).attr('placeholder', phoneSettings.placeholder);
-      $number.prop('required', isMobile);
-      $original.attr('type', 'hidden').addClass('omnivalt-phone-input__value');
+      $number.val(storedValue.replace(/\D/g, '')).attr('placeholder', phoneSettings.placeholder).prop('required', false).removeAttr('required');
+      $original.attr('type', 'hidden').prop('required', false).removeAttr('required').addClass('omnivalt-phone-input__value');
       $original.after($wrapper);
       $wrapper.append($country, $number, $dropdown);
 

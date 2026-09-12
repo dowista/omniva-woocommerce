@@ -1,5 +1,48 @@
 /* global omniva_eraseCookie, omniva_getCookie, omniva_setCookie, omnivaglobals, omnivatext */
 (function($) {
+  /* Mobile order details */
+  $(document).on('click', '.omnivalt-manifest-page__mobile-details, .omnivalt-manifest-page__orders-card .customer-name', function() {
+    var button = $(this);
+
+    if (!button.hasClass('omnivalt-manifest-page__mobile-details')) {
+      button = button.closest('.column-order_customer').find('.omnivalt-manifest-page__mobile-details').first();
+    }
+
+    omniva_toggle_mobile_details(button);
+  });
+
+  function omniva_toggle_mobile_details(button) {
+    var row = button.closest('tr.data-row');
+    var expanded = button.attr('aria-expanded') === 'true';
+    var label = expanded ? button.attr('data-show-label') : button.attr('data-hide-label');
+
+    row.toggleClass('is-mobile-expanded', !expanded);
+    button.attr('aria-expanded', expanded ? 'false' : 'true');
+    button.find('span:first').text(label);
+  }
+
+  $(document).on('change', '#omnivalt-manifest-page__tabs-select', function() {
+    var target = $(this).val();
+
+    if (target) {
+      window.location.href = target;
+    }
+  });
+
+  $(document).on('click', '#omnivalt-manifest-page__filter-toggle', function() {
+    omniva_set_filter_drawer_open(true);
+  });
+
+  $(document).on('click', '#omnivalt-manifest-page__filter-close, .omnivalt-manifest-page__filter-backdrop', function() {
+    omniva_set_filter_drawer_open(false);
+  });
+
+  $(document).on('keydown', function(event) {
+    if (event.key === 'Escape') {
+      omniva_set_filter_drawer_open(false);
+    }
+  });
+
   /* Checkbox events */
   $(document).on('click', '.check-all', function() {
     var checked = $(this).prop('checked');
@@ -131,7 +174,34 @@
     omniva_remove_action_tooltip();
   });
 
+  $(function() {
+    omniva_update_selected_summary();
+  });
+
+  $(window).on('load', function() {
+    $('#omnivalt-manifest-root').addClass('is-ready');
+  });
+
   /* Functions */
+  function omniva_set_filter_drawer_open(open) {
+    var filters = $('#omnivalt-manifest-page__filters');
+    var backdrop = $('.omnivalt-manifest-page__filter-backdrop');
+    var toggle = $('#omnivalt-manifest-page__filter-toggle');
+
+    if (!filters.length) {
+      return;
+    }
+
+    filters.toggleClass('is-open', open).attr('aria-hidden', open ? 'false' : 'true');
+    backdrop.toggleClass('is-visible', open);
+    toggle.attr('aria-expanded', open ? 'true' : 'false');
+    $('body').toggleClass('omnivalt-manifest-page__filter-open', open);
+
+    if (!open) {
+      toggle.trigger('focus');
+    }
+  }
+
   function omniva_update_checked_list(checkbox) {
     var value = $(checkbox).val();
     var cookie_value = [];
@@ -190,9 +260,20 @@
 
   function omniva_remove_selected_item(element) {
     $(element).remove();
+    omniva_update_selected_summary();
+  }
+
+  function omniva_update_selected_summary() {
+    var selected_orders = $('#selected-orders');
+    var selected_count = selected_orders.find('.item').length;
+    var has_many_selected = selected_count > 3;
+
+    selected_orders.find('.selected-count').text(selected_count);
+    selected_orders.closest('.omnivalt-manifest-page__bulk-actions').toggleClass('has-many-selected', has_many_selected);
   }
 
   function omniva_set_selected_actions_visible(visible) {
+    omniva_update_selected_summary();
     $('.omnivalt-manifest-page__bulk-actions, .omnivalt-manifest-page__selection-actions, .omnivalt-manifest-page__bottom-actions').toggleClass('is-visible', visible);
   }
 

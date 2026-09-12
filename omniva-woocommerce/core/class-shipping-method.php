@@ -955,8 +955,13 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       ob_start();
       ?>
       <tr valign="top">
-        <th scope="row" class="titledesc">
+        <th scope="row" class="titledesc omnivalt-position-field-title">
           <label><?php echo esc_html($value['title']); ?></label>
+          <button type="button" class="omnivalt-position-list__reset" data-settings-position-reset aria-label="<?php esc_attr_e('Reset', 'omnivalt'); ?>" title="<?php esc_attr_e('Reset', 'omnivalt'); ?>">
+            <span class="omnivalt-position-list__reset-label"><?php esc_html_e('Reset', 'omnivalt'); ?></span>
+            <span class="dashicons dashicons-update" aria-hidden="true"></span>
+            <span class="screen-reader-text"><?php esc_html_e('Reset', 'omnivalt'); ?></span>
+          </button>
         </th>
         <td class="forminp">
           <fieldset class="field-position <?php echo $field_class; ?>">

@@ -21,6 +21,22 @@ $manifest_enabled = (!isset($shipping_settings['manifest_enable']) || $shipping_
 $active_omx = ($configs['api']['type'] === 'omx');
 $current_courier_calls = OmnivaLt_Helper::get_courier_calls();
 
+$active_filter_count = 0;
+$active_filters = (isset($orders_data['filters']) && is_array($orders_data['filters'])) ? $orders_data['filters'] : array();
+foreach ( array('id', 'customer', 'barcode', 'status') as $filter_key ) {
+  $filter_value = isset($active_filters[$filter_key]) ? $active_filters[$filter_key] : false;
+  if (false !== $filter_value && null !== $filter_value && '' !== trim((string) $filter_value) && ('status' !== $filter_key || '-1' !== (string) $filter_value)) {
+    $active_filter_count++;
+  }
+}
+
+foreach ( array('start_date', 'end_date') as $date_filter_key ) {
+  if (isset($active_filters[$date_filter_key]) && '' !== trim((string) $active_filters[$date_filter_key])) {
+    $active_filter_count++;
+    break;
+  }
+}
+
 $is_wrong_timezone = (OmnivaLt_Helper::get_timezone_offset(OmnivaLt_Helper::get_local_timezone_string()) !== OmnivaLt_Helper::get_timezone_offset('Europe/Tallinn'));
 $timezone_alert = __('The offset of the timezone of your website is different from the offset of the timezone of the Omniva server, so the courier call time is displayed differently than specified in the settings', 'omnivalt');
 
@@ -28,8 +44,15 @@ $timezone_alert = __('The offset of the timezone of your website is different fr
 do_action('omniva_admin_manifest_head');
 ?>
 
+<style id="omnivalt-manifest-page__critical-mobile-filter">
+  /* Keep the page hidden until its external styles have loaded. */
+  .page-omniva_manifest .omnivalt-manifest-page__root:not(.is-ready) {
+    visibility: hidden;
+  }
+</style>
+
 <div class="wrap page-omniva_manifest omnivalt-manifest-page">
-  <div id="omnivalt-manifest-root" class="omnivalt-manifest-page__root">
+  <div id="omnivalt-manifest-root" class="omnivalt-manifest-page__root has-mobile-order-toggle">
     <header class="omnivalt-manifest-page__header">
       <div>
         <div class="omnivalt-manifest-page__breadcrumb">
@@ -99,9 +122,27 @@ do_action('omniva_admin_manifest_head');
           <a class="omnivalt-manifest-page__tab <?php echo $orders_data['action'] == $tab ? 'is-active' : ''; ?>" href="<?php echo esc_url(OmnivaLt_Manifest::page_make_link(array('paged' => ($orders_data['action'] == $tab ? $orders_data['paged'] : 1), 'action' => $tab))); ?>"<?php echo $orders_data['action'] == $tab ? ' aria-current="page"' : ''; ?>><?php echo esc_html($tab_title); ?></a>
         <?php endforeach; ?>
       </nav>
+      <div class="omnivalt-manifest-page__mobile-controls">
+        <select id="omnivalt-manifest-page__tabs-select" class="omnivalt-manifest-page__tabs-select" aria-label="<?php esc_attr_e('Shipment order groups', 'omnivalt'); ?>">
+          <?php foreach ( $page_params['strings'] as $tab => $tab_title ) : ?>
+            <option value="<?php echo esc_url(OmnivaLt_Manifest::page_make_link(array('paged' => ($orders_data['action'] == $tab ? $orders_data['paged'] : 1), 'action' => $tab))); ?>" <?php selected($orders_data['action'], $tab); ?>><?php echo esc_html($tab_title); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <button id="omnivalt-manifest-page__filter-toggle" type="button" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary" aria-controls="omnivalt-manifest-page__filters" aria-expanded="false">
+          <?php esc_html_e('Filter', 'omnivalt'); ?>
+          <?php if ( $active_filter_count > 0 ) : ?>
+            <span class="omnivalt-manifest-page__filter-count" aria-label="<?php echo esc_attr(sprintf(__('Active filters: %d', 'omnivalt'), $active_filter_count)); ?>"><?php echo esc_html((string) $active_filter_count); ?></span>
+          <?php endif; ?>
+        </button>
+      </div>
+      <div class="omnivalt-manifest-page__filter-backdrop" aria-hidden="true"></div>
 
       <?php if ( $orders_data['is_orders'] ) : ?>
-        <section class="mass-print-container omnivalt-manifest-page__bulk-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?>">
+        <?php
+        $selected_order_count = count($selected_orders);
+        $has_many_selected = $selected_order_count > 3;
+        ?>
+        <section class="mass-print-container omnivalt-manifest-page__bulk-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?><?php echo $has_many_selected ? ' has-many-selected' : ''; ?>">
           <form id="manifest-print-form" action="admin-post.php" method="GET">
             <input type="hidden" name="action" value="omnivalt_manifest" />
             <?php wp_nonce_field('omnivalt_manifest', 'omnivalt_manifest_nonce'); ?>
@@ -113,6 +154,7 @@ do_action('omniva_admin_manifest_head');
           <?php $desc = ''; ?>
           <div id="selected-orders" class="selected-orders <?php echo ($desc) ? 'has-desc' : ''; ?>" style="<?php echo (empty($selected_orders)) ? 'display:none' : ''; ?>">
             <span class="title"><?php esc_html_e('Selected', 'omnivalt'); ?><?php echo ($desc) ? '*' : ''; ?>:</span>
+            <span class="selected-count" aria-live="polite"><?php echo esc_html((string) $selected_order_count); ?></span>
             <?php foreach ($selected_orders as $order_id) : ?>
               <span class="item" data-id="<?php echo $order_id; ?>"><?php echo '#' . $order_id; ?><span class="dashicons dashicons-no"></span></span>
             <?php endforeach; ?>
@@ -136,7 +178,10 @@ do_action('omniva_admin_manifest_head');
       <section class="table-container omnivalt-manifest-page__orders-card">
         <form id="filter-form" class="" action="<?php echo OmnivaLt_Manifest::page_make_link(array('action' => $orders_data['action'])); ?>" method="POST">
           <?php wp_nonce_field('omnivalt_labels', 'omnivalt_labels_nonce'); ?>
-          <div class="omnivalt-manifest-page__filters">
+          <div id="omnivalt-manifest-page__filters" class="omnivalt-manifest-page__filters" role="dialog" aria-label="<?php esc_attr_e('Filters', 'omnivalt'); ?>">
+            <button id="omnivalt-manifest-page__filter-close" type="button" class="omnivalt-manifest-page__filter-close" aria-label="<?php esc_attr_e('Close filters', 'omnivalt'); ?>">
+              <span class="dashicons dashicons-no-alt" aria-hidden="true"></span>
+            </button>
             <div class="omnivalt-manifest-page__filter-field omnivalt-manifest-page__filter-field--id">
               <label for="filter_id"><?php esc_html_e('Order ID', 'omnivalt'); ?></label>
               <input type="text" name="filter_id" id="filter_id" value="<?php echo esc_attr($orders_data['filters']['id']); ?>" placeholder="<?php esc_attr_e('Order ID', 'omnivalt'); ?>" />
@@ -175,7 +220,10 @@ do_action('omniva_admin_manifest_head');
           <table class="wp-list-table widefat fixed striped posts">
             <thead>
               <tr class="table-header">
-                <td class="manage-column column-cb check-column"><input type="checkbox" class="check-all" aria-label="<?php esc_attr_e('Select all orders on this page', 'omnivalt'); ?>" /></td>
+                <td class="manage-column column-cb check-column">
+                  <input type="checkbox" class="check-all" aria-label="<?php esc_attr_e('Select all orders on this page', 'omnivalt'); ?>" />
+                  <span class="omnivalt-manifest-page__mobile-select-all"><?php esc_html_e('Select all orders on this page', 'omnivalt'); ?></span>
+                </td>
                 <th scope="col" class="column-order_id"><?php echo __('ID', 'omnivalt'); ?></th>
                 <th scope="col" class="manage-column"><?php echo __('Customer', 'omnivalt'); ?></th>
                 <th scope="col" class="column-order_status"><?php echo __('Order Status', 'omnivalt'); ?></th>
@@ -199,9 +247,17 @@ do_action('omniva_admin_manifest_head');
                 $date = date('Y-m-d H:i', strtotime($manifest_date));
                 $order_size = $order_data->shipment->size;
                 $total_shipments = $order_data->shipment->total_shipments;
+                $mobile_detail_ids = array(
+                  'omniva-order-' . $order_data->id . '-info',
+                  'omniva-order-' . $order_data->id . '-service',
+                  'omniva-order-' . $order_data->id . '-barcode',
+                );
+                if ( $manifest_enabled ) {
+                  $mobile_detail_ids[] = 'omniva-order-' . $order_data->id . '-manifest-date';
+                }
                 ?>
                 <?php if ( OmnivaLt_Manifest::is_mannifest_orders_table($orders_data['action']) && $date_tracker !== $date ) : ?>
-                  <tr>
+                  <tr class="omnivalt-manifest-page__date-row">
                     <?php $colspan = ($manifest_enabled) ? 9 : 8; ?>
                     <td colspan="<?php echo $colspan; ?>" class="manifest-date-title">
                       <?php echo $date_tracker = $manifest_date; ?>
@@ -212,13 +268,30 @@ do_action('omniva_admin_manifest_head');
                   <?php $checked = (in_array($order_data->id, $selected_orders)) ? 'checked' : ''; ?>
                   <th scope="row" class="check-column"><input type="checkbox" name="items[]" class="manifest-item" value="<?php echo $order_data->id; ?>" <?php echo $checked; ?>/></th>
                   <td class="manage-column column-order_id">
-                    <a href="<?php echo $order_data->admin->url_edit; ?>">#<?php echo $order_data->number; ?></a>
+                    <div class="omnivalt-manifest-page__mobile-order-identity">
+                      <a href="<?php echo esc_url($order_data->admin->url_edit); ?>">#<?php echo esc_html($order_data->number); ?></a>
+                    </div>
                   </td>
                   <td class="column-order_customer">
                     <div class="data-grid-cell-content">
                       <span class="customer-name"><?php echo OmnivaLt_Order::get_customer_fullname($order_data); ?></span>
                       <span class="customer-company"><?php echo OmnivaLt_Order::get_customer_company($order_data); ?></span>
                     </div>
+                    <button
+                      type="button"
+                      class="omnivalt-manifest-page__mobile-details"
+                      aria-expanded="false"
+                      aria-controls="<?php echo esc_attr(implode(' ', $mobile_detail_ids)); ?>"
+                      data-show-label="<?php esc_attr_e('Show details', 'omnivalt'); ?>"
+                      data-hide-label="<?php esc_attr_e('Hide details', 'omnivalt'); ?>"
+                    >
+                      <span><?php esc_html_e('Show details', 'omnivalt'); ?></span>
+                      <span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
+                    </button>
+                  </td>
+                  <td class="omnivalt-manifest-page__mobile-order-amount">
+                    <span><?php esc_html_e('Amount', 'omnivalt'); ?></span>
+                    <strong><?php echo wp_kses_post( OmnivaLt_Order::get_price_text($order_data->payment->total) ); ?></strong>
                   </td>
                   <td class="column-order_status">
                     <div class="data-grid-cell-content">
@@ -226,30 +299,36 @@ do_action('omniva_admin_manifest_head');
                         <span><?php echo wc_get_order_status_name($order_data->status); ?></span>
                       </mark>
                     </div>
+                    <div class="omnivalt-manifest-page__mobile-order-date">
+                      <span class="dashicons dashicons-clock" aria-hidden="true"></span>
+                      <span><?php echo esc_html($order_data->created); ?></span>
+                    </div>
                   </td>
-                  <td class="column-order_info">
-                    <div class="data-grid-cell-content">
-                      <b><?php echo __('Date', 'omnivalt'); ?>:</b> <?php echo $order_data->created; ?>
+                  <td id="<?php echo esc_attr($mobile_detail_ids[0]); ?>" class="column-order_info omnivalt-manifest-page__mobile-detail" data-mobile-label="<?php esc_attr_e('Order information', 'omnivalt'); ?>">
+                    <div class="data-grid-cell-content omnivalt-manifest-page__desktop-order-value">
+                      <b><?php esc_html_e('Date', 'omnivalt'); ?>:</b>
+                      <span><?php echo esc_html($order_data->created); ?></span>
                     </div>
-                    <div class="data-grid-cell-content">
-                      <b><?php echo __('Amount', 'omnivalt'); ?>:</b> <?php echo OmnivaLt_Order::get_price_text($order_data->payment->total); ?>
+                    <div class="data-grid-cell-content omnivalt-manifest-page__desktop-order-value">
+                      <b><?php esc_html_e('Amount', 'omnivalt'); ?>:</b>
+                      <span><?php echo wp_kses_post( OmnivaLt_Order::get_price_text($order_data->payment->total) ); ?></span>
                     </div>
-                    <div class="data-grid-cell-content">
+                    <div class="data-grid-cell-content omnivalt-manifest-page__mobile-secondary">
                       <b><?php echo __('Weight', 'omnivalt'); ?>:</b> <?php echo OmnivaLt_Order::get_weight_text($order_size); ?>
                     </div>
-                    <div class="data-grid-cell-content">
+                    <div class="data-grid-cell-content omnivalt-manifest-page__mobile-secondary">
                       <b><?php echo __('Size', 'omnivalt'); ?>:</b> <?php echo OmnivaLt_Order::get_dimmension_text($order_size); ?>
                     </div>
-                    <div class="data-grid-cell-content">
+                    <div class="data-grid-cell-content omnivalt-manifest-page__mobile-secondary">
                       <b><?php echo __('Total shipments', 'omnivalt'); ?>:</b> <?php echo (! empty($total_shipments)) ? $total_shipments : 1; ?>
                     </div>
                   </td>
-                  <td class="manage-column">
+                  <td id="<?php echo esc_attr($mobile_detail_ids[1]); ?>" class="manage-column column-order_service omnivalt-manifest-page__mobile-detail" data-mobile-label="<?php esc_attr_e('Service', 'omnivalt'); ?>">
                     <div class="data-grid-cell-content">
                       <?php OmnivaLt_Order::admin_order_display($order_data->id, false); ?>
                     </div>
                   </td>
-                  <td class="manage-column">
+                  <td id="<?php echo esc_attr($mobile_detail_ids[2]); ?>" class="manage-column column-order_barcode omnivalt-manifest-page__mobile-detail" data-mobile-label="<?php esc_attr_e('Barcode', 'omnivalt'); ?>">
                     <div class="data-grid-cell-content">
                       <?php if ( ! empty($barcodes) ) : ?>
                         <?php foreach ( $barcodes as $barcode ) : ?>
@@ -264,13 +343,14 @@ do_action('omniva_admin_manifest_head');
                     </div>
                   </td>
                   <?php if ($manifest_enabled) : ?>
-                    <td class="column-manifest_date">
+                    <td id="<?php echo esc_attr($mobile_detail_ids[3]); ?>" class="column-manifest_date omnivalt-manifest-page__mobile-detail" data-mobile-label="<?php esc_attr_e('Manifest date', 'omnivalt'); ?>">
                       <div class="data-grid-cell-content">
                         <?php echo $manifest_date; ?>
                       </div>
                     </td>
                   <?php endif; ?>
-                  <td class="manage-column">
+                  <td class="manage-column column-order_actions">
+                    <span class="omnivalt-manifest-page__mobile-actions-label"><?php esc_html_e('Actions', 'omnivalt'); ?></span>
                     <?php $label_action = ! empty($barcodes) ? __('Print label', 'omnivalt') : __('Generate label', 'omnivalt'); ?>
                     <a href="<?php echo esc_url(add_query_arg(array('action' => 'omnivalt_labels', 'post' => $order_data->id), admin_url('admin-post.php'))); ?>" class="button action omnivalt-manifest-page__row-action" data-tooltip="<?php echo esc_attr($label_action); ?>" aria-label="<?php echo esc_attr($label_action); ?>">
                       <span class="dashicons <?php echo ! empty($barcodes) ? 'dashicons-printer' : 'dashicons-media-document'; ?>" aria-hidden="true"></span>
@@ -288,7 +368,7 @@ do_action('omniva_admin_manifest_head');
               <?php endforeach; ?>
 
               <?php if ( ! $orders_data['orders'] ) : ?>
-                <tr>
+                <tr class="omnivalt-manifest-page__empty-row">
                   <td colspan="<?php echo $manifest_enabled ? 9 : 8; ?>" class="omnivalt-manifest-page__empty-cell">
                     <div class="omnivalt-manifest-page__empty-state">
                       <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/smile.svg'); ?>" alt="" aria-hidden="true" />

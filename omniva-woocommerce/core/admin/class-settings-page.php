@@ -103,7 +103,7 @@ class OmnivaLt_Settings_Page
         'general' => __('Setup', 'omnivalt'),
         'rules' => __('Delivery & checkout', 'omnivalt'),
         'workflow' => __('Order fulfilment', 'omnivalt'),
-        'advanced' => __('Diagnostics', 'omnivalt'),
+        'advanced' => __('Design', 'omnivalt'),
       ),
       'cards' => array(
         'general' => array(
@@ -131,9 +131,26 @@ class OmnivaLt_Settings_Page
             'shop_mobile',
             'shop_email',
             'bank_account',
-            'pick_up_start',
-            'pick_up_end',
-            'send_off',
+          ),
+        ),
+        'pickup' => array(
+          'type' => 'settings',
+          'section' => 'pickup',
+          'tab' => 'general',
+          'fields' => array(
+            array(
+              'section' => 'shop',
+              'key' => 'pick_up_start',
+            ),
+            array(
+              'section' => 'shop',
+              'key' => 'pick_up_end',
+            ),
+            array(
+              'section' => 'shop',
+              'key' => 'send_off',
+            ),
+            'pickup_comment',
           ),
         ),
         'shipping_methods' => array(
@@ -165,11 +182,6 @@ class OmnivaLt_Settings_Page
         'manifest' => array(
           'type' => 'settings',
           'section' => 'manifest',
-          'tab' => 'workflow',
-        ),
-        'pickup' => array(
-          'type' => 'settings',
-          'section' => 'pickup',
           'tab' => 'workflow',
         ),
         'debug' => array(
@@ -473,6 +485,14 @@ class OmnivaLt_Settings_Page
         continue;
       }
 
+      $tab_title = $destination['title'];
+      if ( 'plan' === $destination['type'] ) {
+        $international_prefix = __('International', 'omnivalt') . ': ';
+        if ( 0 === strpos($tab_title, $international_prefix) ) {
+          $tab_title = substr($tab_title, strlen($international_prefix));
+        }
+      }
+
       foreach ( $destination['blocks'] as $block ) {
         $group_key = $block['group_key'];
         if ( ! isset($methods[$group_key]) ) {
@@ -486,6 +506,7 @@ class OmnivaLt_Settings_Page
             'type' => $destination['type'],
             'key' => $destination['key'],
             'title' => $destination['title'],
+            'tab_title' => $tab_title,
             'image_url' => $destination['image_url'],
             'id' => $destination_id,
             'tab_id' => $destination_id . '-tab',

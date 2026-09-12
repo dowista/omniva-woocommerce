@@ -73,12 +73,12 @@ if ( ! defined('ABSPATH') ) {
                                   <?php if ( $destination['image_url'] ) : ?>
                                     <img class="omniva-delivery-country__flag" src="<?php echo esc_url($destination['image_url']); ?>" alt="" />
                                   <?php endif; ?>
-                                  <span><?php echo esc_html($destination['title']); ?></span>
+                                  <span><?php echo esc_html($destination['tab_title']); ?></span>
                                 </span>
                               </button>
                               <span class="omniva-delivery-country-tab__toggle" data-omniva-country-toggle-wrap>
                                 <?php if ( 'plan' === $destination['type'] ) : ?>
-                                  <span class="switcher" title="<?php echo esc_attr($destination['title']); ?>">
+                                  <span class="switcher" title="<?php echo esc_attr($destination['tab_title']); ?>">
                                     <label class="switch">
                                       <input type="checkbox" class="omniva-international-toggle" data-omniva-destination-toggle />
                                       <span class="slider round"></span>
@@ -203,7 +203,45 @@ if ( ! defined('ABSPATH') ) {
       </form>
     </main>
 
-    <aside class="omnivalt-settings-page__sidebar">
+    <button
+      type="button"
+      class="omnivalt-settings-page__sidebar-toggle"
+      data-settings-sidebar-toggle
+      aria-controls="omnivalt-settings-sidebar"
+      aria-expanded="false"
+      aria-label="<?php esc_attr_e('Open help sidebar', 'omnivalt'); ?>"
+      title="<?php esc_attr_e('Need help?', 'omnivalt'); ?>"
+    >
+      <img
+        class="omnivalt-settings-page__sidebar-toggle-icon"
+        src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/logos/omniva.svg'); ?>"
+        alt=""
+        aria-hidden="true"
+      />
+    </button>
+
+    <button
+      type="button"
+      class="omnivalt-settings-page__sidebar-backdrop"
+      data-settings-sidebar-backdrop
+      aria-label="<?php esc_attr_e('Close help sidebar', 'omnivalt'); ?>"
+      hidden
+    ></button>
+
+    <aside
+      id="omnivalt-settings-sidebar"
+      class="omnivalt-settings-page__sidebar"
+      data-settings-sidebar
+      aria-label="<?php esc_attr_e('Help and updates', 'omnivalt'); ?>"
+    >
+      <button
+        type="button"
+        class="omnivalt-settings-page__sidebar-close"
+        data-settings-sidebar-close
+        aria-label="<?php esc_attr_e('Close help sidebar', 'omnivalt'); ?>"
+      >
+        <span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
+      </button>
       <div class="omnivalt-settings-page__support-image">
         <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/support.png'); ?>" alt="<?php esc_attr_e('Omniva support', 'omnivalt'); ?>" />
       </div>
