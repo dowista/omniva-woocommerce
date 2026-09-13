@@ -27,20 +27,7 @@ class OmnivaLt_Manifest
 
   public static function register_menu_pages()
   {
-    $page = OmnivaLt_Admin_Navigation::get_page(self::PAGE_SLUG);
-    if ( ! $page ) {
-      return;
-    }
-
-    add_submenu_page(
-      'woocommerce',
-      $page['title'],
-      $page['title'],
-      $page['capability'],
-      self::PAGE_SLUG,
-      'OmnivaLt_Manifest::manifest_page',
-      10
-    );
+    OmnivaLt_Admin_Navigation::register_menu_pages();
   }
 
   public static function manifest_page()

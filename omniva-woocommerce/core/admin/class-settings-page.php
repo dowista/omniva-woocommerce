@@ -46,20 +46,7 @@ class OmnivaLt_Settings_Page
 
   public static function register_menu_page()
   {
-    $page = OmnivaLt_Admin_Navigation::get_page(self::PAGE_SLUG);
-    if ( ! $page ) {
-      return;
-    }
-
-    add_submenu_page(
-      'woocommerce',
-      $page['title'],
-      $page['title'],
-      $page['capability'],
-      self::PAGE_SLUG,
-      array('OmnivaLt_Settings_Page', 'render_page'),
-      11
-    );
+    OmnivaLt_Admin_Navigation::register_menu_pages();
   }
 
   public static function save_settings()

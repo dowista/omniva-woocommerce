@@ -250,7 +250,7 @@ body.woocommerce_page_omniva-manifest #wpcontent {
   width: auto;
   max-width: none;
   margin: 0;
-  padding: 20px;
+  padding: 20px 20px 0px 0px;
   color: var(--omniva-manifest-ink);
   font-family: 'TT Wellingtons', sans-serif;
 }

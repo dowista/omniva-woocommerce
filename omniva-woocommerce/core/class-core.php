@@ -366,10 +366,8 @@ class OmnivaLt_Core
   public static function load_admin_global_scripts( $hook )
   {
     $folder_css = '/assets/css/';
-    $folder_js = '/assets/js/';
     
     wp_enqueue_style('omnivalt_admin_global', plugins_url($folder_css . 'omniva_admin_global.css', self::$main_file_path), array(), OMNIVALT_VERSION);
-    wp_enqueue_script('omnivalt_admin_global', plugins_url($folder_js . 'omniva_admin_global.js', self::$main_file_path), array(), OMNIVALT_VERSION, true);
   }
 
   /**
@@ -386,8 +384,12 @@ class OmnivaLt_Core
     // Some WordPress admin screens expose a more reliable identifier than the hook suffix.
     $screen = function_exists('get_current_screen') ? get_current_screen() : false;
     $screen_id = is_object($screen) && ! empty($screen->id) ? $screen->id : '';
-    $is_omniva_settings_page = $hook === 'woocommerce_page_omnivalt-settings'
-      || $screen_id === 'woocommerce_page_omnivalt-settings';
+    $settings_screen_ids = array(
+      'omniva-shipping_page_omnivalt-settings',
+      'woocommerce_page_omnivalt-settings',
+    );
+    $is_omniva_settings_page = in_array($hook, $settings_screen_ids, true)
+      || in_array($screen_id, $settings_screen_ids, true);
 
     if ( ! $is_omniva_settings_page ) {
       return;
@@ -610,8 +612,7 @@ class OmnivaLt_Core
     add_action('wp_ajax_omnivalt_clear_terminal', array('OmnivaLt_Terminals', 'clear_terminal_from_session'));
     add_action('wp_ajax_omniva_terminals_json', array('OmnivaLt_Terminals', 'get_terminals_json'));
     add_action('wp_ajax_nopriv_omniva_terminals_json', array('OmnivaLt_Terminals', 'get_terminals_json'));
-    add_action('admin_menu', array('OmnivaLt_Manifest', 'register_menu_pages'));
-    add_action('admin_menu', array('OmnivaLt_Settings_Page', 'register_menu_page'));
+    add_action('admin_menu', array('OmnivaLt_Admin_Navigation', 'register_menu_pages'));
     add_action('admin_init', array('OmnivaLt_Settings_Page', 'redirect_legacy_settings_page'), 1);
     add_action('admin_init', array('OmnivaLt_Settings_Page', 'save_settings'));
     add_action('woocommerce_after_shipping_rate', array('OmnivaLt_Order', 'after_rate_description'), 20, 2);
