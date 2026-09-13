@@ -3,45 +3,18 @@ if ( ! defined('ABSPATH') ) {
   exit; // Exit if accessed directly
 }
 
-// Prepare
-$shipping_settings = OmnivaLt_Core::get_settings();
-$configs = OmnivaLt_Core::get_configs();
-$page_params = OmnivaLt_Manifest::page_params();
-
-$orders_data = OmnivaLt_Manifest::page_get_orders();
-$selected_orders = array();
-if ( isset($_COOKIE['omniva_checked']) ) {
-  $cookie_value = json_decode(stripslashes($_COOKIE['omniva_checked']));
-  if (is_array($cookie_value)) {
-    $selected_orders = $cookie_value;
-  }
-}
-
-$manifest_enabled = (!isset($shipping_settings['manifest_enable']) || $shipping_settings['manifest_enable'] === 'yes') ? true : false;
-$active_omx = ($configs['api']['type'] === 'omx');
-$current_courier_calls = OmnivaLt_Helper::get_courier_calls();
-
-$active_filter_count = 0;
-$active_filters = (isset($orders_data['filters']) && is_array($orders_data['filters'])) ? $orders_data['filters'] : array();
-foreach ( array('id', 'customer', 'barcode', 'status') as $filter_key ) {
-  $filter_value = isset($active_filters[$filter_key]) ? $active_filters[$filter_key] : false;
-  if (false !== $filter_value && null !== $filter_value && '' !== trim((string) $filter_value) && ('status' !== $filter_key || '-1' !== (string) $filter_value)) {
-    $active_filter_count++;
-  }
-}
-
-foreach ( array('start_date', 'end_date') as $date_filter_key ) {
-  if (isset($active_filters[$date_filter_key]) && '' !== trim((string) $active_filters[$date_filter_key])) {
-    $active_filter_count++;
-    break;
-  }
-}
-
-$is_wrong_timezone = (OmnivaLt_Helper::get_timezone_offset(OmnivaLt_Helper::get_local_timezone_string()) !== OmnivaLt_Helper::get_timezone_offset('Europe/Tallinn'));
-$timezone_alert = __('The offset of the timezone of your website is different from the offset of the timezone of the Omniva server, so the courier call time is displayed differently than specified in the settings', 'omnivalt');
-
-// Append custom css and js
-do_action('omniva_admin_manifest_head');
+$page_data = isset($page_data) && is_array($page_data) ? $page_data : array();
+$shipping_settings = isset($page_data['shipping_settings']) ? $page_data['shipping_settings'] : false;
+$configs = isset($page_data['configs']) && is_array($page_data['configs']) ? $page_data['configs'] : array();
+$page_params = isset($page_data['page_params']) && is_array($page_data['page_params']) ? $page_data['page_params'] : array();
+$orders_data = isset($page_data['orders_data']) && is_array($page_data['orders_data']) ? $page_data['orders_data'] : array();
+$selected_orders = isset($page_data['selected_orders']) && is_array($page_data['selected_orders']) ? $page_data['selected_orders'] : array();
+$manifest_enabled = ! empty($page_data['manifest_enabled']);
+$active_omx = ! empty($page_data['active_omx']);
+$current_courier_calls = isset($page_data['current_courier_calls']) && is_array($page_data['current_courier_calls']) ? $page_data['current_courier_calls'] : array();
+$active_filter_count = isset($page_data['active_filter_count']) ? (int) $page_data['active_filter_count'] : 0;
+$is_wrong_timezone = ! empty($page_data['is_wrong_timezone']);
+$timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_alert'] : '';
 ?>
 
 <style id="omnivalt-manifest-page__critical-mobile-filter">
@@ -87,7 +60,7 @@ do_action('omniva_admin_manifest_head');
               <?php if ( $is_wrong_timezone ) : ?>
               <tr>
                 <td colspan="2">
-                  <span class="timezone_alert"><?php echo __('The timezone is different!', 'omnivalt') . OmnivaLt_Helper::custom_tip($timezone_alert . '. ' . __('This table shows the real courier call time converted to the timezone of your website', 'omnivalt') . '.'); ?></span>
+                  <span class="timezone_alert"><?php echo wp_kses_post( esc_html__('The timezone is different!', 'omnivalt') . OmnivaLt_Helper::custom_tip( esc_html($timezone_alert . '. ' . esc_html__('This table shows the real courier call time converted to the timezone of your website', 'omnivalt') . '.') ) ); ?></span>
                 </td>
               </tr>
               <?php endif; ?>
@@ -104,11 +77,11 @@ do_action('omniva_admin_manifest_head');
                 $call_string .= '<span class="time">' . $call_end_time . '</span>';
                 ?>
                 <tr>
-                  <td><?php echo $call_string; ?></td>
+                  <td><?php echo wp_kses_post($call_string); ?></td>
                   <td>
                     <input type="hidden" name="call_id" value="<?php echo esc_html($call['id']); ?>" />
-                    <button class="icon-btn action-cancel" value="cancel" title="<?php _e('Cancel this call', 'omnivalt'); ?>"><span class="dashicons dashicons-no"></span></button>
-                    <button class="icon-btn action-remove" value="remove" title="<?php _e('Courier arrived and this can be removed', 'omnivalt'); ?>"><span class="dashicons dashicons-minus"></span></button>
+                    <button class="icon-btn action-cancel" value="cancel" title="<?php esc_attr_e('Cancel this call', 'omnivalt'); ?>"><span class="dashicons dashicons-no"></span></button>
+                    <button class="icon-btn action-remove" value="remove" title="<?php esc_attr_e('Courier arrived and this can be removed', 'omnivalt'); ?>"><span class="dashicons dashicons-minus"></span></button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -156,10 +129,10 @@ do_action('omniva_admin_manifest_head');
             <span class="title"><?php esc_html_e('Selected', 'omnivalt'); ?><?php echo ($desc) ? '*' : ''; ?>:</span>
             <span class="selected-count" aria-live="polite"><?php echo esc_html((string) $selected_order_count); ?></span>
             <?php foreach ($selected_orders as $order_id) : ?>
-              <span class="item" data-id="<?php echo $order_id; ?>"><?php echo '#' . $order_id; ?><span class="dashicons dashicons-no"></span></span>
+              <span class="item" data-id="<?php echo esc_attr($order_id); ?>">#<?php echo esc_html($order_id); ?><span class="dashicons dashicons-no"></span></span>
             <?php endforeach; ?>
             <?php if ($desc) : ?>
-              <span class="desc">*<?php echo $desc; ?></span>
+              <span class="desc">*<?php echo esc_html($desc); ?></span>
             <?php endif; ?>
           </div>
           <div class="omnivalt-manifest-page__selection-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?>">
@@ -176,7 +149,7 @@ do_action('omniva_admin_manifest_head');
       <?php endif; ?>
 
       <section class="table-container omnivalt-manifest-page__orders-card">
-        <form id="filter-form" class="" action="<?php echo OmnivaLt_Manifest::page_make_link(array('action' => $orders_data['action'])); ?>" method="POST">
+        <form id="filter-form" class="" action="<?php echo esc_url(OmnivaLt_Manifest::page_make_link(array('action' => $orders_data['action']))); ?>" method="POST">
           <?php wp_nonce_field('omnivalt_labels', 'omnivalt_labels_nonce'); ?>
           <div id="omnivalt-manifest-page__filters" class="omnivalt-manifest-page__filters" role="dialog" aria-label="<?php esc_attr_e('Filters', 'omnivalt'); ?>">
             <button id="omnivalt-manifest-page__filter-close" type="button" class="omnivalt-manifest-page__filter-close" aria-label="<?php esc_attr_e('Close filters', 'omnivalt'); ?>">
@@ -224,16 +197,16 @@ do_action('omniva_admin_manifest_head');
                   <input type="checkbox" class="check-all" aria-label="<?php esc_attr_e('Select all orders on this page', 'omnivalt'); ?>" />
                   <span class="omnivalt-manifest-page__mobile-select-all"><?php esc_html_e('Select all orders on this page', 'omnivalt'); ?></span>
                 </td>
-                <th scope="col" class="column-order_id"><?php echo __('ID', 'omnivalt'); ?></th>
-                <th scope="col" class="manage-column"><?php echo __('Customer', 'omnivalt'); ?></th>
-                <th scope="col" class="column-order_status"><?php echo __('Order Status', 'omnivalt'); ?></th>
-                <th scope="col" class="column-order_info"><?php echo __('Order information', 'omnivalt'); ?></th>
-                <th scope="col" class="manage-column"><?php echo __('Service', 'omnivalt'); ?></th>
-                <th scope="col" class="manage-column"><?php echo __('Barcode', 'omnivalt'); ?></th>
+                <th scope="col" class="column-order_id"><?php esc_html_e('ID', 'omnivalt'); ?></th>
+                <th scope="col" class="manage-column"><?php esc_html_e('Customer', 'omnivalt'); ?></th>
+                <th scope="col" class="column-order_status"><?php esc_html_e('Order Status', 'omnivalt'); ?></th>
+                <th scope="col" class="column-order_info"><?php esc_html_e('Order information', 'omnivalt'); ?></th>
+                <th scope="col" class="manage-column"><?php esc_html_e('Service', 'omnivalt'); ?></th>
+                <th scope="col" class="manage-column"><?php esc_html_e('Barcode', 'omnivalt'); ?></th>
                 <?php if ($manifest_enabled) : ?>
-                  <th scope="col" class="column-manifest_date"><?php echo __('Manifest date', 'omnivalt'); ?></th>
+                  <th scope="col" class="column-manifest_date"><?php esc_html_e('Manifest date', 'omnivalt'); ?></th>
                 <?php endif; ?>
-                <th scope="col" class="manage-column"><?php echo __('Actions', 'omnivalt'); ?></th>
+                <th scope="col" class="manage-column"><?php esc_html_e('Actions', 'omnivalt'); ?></th>
               </tr>
 
             </thead>
@@ -259,14 +232,14 @@ do_action('omniva_admin_manifest_head');
                 <?php if ( OmnivaLt_Manifest::is_mannifest_orders_table($orders_data['action']) && $date_tracker !== $date ) : ?>
                   <tr class="omnivalt-manifest-page__date-row">
                     <?php $colspan = ($manifest_enabled) ? 9 : 8; ?>
-                    <td colspan="<?php echo $colspan; ?>" class="manifest-date-title">
-                      <?php echo $date_tracker = $manifest_date; ?>
+                    <td colspan="<?php echo esc_attr((string) $colspan); ?>" class="manifest-date-title">
+                      <?php $date_tracker = $manifest_date; echo esc_html($date_tracker); ?>
                     </td>
                   </tr>
                 <?php endif; ?>
                 <tr class="data-row">
-                  <?php $checked = (in_array($order_data->id, $selected_orders)) ? 'checked' : ''; ?>
-                  <th scope="row" class="check-column"><input type="checkbox" name="items[]" class="manifest-item" value="<?php echo $order_data->id; ?>" <?php echo $checked; ?>/></th>
+                  <?php $checked = (in_array((int) $order_data->id, $selected_orders, true)) ? 'checked' : ''; ?>
+                  <th scope="row" class="check-column"><input type="checkbox" name="items[]" class="manifest-item" value="<?php echo esc_attr($order_data->id); ?>" <?php echo esc_attr($checked); ?>/></th>
                   <td class="manage-column column-order_id">
                     <div class="omnivalt-manifest-page__mobile-order-identity">
                       <a href="<?php echo esc_url($order_data->admin->url_edit); ?>">#<?php echo esc_html($order_data->number); ?></a>
@@ -274,8 +247,8 @@ do_action('omniva_admin_manifest_head');
                   </td>
                   <td class="column-order_customer">
                     <div class="data-grid-cell-content">
-                      <span class="customer-name"><?php echo OmnivaLt_Order::get_customer_fullname($order_data); ?></span>
-                      <span class="customer-company"><?php echo OmnivaLt_Order::get_customer_company($order_data); ?></span>
+                      <span class="customer-name"><?php echo esc_html(OmnivaLt_Order::get_customer_fullname($order_data)); ?></span>
+                      <span class="customer-company"><?php echo esc_html(OmnivaLt_Order::get_customer_company($order_data)); ?></span>
                     </div>
                     <button
                       type="button"
@@ -295,8 +268,8 @@ do_action('omniva_admin_manifest_head');
                   </td>
                   <td class="column-order_status">
                     <div class="data-grid-cell-content">
-                      <mark class="order-status status-<?php echo $order_data->status; ?>">
-                        <span><?php echo wc_get_order_status_name($order_data->status); ?></span>
+                      <mark class="order-status status-<?php echo esc_attr($order_data->status); ?>">
+                        <span><?php echo esc_html(wc_get_order_status_name($order_data->status)); ?></span>
                       </mark>
                     </div>
                     <div class="omnivalt-manifest-page__mobile-order-date">
@@ -314,13 +287,13 @@ do_action('omniva_admin_manifest_head');
                       <span><?php echo wp_kses_post( OmnivaLt_Order::get_price_text($order_data->payment->total) ); ?></span>
                     </div>
                     <div class="data-grid-cell-content omnivalt-manifest-page__mobile-secondary">
-                      <b><?php echo __('Weight', 'omnivalt'); ?>:</b> <?php echo OmnivaLt_Order::get_weight_text($order_size); ?>
+                      <b><?php esc_html_e('Weight', 'omnivalt'); ?>:</b> <?php echo esc_html(OmnivaLt_Order::get_weight_text($order_size)); ?>
                     </div>
                     <div class="data-grid-cell-content omnivalt-manifest-page__mobile-secondary">
-                      <b><?php echo __('Size', 'omnivalt'); ?>:</b> <?php echo OmnivaLt_Order::get_dimmension_text($order_size); ?>
+                      <b><?php esc_html_e('Size', 'omnivalt'); ?>:</b> <?php echo esc_html(OmnivaLt_Order::get_dimmension_text($order_size)); ?>
                     </div>
                     <div class="data-grid-cell-content omnivalt-manifest-page__mobile-secondary">
-                      <b><?php echo __('Total shipments', 'omnivalt'); ?>:</b> <?php echo (! empty($total_shipments)) ? $total_shipments : 1; ?>
+                      <b><?php esc_html_e('Total shipments', 'omnivalt'); ?>:</b> <?php echo esc_html((string) ((! empty($total_shipments)) ? $total_shipments : 1)); ?>
                     </div>
                   </td>
                   <td id="<?php echo esc_attr($mobile_detail_ids[1]); ?>" class="manage-column column-order_service omnivalt-manifest-page__mobile-detail" data-mobile-label="<?php esc_attr_e('Service', 'omnivalt'); ?>">
@@ -338,14 +311,14 @@ do_action('omniva_admin_manifest_head');
                       <?php $error = $order_data->omniva->error; ?>
                       <?php if ( $error ) : ?>
                         <?php if ( ! empty($barcodes) ) : ?><br /><?php endif; ?>
-                        <span><?php echo '<b>' . __('Error', 'omnivalt') . ':</b> ' . $error; ?></span>
+                        <span><b><?php esc_html_e('Error', 'omnivalt'); ?>:</b> <?php echo esc_html($error); ?></span>
                       <?php endif; ?>
                     </div>
                   </td>
                   <?php if ($manifest_enabled) : ?>
                     <td id="<?php echo esc_attr($mobile_detail_ids[3]); ?>" class="column-manifest_date omnivalt-manifest-page__mobile-detail" data-mobile-label="<?php esc_attr_e('Manifest date', 'omnivalt'); ?>">
                       <div class="data-grid-cell-content">
-                        <?php echo $manifest_date; ?>
+                        <?php echo esc_html($manifest_date); ?>
                       </div>
                     </td>
                   <?php endif; ?>
@@ -436,7 +409,7 @@ do_action('omniva_admin_manifest_head');
                   <input type="number" id="call_quantity" name="call_quantity" min="0" max="29" step="1" value="<?php echo count($selected_orders); ?>"/>
                 </td>
               </tr>
-              <tr title="<?php echo ($active_omx) ? '' : __('This feature is not available', 'omnivalt'); ?>">
+              <tr title="<?php echo ($active_omx) ? '' : esc_attr__('This feature is not available', 'omnivalt'); ?>">
                 <th>
                   <label for="call_checkboxes_heavy"><?php esc_html_e('Shipments is heavy', 'omnivalt'); ?>:</label>
                 </th>
@@ -447,7 +420,7 @@ do_action('omniva_admin_manifest_head');
                   </label>
                 </td>
               </tr>
-              <tr title="<?php echo ($active_omx) ? '' : __('This feature is not available', 'omnivalt'); ?>">
+              <tr title="<?php echo ($active_omx) ? '' : esc_attr__('This feature is not available', 'omnivalt'); ?>">
                 <th>
                   <label for="call_checkboxes_twoman"><?php esc_html_e('Need two man', 'omnivalt'); ?>:</label>
                 </th>
@@ -461,7 +434,7 @@ do_action('omniva_admin_manifest_head');
               <?php if ( $is_wrong_timezone ) : ?>
                 <tr>
                   <td colspan="2">
-                    <span class="alert timezone_alert"><?php echo __('The timezone is different!', 'omnivalt') . OmnivaLt_Helper::custom_tip($timezone_alert); ?></span>
+                    <span class="alert timezone_alert"><?php echo wp_kses_post( esc_html__('The timezone is different!', 'omnivalt') . OmnivaLt_Helper::custom_tip(esc_html($timezone_alert)) ); ?></span>
                   </td>
                 </tr>
               <?php endif; ?>

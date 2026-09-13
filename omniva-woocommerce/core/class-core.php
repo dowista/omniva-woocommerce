@@ -528,6 +528,7 @@ class OmnivaLt_Core
     require_once $core_dir . 'class-terminals.php';
     require_once $core_dir . 'class-manifest.php';
     require_once $core_dir . 'admin/' . 'class-admin-navigation.php';
+    require_once $core_dir . 'admin/' . 'class-manifest-page.php';
     require_once $core_dir . 'admin/' . 'class-settings-page.php';
     require_once $core_dir . 'class-order.php';
     require_once $core_dir . 'class-omniva-order.php';
