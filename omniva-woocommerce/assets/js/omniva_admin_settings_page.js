@@ -24,6 +24,25 @@ jQuery(function($) {
     return availableMethods[apiCountry] || {};
   }
 
+  function refreshPositionItems() {
+    $root.find('[data-settings-position-list]').each(function() {
+      var $list = $(this);
+
+      $list.children('.omnivalt-position-list__item').each(function() {
+        var $item = $(this);
+        var methodKey = $item.attr('data-position-method-key');
+        var $checkbox = methodKey ? $root.find('#woocommerce_omnivalt_method_' + methodKey).first() : $();
+        var visible = $checkbox.length > 0 && $checkbox.is(':checked') && !$checkbox.is(':disabled');
+
+        $item.prop('hidden', !visible).attr('aria-hidden', visible ? 'false' : 'true');
+      });
+
+      if ($.fn.sortable && $list.hasClass('ui-sortable')) {
+        $list.sortable('refresh');
+      }
+    });
+  }
+
   function initializeSettingsSidebar() {
     var $sidebar = $root.find('[data-settings-sidebar]').first();
     var $toggle = $root.find('[data-settings-sidebar-toggle]').first();
@@ -212,6 +231,8 @@ jQuery(function($) {
         $checkbox.prop('disabled', !methodAvailable);
         refreshMethodRows($checkbox);
       });
+
+      refreshPositionItems();
     }
 
     function refreshPluginState() {
@@ -296,6 +317,7 @@ jQuery(function($) {
     });
     $root.on('change', 'input[id^="woocommerce_omnivalt_method_"]', function() {
       refreshMethodRows($(this));
+      refreshPositionItems();
       refreshLayout();
     });
     $root.on('change', '.prices-free input[type="checkbox"]', function() {
@@ -794,6 +816,7 @@ jQuery(function($) {
 
           items.push({
             input: $input,
+            methodKey: $input.attr('data-position-method-key'),
             title: $.trim($(this).text())
           });
         });
@@ -806,7 +829,7 @@ jQuery(function($) {
       $.each(items, function(index, item) {
         var $handle = $('<span class="omnivalt-position-list__handle" aria-hidden="true">&#8942;</span>');
         var $title = $('<span class="omnivalt-position-list__title"></span>').text(item.title);
-        var $listItem = $('<li class="omnivalt-position-list__item"></li>');
+        var $listItem = $('<li class="omnivalt-position-list__item"></li>').attr('data-position-method-key', item.methodKey || '');
 
         $listItem.append($handle, $title, item.input);
         $list.append($listItem);
@@ -822,6 +845,7 @@ jQuery(function($) {
           axis: 'y',
           cursor: 'grabbing',
           forcePlaceholderSize: true,
+          items: '> .omnivalt-position-list__item:not([hidden])',
           placeholder: 'omnivalt-position-list__placeholder',
           update: function() {
             updatePositionValues($list);
@@ -849,8 +873,10 @@ jQuery(function($) {
       initializeTouchSortable($list);
     });
 
+    refreshPositionItems();
+
     function updatePositionValues($list) {
-      $list.children('.omnivalt-position-list__item').each(function(index) {
+      $list.children('.omnivalt-position-list__item:not([hidden])').each(function(index) {
         $(this).find('input[type="number"]').val(index + 1).trigger('change');
       });
     }

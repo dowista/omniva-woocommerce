@@ -24,15 +24,22 @@ class OmnivaLt_Labels
 
   public function print_labels( $orderIds = false, $download = true, $regenerate = false )
   {
-    if (empty($orderIds) || !$orderIds) {
+    if ( empty($orderIds) ) {
       return;
     }
 
     if ( ! is_array($orderIds) )
       $orderIds = array($orderIds);
 
+    $orderIds = array_unique($orderIds);
+    if ( ! OmnivaLt_Helper::has_required_sender_information() && $this->requires_label_generation($orderIds, $regenerate) ) {
+      OmnivaLt_Helper::add_msg(__('Please fill in the sender information on the settings page.', 'omnivalt'), 'error');
+      wp_safe_redirect(wp_get_referer() ? wp_get_referer() : admin_url('edit.php?post_type=shop_order'));
+      exit;
+    }
+
     $all_barcodes = array();
-    foreach ( array_unique($orderIds) as $orderId ) {
+    foreach ( $orderIds as $orderId ) {
       $this->is_international = false;
       $order = OmnivaLt_Wc_Order::get_data($orderId, array('shipment', 'shipping', 'billing'));
       if ( ! $order ) {
@@ -83,6 +90,21 @@ class OmnivaLt_Labels
     }
 
     exit;
+  }
+
+  private function requires_label_generation( $order_ids, $regenerate )
+  {
+    foreach ( $order_ids as $order_id ) {
+      if ( ! OmnivaLt_Omniva_Order::have_omniva_shipping($order_id) ) {
+        continue;
+      }
+
+      if ( $regenerate || empty(OmnivaLt_Omniva_Order::get_barcodes($order_id)) ) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**

@@ -282,6 +282,7 @@ class OmnivaLt_Settings_Page
     return array(
       'tabs' => $settings_layout['tabs'],
       'active_tab' => $active_tab,
+      'support_email' => self::get_support_email($shipping_method->get_option('api_country', 'LT')),
       'form_action' => self::get_page_url(
         array(
           'tab' => $active_tab,
@@ -289,6 +290,18 @@ class OmnivaLt_Settings_Page
       ),
       'cards' => $cards,
     );
+  }
+
+  private static function get_support_email( $api_country )
+  {
+    $support_emails = array(
+      'EE' => 'ariklient@omniva.ee',
+      'LV' => 'sales@omniva.lv',
+      'LT' => 'verslas@omniva.lt',
+    );
+    $api_country = strtoupper(sanitize_key((string) $api_country));
+
+    return isset($support_emails[$api_country]) ? $support_emails[$api_country] : $support_emails['LT'];
   }
 
   private static function get_settings_sections( $form_fields )

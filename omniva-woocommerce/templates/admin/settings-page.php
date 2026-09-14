@@ -3,6 +3,10 @@ if ( ! defined('ABSPATH') ) {
   exit;
 }
 
+if ( ! isset($page_data) || ! is_array($page_data) ) {
+  return;
+}
+
 ?>
 <div id="omnivalt-settings-root" class="omnivalt-settings-page is-layout-pending">
   <header class="omnivalt-settings-page__header">
@@ -163,7 +167,7 @@ if ( ! defined('ABSPATH') ) {
                       <h3><?php esc_html_e('Need API access?', 'omnivalt'); ?></h3>
                       <p><?php esc_html_e('API credentials are issued by Omniva. Contact support team to get access.', 'omnivalt'); ?></p>
                     </div>
-                    <a class="omnivalt-api-access__action" href="<?php echo esc_url('https://www.omniva.lt/verslas/kontaktai-verslui'); ?>" target="_blank" rel="noopener noreferrer">
+                    <a class="omnivalt-api-access__action" href="<?php echo esc_url('https://account.omniva.eu/'); ?>" target="_blank" rel="noopener noreferrer">
                       <?php esc_html_e('Contact Omniva', 'omnivalt'); ?>
                       <span class="dashicons dashicons-external" aria-hidden="true"></span>
                     </a>
@@ -249,7 +253,7 @@ if ( ! defined('ABSPATH') ) {
       <section class="omnivalt-settings-page__sidebar-card omnivalt-settings-page__help-card">
         <h2><?php esc_html_e('Need help?', 'omnivalt'); ?></h2>
         <p><?php esc_html_e('Have any suggestions or problems?', 'omnivalt'); ?></p>
-        <p><?php esc_html_e('Please do not hesitate to', 'omnivalt'); ?> <a href="mailto:support@example.com"><?php esc_html_e('contact us', 'omnivalt'); ?></a>.</p>
+        <p><?php esc_html_e('Please do not hesitate to', 'omnivalt'); ?> <a href="<?php echo esc_url('mailto:' . $page_data['support_email']); ?>"><?php esc_html_e('contact us', 'omnivalt'); ?></a>.</p>
       </section>
 
       <section class="omnivalt-settings-page__sidebar-card omnivalt-settings-page__news-card">

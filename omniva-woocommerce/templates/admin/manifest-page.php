@@ -9,6 +9,9 @@ $configs = isset($page_data['configs']) && is_array($page_data['configs']) ? $pa
 $page_params = isset($page_data['page_params']) && is_array($page_data['page_params']) ? $page_data['page_params'] : array();
 $orders_data = isset($page_data['orders_data']) && is_array($page_data['orders_data']) ? $page_data['orders_data'] : array();
 $selected_orders = isset($page_data['selected_orders']) && is_array($page_data['selected_orders']) ? $page_data['selected_orders'] : array();
+$sender_info_complete = ! empty($page_data['sender_info_complete']);
+$sender_info_tooltip = __('Please fill in the sender information on the settings page.', 'omnivalt');
+$labels_button_title = $sender_info_complete ? __('Generate and print labels', 'omnivalt') : $sender_info_tooltip;
 $manifest_enabled = ! empty($page_data['manifest_enabled']);
 $active_omx = ! empty($page_data['active_omx']);
 $current_courier_calls = isset($page_data['current_courier_calls']) && is_array($page_data['current_courier_calls']) ? $page_data['current_courier_calls'] : array();
@@ -124,16 +127,12 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
             <input type="hidden" name="action" value="omnivalt_labels" />
             <?php wp_nonce_field('omnivalt_labels', 'omnivalt_labels_nonce'); ?>
           </form>
-          <?php $desc = ''; ?>
-          <div id="selected-orders" class="selected-orders <?php echo ($desc) ? 'has-desc' : ''; ?>" style="<?php echo (empty($selected_orders)) ? 'display:none' : ''; ?>">
-            <span class="title"><?php esc_html_e('Selected', 'omnivalt'); ?><?php echo ($desc) ? '*' : ''; ?>:</span>
+          <div id="selected-orders" class="selected-orders" style="<?php echo (empty($selected_orders)) ? 'display:none' : ''; ?>">
+            <span class="title"><?php esc_html_e('Selected', 'omnivalt'); ?>:</span>
             <span class="selected-count" aria-live="polite"><?php echo esc_html((string) $selected_order_count); ?></span>
             <?php foreach ($selected_orders as $order_id) : ?>
               <span class="item" data-id="<?php echo esc_attr($order_id); ?>">#<?php echo esc_html($order_id); ?><span class="dashicons dashicons-no"></span></span>
             <?php endforeach; ?>
-            <?php if ($desc) : ?>
-              <span class="desc">*<?php echo esc_html($desc); ?></span>
-            <?php endif; ?>
           </div>
           <div class="omnivalt-manifest-page__selection-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?>">
             <?php if ($manifest_enabled) : ?>
@@ -141,9 +140,15 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
                 <?php esc_html_e('Generate manifest', 'omnivalt'); ?>
               </button>
             <?php endif; ?>
-            <button id="submit_manifest_labels_1" title="<?php echo esc_attr__('Generate and print labels', 'omnivalt'); ?>" type="button" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
-              <?php esc_html_e('Generate and print labels', 'omnivalt'); ?>
-            </button>
+            <?php if ( ! $sender_info_complete ) : ?>
+              <span class="omnivalt-manifest-page__tooltip-trigger" data-tooltip="<?php echo esc_attr($sender_info_tooltip); ?>" tabindex="0" role="group" aria-label="<?php echo esc_attr($sender_info_tooltip); ?>">
+            <?php endif; ?>
+              <button id="submit_manifest_labels_1"<?php if ( $sender_info_complete ) : ?> title="<?php echo esc_attr($labels_button_title); ?>"<?php endif; ?> type="button"<?php if ( ! $sender_info_complete ) : ?> disabled="disabled"<?php endif; ?> class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
+                <?php esc_html_e('Generate and print labels', 'omnivalt'); ?>
+              </button>
+            <?php if ( ! $sender_info_complete ) : ?>
+              </span>
+            <?php endif; ?>
           </div>
         </section>
       <?php endif; ?>
@@ -325,13 +330,24 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
                   <td class="manage-column column-order_actions">
                     <span class="omnivalt-manifest-page__mobile-actions-label"><?php esc_html_e('Actions', 'omnivalt'); ?></span>
                     <?php $label_action = ! empty($barcodes) ? __('Print label', 'omnivalt') : __('Generate label', 'omnivalt'); ?>
-                    <a href="<?php echo esc_url(add_query_arg(array('action' => 'omnivalt_labels', 'post' => $order_data->id), admin_url('admin-post.php'))); ?>" class="button action omnivalt-manifest-page__row-action" data-tooltip="<?php echo esc_attr($label_action); ?>" aria-label="<?php echo esc_attr($label_action); ?>">
+                    <?php $label_action_disabled = ! $sender_info_complete && empty($barcodes); ?>
+                    <a
+                      <?php if ( ! $label_action_disabled ) : ?>href="<?php echo esc_url(add_query_arg(array('action' => 'omnivalt_labels', 'post' => $order_data->id), admin_url('admin-post.php'))); ?>"<?php endif; ?>
+                      class="button action omnivalt-manifest-page__row-action<?php echo $label_action_disabled ? ' is-disabled' : ''; ?>"
+                      data-tooltip="<?php echo esc_attr($label_action_disabled ? $sender_info_tooltip : $label_action); ?>"
+                      aria-label="<?php echo esc_attr($label_action); ?>"
+                      <?php if ( $label_action_disabled ) : ?>aria-disabled="true" tabindex="-1"<?php endif; ?>>
                       <span class="dashicons <?php echo ! empty($barcodes) ? 'dashicons-printer' : 'dashicons-media-document'; ?>" aria-hidden="true"></span>
                       <span class="screen-reader-text"><?php echo esc_html($label_action); ?></span>
                     </a>
                     <?php if ( ! empty($barcodes) ) : ?>
                       <?php $regenerate_label = __('Regenerate label', 'omnivalt'); ?>
-                      <a href="<?php echo esc_url(add_query_arg(array('action' => 'omnivalt_labels', 'post' => $order_data->id, 'process' => 'regenerate'), admin_url('admin-post.php'))); ?>" class="button action omnivalt-manifest-page__row-action" data-tooltip="<?php echo esc_attr($regenerate_label); ?>" aria-label="<?php echo esc_attr($regenerate_label); ?>">
+                      <a
+                        <?php if ( $sender_info_complete ) : ?>href="<?php echo esc_url(add_query_arg(array('action' => 'omnivalt_labels', 'post' => $order_data->id, 'process' => 'regenerate'), admin_url('admin-post.php'))); ?>"<?php endif; ?>
+                        class="button action omnivalt-manifest-page__row-action<?php echo $sender_info_complete ? '' : ' is-disabled'; ?>"
+                        data-tooltip="<?php echo esc_attr($sender_info_complete ? $regenerate_label : $sender_info_tooltip); ?>"
+                        aria-label="<?php echo esc_attr($regenerate_label); ?>"
+                        <?php if ( ! $sender_info_complete ) : ?>aria-disabled="true" tabindex="-1"<?php endif; ?>>
                         <span class="dashicons dashicons-update" aria-hidden="true"></span>
                         <span class="screen-reader-text"><?php echo esc_html($regenerate_label); ?></span>
                       </a>
@@ -369,9 +385,15 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
               <?php esc_html_e('Generate manifest', 'omnivalt'); ?>
             </button>
           <?php endif; ?>
-          <button id="submit_manifest_labels_2" title="<?php echo esc_attr__('Generate and print labels', 'omnivalt'); ?>" type="button" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
-            <?php esc_html_e('Generate and print labels', 'omnivalt'); ?>
-          </button>
+          <?php if ( ! $sender_info_complete ) : ?>
+            <span class="omnivalt-manifest-page__tooltip-trigger" data-tooltip="<?php echo esc_attr($sender_info_tooltip); ?>" tabindex="0" role="group" aria-label="<?php echo esc_attr($sender_info_tooltip); ?>">
+          <?php endif; ?>
+            <button id="submit_manifest_labels_2"<?php if ( $sender_info_complete ) : ?> title="<?php echo esc_attr($labels_button_title); ?>"<?php endif; ?> type="button"<?php if ( ! $sender_info_complete ) : ?> disabled="disabled"<?php endif; ?> class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
+              <?php esc_html_e('Generate and print labels', 'omnivalt'); ?>
+            </button>
+          <?php if ( ! $sender_info_complete ) : ?>
+            </span>
+          <?php endif; ?>
         </div>
       <?php endif; ?>
 

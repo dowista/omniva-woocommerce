@@ -166,11 +166,11 @@
   });
 
   /* Row action tooltips */
-  $(document).on('mouseenter focusin', '.omnivalt-manifest-page__row-action', function() {
+  $(document).on('mouseenter focusin', '.omnivalt-manifest-page__row-action, .omnivalt-manifest-page__tooltip-trigger', function() {
     omniva_show_action_tooltip(this);
   });
 
-  $(document).on('mouseleave focusout', '.omnivalt-manifest-page__row-action', function() {
+  $(document).on('mouseleave focusout', '.omnivalt-manifest-page__row-action, .omnivalt-manifest-page__tooltip-trigger', function() {
     omniva_remove_action_tooltip();
   });
 

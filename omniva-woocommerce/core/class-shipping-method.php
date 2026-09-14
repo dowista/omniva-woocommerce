@@ -10,7 +10,6 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
      */
     public $errors = array();
 
-    private $omnivalt_api;
     private $omnivalt_api_int;
     private $omnivalt_configs;
     private $shipping_methods;
@@ -22,7 +21,8 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       $this->method_title = __('Omniva shipping', 'omnivalt');
       $this->method_description = __('Shipping methods for Omniva', 'omnivalt');
 
-      $this->omnivalt_api = new OmnivaLt_Api();
+      // Initialize provider-specific API metadata, including the OMX integration header.
+      new OmnivaLt_Api();
       $this->omnivalt_api_int = new OmnivaLt_Api_International();
       $this->omnivalt_configs = OmnivaLt_Core::get_configs();
       $this->shipping_methods = OmnivaLt_Method::get_all_shipping_methods();
@@ -52,7 +52,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
 
       // Default values
       if ( empty($this->settings['api_country']) ) {
-        $this->settings['api_country'] = 'LT';
+        $this->settings['api_country'] = $this->get_default_api_country();
       }
       foreach ( $this->shipping_methods as $method_key => $method ) {
         if ( empty($this->settings['method_' . $method['key']]) ) {
@@ -75,6 +75,19 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
     private function add_required_mark( $title )
     {
       return $title . ' <span style="color: red;">*</span>';
+    }
+
+    private function get_default_api_country()
+    {
+      $locale = strtolower((string) get_locale());
+      $language = substr($locale, 0, 2);
+      $locale_countries = array(
+        'lt' => 'LT',
+        'lv' => 'LV',
+        'et' => 'EE',
+      );
+
+      return isset($locale_countries[$language]) ? $locale_countries[$language] : 'LT';
     }
 
     /**
@@ -131,7 +144,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
           'LV' => OmnivaLt_Wc::get_country_name('LV'),
           'EE' => OmnivaLt_Wc::get_country_name('EE'),
         ),
-        'default' => 'LT',
+        'default' => $this->get_default_api_country(),
         'description' => __('Choose the country of Omniva support from which you received API logins.', 'omnivalt'),
       );
       $fields['hr_shop'] = array(
@@ -354,7 +367,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       $fields['position'] = array(
         'title' => __('Positions', 'omnivalt'),
         'type' => 'position',
-        'description' => __('Position of each Omniva shipping method in shipping methods list on Checkout page.', 'omnivalt') . '<br/>' . __('Leave empty to not change position. A higher number means a lower position (1 - top of the list).', 'omnivalt') . '<br/>' . __('NOTE', 'omnivalt') . ': ' . __('Positioning may be affected by other plugins or functions used in the theme.', 'omnivalt'),
+        'description' => __('Position of each Omniva shipping method in shipping methods list on Checkout page.', 'omnivalt') . '<br/>' . __('NOTE', 'omnivalt') . ': ' . __('Positioning may be affected by other plugins or functions used in the theme.', 'omnivalt'),
       );
       $fields['hr_orders'] = array(
         'type' => 'hr',
@@ -603,20 +616,11 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
     /**
      * Validates sender phone fields before saving the shipping settings.
      *
-     * @return void
+     * @return bool
      */
     public function process_admin_options()
     {
-      $required_fields = array(
-        'company' => __('Company name', 'omnivalt'),
-        'shop_name' => __('Shop name', 'omnivalt'),
-        'shop_city' => __('Shop city', 'omnivalt'),
-        'shop_address' => __('Shop address', 'omnivalt'),
-        'shop_postcode' => __('Shop postcode', 'omnivalt'),
-        'shop_countrycode' => __('Shop country code', 'omnivalt'),
-        'shop_mobile' => __('Shop mobile number', 'omnivalt'),
-        'shop_email' => __('Shop email', 'omnivalt')
-      );
+      $required_fields = OmnivaLt_Helper::get_required_sender_fields();
 
       $phone_errors = array();
       $pickup_time_errors = array();
@@ -661,7 +665,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       }
 
       // Save all values
-      parent::process_admin_options();
+      $saved = parent::process_admin_options();
 
       // Add error message if required is empty
       $errors = array();
@@ -681,6 +685,8 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
       if ( ! empty($pickup_time_errors) ) {
         WC_Admin_Settings::add_error(implode(' ', $pickup_time_errors));
       }
+
+      return $saved;
     }
 
     public function generate_pickup_window_html( $key, $value )
@@ -976,7 +982,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
                   <?php foreach ( $methods_row as $method_key => $method_values ) : ?>
                     <?php $current_value = (isset($field_values[$method_values['key']])) ? $field_values[$method_values['key']] : ""; ?>
                     <td>
-                      <input type="number" name="<?php echo esc_html($field_key); ?>[<?php echo esc_html($method_values['key']); ?>]" value="<?php echo esc_html($current_value); ?>" min="0" max="90" step="1">
+                      <input type="number" name="<?php echo esc_html($field_key); ?>[<?php echo esc_html($method_values['key']); ?>]" value="<?php echo esc_html($current_value); ?>" min="0" max="90" step="1" data-position-method-key="<?php echo esc_attr($method_values['key']); ?>">
                     </td>
                   <?php endforeach; ?>
                 </tr>
@@ -1020,13 +1026,14 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
         $prefix = $prefix . ' &gt; ';
         $results[$data->term_id] = $prefix . $data->name;
       }
-      if ( ! $data->children ) {
+      $children = isset($data->children) && is_array($data->children) ? $data->children : array();
+      if ( empty($children) ) {
         $results[$data->term_id] = $prefix . $data->name;
 
         return true;
       }
 
-      foreach ( $data->children as $child ) {
+      foreach ( $children as $child ) {
         $this->create_categories_list($prefix . $data->name, $child, $results);
       }
     }
@@ -1044,17 +1051,21 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
         'hide_empty' => $hide_empty,
       );
 
-      $cats = get_categories( $args );
+      $args['taxonomy'] = apply_filters('get_categories_taxonomy', $args['taxonomy'], $args);
+      $cats = get_terms( $args );
       $children = array();
 
       if ( is_wp_error($cats) ) {
         OmnivaLt_Debug::log_error($cats->get_error_message());
-        $cats = array();
+        return array();
       }
 
       foreach( $cats as $cat ) {
-        $cat->children = $this->get_categories_hierarchy( $cat->term_id );
-        $children[ $cat->term_id ] = $cat;
+        $children[ $cat->term_id ] = (object) array(
+          'term_id' => $cat->term_id,
+          'name' => $cat->name,
+          'children' => $this->get_categories_hierarchy( $cat->term_id ),
+        );
       }
 
       return $children;
@@ -1090,7 +1101,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
 
       if ( is_wp_error($shipping_classes) ) {
         OmnivaLt_Debug::log_error($shipping_classes->get_error_message());
-        return (object) array();
+        return array();
       }
 
       return $shipping_classes;
@@ -1138,7 +1149,7 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
                       'response' => __('Response', 'omnivalt'),
                     );
                     foreach ( $all_subtitles as $subtitle_key => $subtitle_value ) {
-                      if ( str_contains($file_data['name'], $subtitle_key) ) {
+                      if ( false !== strpos($file_data['name'], $subtitle_key) ) {
                         if ( ! empty($subtitle) ) $subtitle .= '/';
                         $subtitle .= $subtitle_value;
                       }

@@ -8,7 +8,7 @@ class OmnivaLt_Manifest_Page
     $folder_css = '/assets/css/';
     $folder_js = '/assets/js/';
 
-    wp_enqueue_style('omnivalt_admin_manifest', plugins_url($folder_css . 'omniva_admin_manifest.css', OmnivaLt_Core::$main_file_path, array(), OMNIVALT_VERSION));
+    wp_enqueue_style('omnivalt_admin_manifest', plugins_url($folder_css . 'omniva_admin_manifest.css', OmnivaLt_Core::$main_file_path), array(), OMNIVALT_VERSION);
     wp_enqueue_style('bootstrap-datetimepicker', plugins_url($folder_js . 'datetimepicker/bootstrap-datetimepicker.min.css', OmnivaLt_Core::$main_file_path));
 
     wp_enqueue_script('moment', plugins_url($folder_js . 'moment.min.js', OmnivaLt_Core::$main_file_path), array(), null, true);
@@ -49,6 +49,7 @@ class OmnivaLt_Manifest_Page
     $page_params = OmnivaLt_Manifest::page_params();
     $orders_data = OmnivaLt_Manifest::page_get_orders();
     $selected_orders = self::get_selected_orders();
+    $sender_info_complete = OmnivaLt_Helper::has_required_sender_information($shipping_settings);
     $manifest_enabled = (!isset($shipping_settings['manifest_enable']) || $shipping_settings['manifest_enable'] === 'yes') ? true : false;
     $active_omx = ($configs['api']['type'] === 'omx');
     $current_courier_calls = OmnivaLt_Helper::get_courier_calls();
@@ -78,6 +79,7 @@ class OmnivaLt_Manifest_Page
       'page_params' => $page_params,
       'orders_data' => $orders_data,
       'selected_orders' => $selected_orders,
+      'sender_info_complete' => $sender_info_complete,
       'manifest_enabled' => $manifest_enabled,
       'active_omx' => $active_omx,
       'current_courier_calls' => $current_courier_calls,
