@@ -468,8 +468,9 @@ class OmnivaLt_Core
     add_action('woocommerce_shipping_init', array('OmnivaLt_Core', 'init_shipping_method'));
 
     add_filter('pre_set_site_transient_update_plugins', array('OmnivaLt_Updater', 'update_plugins'));
-    add_filter('site_transient_update_plugins', array('OmnivaLt_Updater', 'update_plugins'));
+    add_filter('auto_update_plugin', array('OmnivaLt_Updater', 'disable_auto_update'), 10, 2);
     add_filter('plugins_api', array('OmnivaLt_Updater', 'plugin_information'), 10, 3);
+    add_action('upgrader_process_complete', array('OmnivaLt_Updater', 'clear_update_cache'), 10, 2);
   }
 
   private static function load_init_hooks()

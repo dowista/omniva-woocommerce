@@ -11,18 +11,30 @@ class OmnivaLt_Updater
       return false;
     }
 
+    static $force_check_processed = false;
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- force-check is a read-only WordPress core flag; the capability check authorizes cache refresh.
+    if ( ! $force_check_processed && is_admin() && current_user_can('update_plugins') && isset($_GET['force-check']) ) {
+      delete_site_transient('omnivalt_latest_update');
+      $force_check_processed = true;
+    }
+
     $cached_update = get_site_transient('omnivalt_latest_update');
     if ( is_array($cached_update) ) {
       if ( ! empty($cached_update['error']) ) {
         return false;
       }
       if ( ! empty($cached_update['version']) && array_key_exists('tag', $cached_update) && array_key_exists('changelog', $cached_update) ) {
-        return $cached_update;
+			$cached_package = isset($cached_update['package']) && is_string($cached_update['package']) ? $cached_update['package'] : '';
+			if ( array_key_exists('package', $cached_update) && false === strpos($cached_package, '/releases/latest/download/') ) {
+				return $cached_update;
+			}
+
+			delete_site_transient('omnivalt_latest_update');
       }
     }
 
     $response = wp_remote_get($update_params['check_url'], array(
-      'timeout' => 10,
+      'timeout' => 5,
       'headers' => array(
         'Accept' => 'application/vnd.github+json',
         'User-Agent' => 'Omniva-WooCommerce/' . OMNIVALT_VERSION,
@@ -42,15 +54,40 @@ class OmnivaLt_Updater
 
     $release_tag = (string) $response_data->tag_name;
     $release_notes = ( isset($response_data->body) && is_string($response_data->body) ) ? $response_data->body : '';
-    $release_notes = wpautop(wp_kses_post($release_notes));
 
-    $latest_update = array(
+    $package_url = '';
+		$asset_name = 'omniva-woocommerce.zip';
+    if ( '' !== $asset_name && isset($response_data->assets) && is_array($response_data->assets) ) {
+			foreach ( $response_data->assets as $asset ) {
+				$asset_name_value = '';
+				$asset_url         = '';
+				if ( is_object($asset) ) {
+					$asset_name_value = isset($asset->name) && is_string($asset->name) ? $asset->name : '';
+					$asset_url         = isset($asset->browser_download_url) && is_string($asset->browser_download_url) ? $asset->browser_download_url : '';
+				} elseif ( is_array($asset) ) {
+					$asset_name_value = isset($asset['name']) && is_string($asset['name']) ? $asset['name'] : '';
+					$asset_url         = isset($asset['browser_download_url']) && is_string($asset['browser_download_url']) ? $asset['browser_download_url'] : '';
+				}
+
+				if ( $asset_name === $asset_name_value && '' !== $asset_url ) {
+					$package_url = esc_url_raw($asset_url);
+					break;
+				}
+			}
+    }
+
+		$release_version = preg_replace('/^v/i', '', $release_tag);
+		if ( ! is_string($release_version) ) {
+			$release_version = $release_tag;
+		}
+
+		$latest_update = array(
       'tag' => $release_tag,
-      'version' => str_replace('v', '', $release_tag),
+		'version' => $release_version,
       'url' => ( ! empty($response_data->html_url) ) ? esc_url_raw($response_data->html_url) : '#',
-      'package' => ( ! empty($update_params['download_url']) ) ? esc_url_raw($update_params['download_url']) : '',
+      'package' => $package_url,
       'last_updated' => ( ! empty($response_data->published_at) ) ? sanitize_text_field($response_data->published_at) : '',
-      'changelog' => $release_notes,
+      'changelog' => self::format_release_notes($release_notes),
     );
 
     set_site_transient('omnivalt_latest_update', $latest_update, 12 * HOUR_IN_SECONDS);
@@ -67,8 +104,12 @@ class OmnivaLt_Updater
     }
 
     if ( empty($current_version) ) {
+      $current_version = defined('OMNIVALT_VERSION') ? OMNIVALT_VERSION : '';
+    }
+
+    if ( empty($current_version) && function_exists('get_file_data') ) {
       $plugin_data = get_file_data(OmnivaLt_Core::$main_file_path, array('Version' => 'Version'), '');
-      $current_version = $plugin_data['Version'];
+      $current_version = isset($plugin_data['Version']) ? $plugin_data['Version'] : '';
     }
 
     return ( version_compare($current_version, $update_info['version'], '<') ) ? $update_info : false;
@@ -78,38 +119,108 @@ class OmnivaLt_Updater
   {
     $plugin_basename = self::get_plugin_basename();
 
-    if ( '' === $plugin_basename || ! is_object($transient) || empty($transient->checked) || ! isset($transient->checked[$plugin_basename]) ) {
+		if ( '' === $plugin_basename || ( ! is_admin() && ! wp_doing_cron() ) || ! is_object($transient) ) {
       return $transient;
     }
 
-    $update_info = self::check_update($transient->checked[$plugin_basename]);
-    if ( ! $update_info || empty($update_info['package']) ) {
-      return $transient;
+    $current_version = '';
+    if ( isset($transient->checked) && is_array($transient->checked) && isset($transient->checked[$plugin_basename]) && is_scalar($transient->checked[$plugin_basename]) ) {
+      $current_version = (string) $transient->checked[$plugin_basename];
+    }
+    if ( '' === $current_version && defined('OMNIVALT_VERSION') ) {
+      $current_version = OMNIVALT_VERSION;
     }
 
-    $update_info = self::enrich_update_info_with_github_metadata($update_info);
+		$latest_update = self::get_latest_update();
+		if ( empty($latest_update) || ! isset($latest_update['version']) || ! is_string($latest_update['version']) || '' === trim($latest_update['version']) ) {
+			return $transient;
+		}
 
     $response = ( isset($transient->response) && is_array($transient->response) ) ? $transient->response : array();
+    $no_update = ( isset($transient->no_update) && is_array($transient->no_update) ) ? $transient->no_update : array();
+		$has_update = version_compare($latest_update['version'], $current_version, '>');
 
-    $plugin_update = array(
-      'slug' => dirname($plugin_basename),
-      'plugin' => $plugin_basename,
-      'new_version' => $update_info['version'],
-      'url' => $update_info['url'],
-      'package' => $update_info['package'],
-    );
+		if ( $has_update ) {
+			$update_info = self::enrich_update_info_with_github_metadata($latest_update);
+			$plugin_update = array(
+				'id' => $plugin_basename,
+				'slug' => dirname($plugin_basename),
+				'plugin' => $plugin_basename,
+				'new_version' => $update_info['version'],
+				'url' => $update_info['url'],
+				'package' => $update_info['package'],
+			);
 
-    foreach ( array('requires', 'tested', 'requires_php') as $metadata_key ) {
-      if ( ! empty($update_info[$metadata_key]) ) {
-        $plugin_update[$metadata_key] = $update_info[$metadata_key];
-      }
+			foreach ( array('requires', 'tested', 'requires_php') as $metadata_key ) {
+				if ( ! empty($update_info[$metadata_key]) ) {
+					$plugin_update[$metadata_key] = $update_info[$metadata_key];
+				}
+			}
+
+			if ( ! empty(self::get_custom_changes()) ) {
+				$plugin_update['package'] = '';
+			}
+
+      unset($no_update[$plugin_basename]);
+      $response[$plugin_basename] = (object) $plugin_update;
+    } else {
+      unset($response[$plugin_basename]);
+      $no_update[$plugin_basename] = (object) array(
+        'id' => $plugin_basename,
+        'slug' => dirname($plugin_basename),
+        'plugin' => $plugin_basename,
+        'new_version' => $current_version,
+        'url' => isset($latest_update['url']) && is_string($latest_update['url']) ? $latest_update['url'] : '',
+        'package' => '',
+      );
     }
 
-    $response[$plugin_basename] = (object) $plugin_update;
     $transient_data = get_object_vars($transient);
     $transient_data['response'] = $response;
+    $transient_data['no_update'] = $no_update;
 
     return (object) $transient_data;
+  }
+
+  public static function disable_auto_update( $update, $item )
+  {
+		if ( empty(self::get_custom_changes()) || ( ! is_object($item) && ! is_array($item) ) ) {
+      return $update;
+    }
+
+    $plugin_basename = self::get_plugin_basename();
+		$item_plugin = is_object($item) && isset($item->plugin) && is_string($item->plugin) ? $item->plugin : '';
+		$item_id = is_object($item) && isset($item->id) && is_string($item->id) ? $item->id : '';
+		if ( is_array($item) ) {
+			$item_plugin = isset($item['plugin']) && is_string($item['plugin']) ? $item['plugin'] : '';
+			$item_id     = isset($item['id']) && is_string($item['id']) ? $item['id'] : '';
+		}
+
+    if ( $plugin_basename !== $item_plugin && $plugin_basename !== $item_id ) {
+      return $update;
+    }
+
+    return false;
+  }
+
+  public static function clear_update_cache( $upgrader, $hook_extra )
+  {
+    if ( ! is_array($hook_extra) || empty($hook_extra['type']) || 'plugin' !== $hook_extra['type'] ) {
+      return;
+    }
+
+    $plugin_basename = self::get_plugin_basename();
+    $plugins = array();
+    if ( isset($hook_extra['plugin']) && is_string($hook_extra['plugin']) ) {
+      $plugins[] = $hook_extra['plugin'];
+    }
+    if ( isset($hook_extra['plugins']) && is_array($hook_extra['plugins']) ) {
+      $plugins = array_merge($plugins, $hook_extra['plugins']);
+    }
+
+    if ( in_array($plugin_basename, $plugins, true) ) {
+      delete_site_transient('omnivalt_latest_update');
+    }
   }
 
   public static function plugin_information( $result, $action, $args )
@@ -229,9 +340,9 @@ class OmnivaLt_Updater
       return $metadata;
     }
 
-    $metadata_url = 'https://raw.githubusercontent.com/' . $repository_match[1] . '/' . rawurlencode($tag_name) . '/' . ltrim(self::get_plugin_basename(), '/');
+    $metadata_url = 'https://raw.githubusercontent.com/' . $repository_match[1] . '/' . rawurlencode($tag_name) . '/omniva-woocommerce/' . basename(self::get_plugin_basename());
     $response = wp_remote_get($metadata_url, array(
-      'timeout' => 10,
+      'timeout' => 5,
       'headers' => array(
         'Accept' => 'text/plain',
         'User-Agent' => 'Omniva-WooCommerce/' . OMNIVALT_VERSION,
@@ -293,12 +404,87 @@ class OmnivaLt_Updater
   private static function get_custom_changes()
   {
     $constant_name = 'OMNIVALT_CUSTOM_CHANGES';
-    if ( ! defined($constant_name) ) {
-      return array();
-    }
+		return defined($constant_name) ? constant($constant_name) : array();
+	}
 
-    $defined_constants = get_defined_constants(true);
-    $custom_changes = isset($defined_constants['user'][$constant_name]) ? $defined_constants['user'][$constant_name] : null;
-    return is_array($custom_changes) ? $custom_changes : array();
-  }
+	/**
+	 * Convert GitHub Markdown release notes into safe HTML for the WordPress
+	 * plugin information modal.
+	 *
+	 * @param mixed $release_notes Release notes returned by GitHub.
+	 * @return string
+	 */
+	private static function format_release_notes( $release_notes ) {
+		if ( ! is_string($release_notes) || '' === trim($release_notes) ) {
+			return '';
+		}
+
+		$lines = preg_split('/\r\n|\r|\n/', wp_kses_post($release_notes));
+		if ( ! is_array($lines) ) {
+			return '';
+		}
+
+		$html      = '';
+		$paragraph = array();
+		$in_list   = false;
+
+		foreach ( $lines as $line ) {
+			$line = trim((string) $line);
+
+			if ( preg_match('/^#{1,6}\s+(.+)$/', $line, $matches) ) {
+				if ( ! empty($paragraph) ) {
+					$html      .= wpautop(implode("\n", $paragraph));
+					$paragraph = array();
+				}
+				if ( $in_list ) {
+					$html    .= '</ul>';
+					$in_list = false;
+				}
+				$html .= '<h3>' . wp_kses_post($matches[1]) . '</h3>';
+				continue;
+			}
+
+			if ( preg_match('/^[-*+]\s+(.+)$/', $line, $matches) ) {
+				if ( ! empty($paragraph) ) {
+					$html      .= wpautop(implode("\n", $paragraph));
+					$paragraph = array();
+				}
+				if ( ! $in_list ) {
+					$html    .= '<ul>';
+					$in_list = true;
+				}
+
+				$html .= '<li>' . wp_kses_post($matches[1]) . '</li>';
+				continue;
+			}
+
+			if ( '' === $line ) {
+				if ( ! empty($paragraph) ) {
+					$html      .= wpautop(implode("\n", $paragraph));
+					$paragraph = array();
+				}
+				if ( $in_list ) {
+					$html    .= '</ul>';
+					$in_list = false;
+				}
+				continue;
+			}
+
+			if ( $in_list ) {
+				$html    .= '</ul>';
+				$in_list = false;
+			}
+
+			$paragraph[] = $line;
+		}
+
+		if ( ! empty($paragraph) ) {
+			$html .= wpautop(implode("\n", $paragraph));
+		}
+		if ( $in_list ) {
+			$html .= '</ul>';
+		}
+
+		return wp_kses_post($html);
+	}
 }
