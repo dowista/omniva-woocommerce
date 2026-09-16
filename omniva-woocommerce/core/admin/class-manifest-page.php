@@ -14,7 +14,14 @@ class OmnivaLt_Manifest_Page
     wp_enqueue_script('moment', plugins_url($folder_js . 'moment.min.js', OmnivaLt_Core::$main_file_path), array(), null, true);
     wp_enqueue_script('bootstrap-datetimepicker', plugins_url($folder_js . 'datetimepicker/bootstrap-datetimepicker.min.js', OmnivaLt_Core::$main_file_path), array('jquery', 'moment'), null, true);
     wp_enqueue_script('omniva_helper', plugins_url($folder_js . 'omniva_helper.js', OmnivaLt_Core::$main_file_path), array(), null, true);
-    wp_enqueue_script('omniva_manifest', plugins_url($folder_js . 'omniva_manifest.js', OmnivaLt_Core::$main_file_path), array(), null, true);
+    wp_enqueue_script('omniva_manifest', plugins_url($folder_js . 'omniva_manifest.js', OmnivaLt_Core::$main_file_path), array('jquery'), null, true);
+
+    OmnivaLt_Admin_Page_Assets::add_readiness_fallback(
+      'omniva_manifest',
+      'omnivalt-manifest-root',
+      'is-ready',
+      'add'
+    );
 
     wp_localize_script('omniva_manifest', 'omnivaglobals', array(
       'cookie_checked_list' => 'omniva_checked',

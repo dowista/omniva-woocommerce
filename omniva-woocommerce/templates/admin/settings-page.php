@@ -7,8 +7,18 @@ if ( ! isset($page_data) || ! is_array($page_data) ) {
   return;
 }
 
+$settings_script_class = wp_script_is('omnivalt_admin_settings_page', 'enqueued') ? ' is-layout-pending' : '';
+
 ?>
-<div id="omnivalt-settings-root" class="omnivalt-settings-page is-layout-pending">
+<noscript>
+  <style>
+    #omnivalt-settings-root.is-layout-pending {
+      visibility: visible !important;
+    }
+  </style>
+</noscript>
+
+<div id="omnivalt-settings-root" class="omnivalt-settings-page<?php echo esc_attr($settings_script_class); ?>">
   <header class="omnivalt-settings-page__header">
     <div class="omnivalt-settings-page__header-content">
       <div>

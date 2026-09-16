@@ -398,6 +398,14 @@ class OmnivaLt_Core
     wp_enqueue_style('woocommerce_admin_styles');
     wp_enqueue_style('omnivalt_admin_settings_page', plugins_url($folder_css . 'omniva_admin_settings_page.css', self::$main_file_path), array(), OMNIVALT_VERSION);
     wp_enqueue_script('omnivalt_admin_settings_page', plugins_url($folder_js . 'omniva_admin_settings_page.js', self::$main_file_path), array('jquery', 'jquery-ui-sortable'), OMNIVALT_VERSION, true);
+
+    OmnivaLt_Admin_Page_Assets::add_readiness_fallback(
+      'omnivalt_admin_settings_page',
+      'omnivalt-settings-root',
+      'is-layout-pending',
+      'remove'
+    );
+
     wp_localize_script('omnivalt_admin_settings_page', 'omnivaltSettingsPage', array(
       'available_methods' => self::get_configs('available_methods'),
       'phone' => array(
@@ -527,6 +535,7 @@ class OmnivaLt_Core
     require_once $core_dir . 'class-cronjob.php';
     require_once $core_dir . 'class-terminals.php';
     require_once $core_dir . 'class-manifest.php';
+    require_once $core_dir . 'admin/' . 'class-admin-page-assets.php';
     require_once $core_dir . 'admin/' . 'class-admin-navigation.php';
     require_once $core_dir . 'admin/' . 'class-manifest-page.php';
     require_once $core_dir . 'admin/' . 'class-settings-page.php';

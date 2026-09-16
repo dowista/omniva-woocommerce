@@ -27,17 +27,26 @@ $current_courier_calls = isset($page_data['current_courier_calls']) && is_array(
 $active_filter_count = isset($page_data['active_filter_count']) ? (int) $page_data['active_filter_count'] : 0;
 $is_wrong_timezone = ! empty($page_data['is_wrong_timezone']);
 $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_alert'] : '';
+$manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is-ready';
 ?>
 
 <style id="omnivalt-manifest-page__critical-mobile-filter">
-  /* Keep the page hidden until its external styles have loaded. */
+  /* Keep the page hidden until the document is ready or the fallback opens it. */
   .page-omniva_manifest .omnivalt-manifest-page__root:not(.is-ready) {
     visibility: hidden;
   }
 </style>
 
+<noscript>
+  <style>
+    .page-omniva_manifest .omnivalt-manifest-page__root {
+      visibility: visible !important;
+    }
+  </style>
+</noscript>
+
 <div class="wrap page-omniva_manifest omnivalt-manifest-page">
-  <div id="omnivalt-manifest-root" class="omnivalt-manifest-page__root has-mobile-order-toggle">
+  <div id="omnivalt-manifest-root" class="omnivalt-manifest-page__root has-mobile-order-toggle<?php echo esc_attr($manifest_script_class); ?>">
     <header class="omnivalt-manifest-page__header">
       <div>
         <div class="omnivalt-manifest-page__breadcrumb">

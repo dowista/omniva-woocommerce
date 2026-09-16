@@ -178,9 +178,15 @@
     omniva_update_selected_summary();
   });
 
-  $(window).on('load', function() {
+  function mark_manifest_ready() {
     $('#omnivalt-manifest-root').addClass('is-ready');
-  });
+  }
+
+  if (document.readyState === 'complete') {
+    mark_manifest_ready();
+  } else {
+    $(window).one('load', mark_manifest_ready);
+  }
 
   /* Functions */
   function omniva_set_filter_drawer_open(open) {
