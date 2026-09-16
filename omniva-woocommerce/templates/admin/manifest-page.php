@@ -9,9 +9,18 @@ $configs = isset($page_data['configs']) && is_array($page_data['configs']) ? $pa
 $page_params = isset($page_data['page_params']) && is_array($page_data['page_params']) ? $page_data['page_params'] : array();
 $orders_data = isset($page_data['orders_data']) && is_array($page_data['orders_data']) ? $page_data['orders_data'] : array();
 $selected_orders = isset($page_data['selected_orders']) && is_array($page_data['selected_orders']) ? $page_data['selected_orders'] : array();
+$selected_order_has_barcodes = isset($page_data['selected_order_has_barcodes']) && is_array($page_data['selected_order_has_barcodes']) ? $page_data['selected_order_has_barcodes'] : array();
 $sender_info_complete = ! empty($page_data['sender_info_complete']);
 $sender_info_tooltip = __('Please fill in the sender information on the settings page.', 'omnivalt');
-$labels_button_title = $sender_info_complete ? __('Generate and print labels', 'omnivalt') : $sender_info_tooltip;
+$labels_button_label = __('Generate and print labels', 'omnivalt');
+$has_selected_existing_labels = false;
+foreach ( $selected_orders as $selected_order_id ) {
+  if ( ! empty($selected_order_has_barcodes[(string) $selected_order_id]) ) {
+    $has_selected_existing_labels = true;
+    break;
+  }
+}
+$labels_bulk_disabled = ! $sender_info_complete && ! $has_selected_existing_labels;
 $manifest_enabled = ! empty($page_data['manifest_enabled']);
 $active_omx = ! empty($page_data['active_omx']);
 $current_courier_calls = isset($page_data['current_courier_calls']) && is_array($page_data['current_courier_calls']) ? $page_data['current_courier_calls'] : array();
@@ -118,7 +127,7 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
         $selected_order_count = count($selected_orders);
         $has_many_selected = $selected_order_count > 3;
         ?>
-        <section class="mass-print-container omnivalt-manifest-page__bulk-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?><?php echo $has_many_selected ? ' has-many-selected' : ''; ?>">
+        <section class="mass-print-container omnivalt-manifest-page__bulk-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?><?php echo $has_many_selected ? ' has-many-selected' : ''; ?>" data-sender-info-complete="<?php echo esc_attr($sender_info_complete ? '1' : '0'); ?>">
           <form id="manifest-print-form" action="admin-post.php" method="GET">
             <input type="hidden" name="action" value="omnivalt_manifest" />
             <?php wp_nonce_field('omnivalt_manifest', 'omnivalt_manifest_nonce'); ?>
@@ -131,7 +140,7 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
             <span class="title"><?php esc_html_e('Selected', 'omnivalt'); ?>:</span>
             <span class="selected-count" aria-live="polite"><?php echo esc_html((string) $selected_order_count); ?></span>
             <?php foreach ($selected_orders as $order_id) : ?>
-              <span class="item" data-id="<?php echo esc_attr($order_id); ?>">#<?php echo esc_html($order_id); ?><span class="dashicons dashicons-no"></span></span>
+              <span class="item" data-id="<?php echo esc_attr($order_id); ?>" data-has-barcodes="<?php echo ! empty($selected_order_has_barcodes[(string) $order_id]) ? '1' : '0'; ?>">#<?php echo esc_html($order_id); ?><span class="dashicons dashicons-no"></span></span>
             <?php endforeach; ?>
           </div>
           <div class="omnivalt-manifest-page__selection-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?>">
@@ -141,10 +150,10 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
               </button>
             <?php endif; ?>
             <?php if ( ! $sender_info_complete ) : ?>
-              <span class="omnivalt-manifest-page__tooltip-trigger" data-tooltip="<?php echo esc_attr($sender_info_tooltip); ?>" tabindex="0" role="group" aria-label="<?php echo esc_attr($sender_info_tooltip); ?>">
+              <span class="omnivalt-manifest-page__tooltip-trigger" data-tooltip="<?php echo esc_attr($labels_bulk_disabled ? $sender_info_tooltip : ''); ?>" data-sender-tooltip="<?php echo esc_attr($sender_info_tooltip); ?>" tabindex="0" role="group" aria-label="<?php echo esc_attr($labels_bulk_disabled ? $sender_info_tooltip : $labels_button_label); ?>">
             <?php endif; ?>
-              <button id="submit_manifest_labels_1"<?php if ( $sender_info_complete ) : ?> title="<?php echo esc_attr($labels_button_title); ?>"<?php endif; ?> type="button"<?php if ( ! $sender_info_complete ) : ?> disabled="disabled"<?php endif; ?> class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
-                <?php esc_html_e('Generate and print labels', 'omnivalt'); ?>
+              <button id="submit_manifest_labels_1" title="<?php echo esc_attr($labels_button_label); ?>" type="button"<?php if ( $labels_bulk_disabled ) : ?> disabled="disabled"<?php endif; ?> class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
+                <?php echo esc_html($labels_button_label); ?>
               </button>
             <?php if ( ! $sender_info_complete ) : ?>
               </span>
@@ -244,7 +253,7 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
                 <?php endif; ?>
                 <tr class="data-row">
                   <?php $checked = (in_array((int) $order_data->id, $selected_orders, true)) ? 'checked' : ''; ?>
-                  <th scope="row" class="check-column"><input type="checkbox" name="items[]" class="manifest-item" value="<?php echo esc_attr($order_data->id); ?>" <?php echo esc_attr($checked); ?>/></th>
+                  <th scope="row" class="check-column"><input type="checkbox" name="items[]" class="manifest-item" value="<?php echo esc_attr($order_data->id); ?>" data-has-barcodes="<?php echo ! empty($barcodes) ? '1' : '0'; ?>" <?php echo esc_attr($checked); ?>/></th>
                   <td class="manage-column column-order_id">
                     <div class="omnivalt-manifest-page__mobile-order-identity">
                       <a href="<?php echo esc_url($order_data->admin->url_edit); ?>">#<?php echo esc_html($order_data->number); ?></a>
@@ -379,17 +388,17 @@ $timezone_alert = isset($page_data['timezone_alert']) ? $page_data['timezone_ale
       </section>
 
       <?php if ( $orders_data['is_orders'] ) : ?>
-        <div class="mass-print-container omnivalt-manifest-page__bottom-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?>">
+        <div class="mass-print-container omnivalt-manifest-page__bottom-actions<?php echo ! empty($selected_orders) ? ' is-visible' : ''; ?>" data-sender-info-complete="<?php echo esc_attr($sender_info_complete ? '1' : '0'); ?>">
           <?php if ($manifest_enabled) : ?>
             <button id="submit_manifest_items_2" title="<?php echo esc_attr__('Generate manifest', 'omnivalt'); ?>" type="button" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--secondary">
               <?php esc_html_e('Generate manifest', 'omnivalt'); ?>
             </button>
           <?php endif; ?>
           <?php if ( ! $sender_info_complete ) : ?>
-            <span class="omnivalt-manifest-page__tooltip-trigger" data-tooltip="<?php echo esc_attr($sender_info_tooltip); ?>" tabindex="0" role="group" aria-label="<?php echo esc_attr($sender_info_tooltip); ?>">
+            <span class="omnivalt-manifest-page__tooltip-trigger" data-tooltip="<?php echo esc_attr($labels_bulk_disabled ? $sender_info_tooltip : ''); ?>" data-sender-tooltip="<?php echo esc_attr($sender_info_tooltip); ?>" tabindex="0" role="group" aria-label="<?php echo esc_attr($labels_bulk_disabled ? $sender_info_tooltip : $labels_button_label); ?>">
           <?php endif; ?>
-            <button id="submit_manifest_labels_2"<?php if ( $sender_info_complete ) : ?> title="<?php echo esc_attr($labels_button_title); ?>"<?php endif; ?> type="button"<?php if ( ! $sender_info_complete ) : ?> disabled="disabled"<?php endif; ?> class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
-              <?php esc_html_e('Generate and print labels', 'omnivalt'); ?>
+            <button id="submit_manifest_labels_2" title="<?php echo esc_attr($labels_button_label); ?>" type="button"<?php if ( $labels_bulk_disabled ) : ?> disabled="disabled"<?php endif; ?> class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary">
+              <?php echo esc_html($labels_button_label); ?>
             </button>
           <?php if ( ! $sender_info_complete ) : ?>
             </span>

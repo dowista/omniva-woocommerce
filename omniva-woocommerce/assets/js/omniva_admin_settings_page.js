@@ -682,6 +682,7 @@ jQuery(function($) {
       );
       $newRow.insertBefore($buttonRow);
       checkTableAddRowButton($table);
+      $root.trigger('omnivaltSettingsChanged');
     }
 
     function removePricesTableRow($button) {
@@ -690,6 +691,7 @@ jQuery(function($) {
       $button.closest('tr').remove();
       checkAllRows($table);
       checkTableAddRowButton($table);
+      $root.trigger('omnivaltSettingsChanged');
     }
 
     function countDecimals(value) {
@@ -1249,6 +1251,8 @@ jQuery(function($) {
         $number.val(number);
         $number.attr('maxlength', countryData.max);
         $number[0].setCustomValidity(isValid ? '' : phoneSettings.invalid);
+        $number.attr('aria-invalid', isValid ? 'false' : 'true');
+        $wrapper.toggleClass('is-invalid', !isValid);
         $original.val(number ? '+' + countryData.dial_code + number : '');
       }
 
@@ -1291,6 +1295,33 @@ jQuery(function($) {
         syncPhone();
       });
     });
+  }
+
+  // Native form validation runs before the submit event. Reveal the settings
+  // tab that contains an invalid field before the browser displays its error.
+  var $settingsForm = $root.find('form').first();
+  if ($settingsForm.length) {
+    $settingsForm[0].addEventListener('invalid', function(event) {
+      var input = event.target;
+
+      if (!input || typeof input.focus !== 'function') {
+        return;
+      }
+
+      var $input = $(input);
+      var $card = $input.closest('[data-settings-card]');
+      var tabKey = $card.attr('data-settings-tab');
+      var $tab = tabKey ? $root.find('.omniva-tabs__tab[data-settings-tab="' + tabKey + '"]').first() : $();
+
+      if ($tab.length && !$tab.hasClass('is-active')) {
+        $tab.trigger('click');
+      }
+
+      if (input.classList && input.classList.contains('omnivalt-phone-input__number')) {
+        $input.closest('.omnivalt-phone-input').addClass('is-invalid');
+      }
+      input.focus();
+    }, true);
   }
 
   $root.find('select.omnivalt-multiselect[multiple]').each(function() {
@@ -1378,8 +1409,7 @@ jQuery(function($) {
           $('<span class="omniva-picker__option-check"></span>').text(isSelected ? '\u2713' : ''),
           $('<span class="omniva-picker__option-label"></span>').text(label)
         );
-        $option.on('mousedown', function(event) {
-          event.preventDefault();
+        function toggleOption() {
           var nextValues = getValues().slice();
           var index = nextValues.indexOf(value);
 
@@ -1390,7 +1420,11 @@ jQuery(function($) {
           }
 
           setValues(nextValues);
+        }
+        $option.on('mousedown', function(event) {
+          event.preventDefault();
         });
+        $option.on('click', toggleOption);
         $list.append($option);
       });
 
@@ -1486,6 +1520,7 @@ jQuery(function($) {
     }
 
     $form.on('input.omnivaltSettingsSave change.omnivaltSettingsSave', ':input', scheduleSaveStateUpdate);
+    $root.on('omnivaltSettingsChanged.omnivaltSettingsSave', scheduleSaveStateUpdate);
 
     $root.on('click.omnivaltSettingsNavigation', '[data-omnivalt-page-link]', function(event) {
       if ($form.serialize() === savedFormState) {
@@ -1499,6 +1534,8 @@ jQuery(function($) {
     });
 
     $discard.on('click', function() {
+      var $activeCountryTabs = $root.find('[data-method-country-tabs] [data-omniva-country-tab].is-active [role="tab"]');
+
       $.each(initialControls, function(index, controlState) {
         var $control = $(controlState.element);
 
@@ -1535,6 +1572,10 @@ jQuery(function($) {
       });
 
       $form.find(':input').trigger('change');
+      // Restoring dependent fields can select the first available country. Keep the country tab the administrator had open.
+      $activeCountryTabs.each(function() {
+        $(this).trigger('click');
+      });
       renderSaveState();
     });
 

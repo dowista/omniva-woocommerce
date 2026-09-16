@@ -32,11 +32,6 @@ class OmnivaLt_Labels
       $orderIds = array($orderIds);
 
     $orderIds = array_unique($orderIds);
-    if ( ! OmnivaLt_Helper::has_required_sender_information() && $this->requires_label_generation($orderIds, $regenerate) ) {
-      OmnivaLt_Helper::add_msg(__('Please fill in the sender information on the settings page.', 'omnivalt'), 'error');
-      wp_safe_redirect(wp_get_referer() ? wp_get_referer() : admin_url('edit.php?post_type=shop_order'));
-      exit;
-    }
 
     $all_barcodes = array();
     foreach ( $orderIds as $orderId ) {
@@ -64,11 +59,18 @@ class OmnivaLt_Labels
         $this->omnivalt_api->change_api_type($this->omnivalt_configs['api']['type']);
       }
       
-      if ( $regenerate ) {
-        OmnivaLt_Omniva_Order::set_barcodes($order->id, '');
+      $barcodes = OmnivaLt_Omniva_Order::get_barcodes($order->id);
+
+      $needs_generation = $regenerate || empty($barcodes);
+      if ( $needs_generation && ! OmnivaLt_Helper::has_required_sender_information() ) {
+        OmnivaLt_Helper::add_msg($order->number . ' - ' . __('Please fill in the sender information on the settings page.', 'omnivalt'), 'error');
+        continue;
       }
 
-      $barcodes = OmnivaLt_Omniva_Order::get_barcodes($order->id);
+      if ( $regenerate ) {
+        OmnivaLt_Omniva_Order::set_barcodes($order->id, '');
+        $barcodes = array();
+      }
 
       if ( empty($barcodes) ) {
         $barcodes = $this->register_label($order);
@@ -83,6 +85,11 @@ class OmnivaLt_Labels
       }
     }
 
+    if ( empty($all_barcodes) ) {
+      wp_safe_redirect(wp_get_referer() ? wp_get_referer() : admin_url('edit.php?post_type=shop_order'));
+      exit;
+    }
+
     $labels_status = $this->omnivalt_api->download_shipment_labels($all_barcodes);
     if ( ! $labels_status['status'] ) {
       OmnivaLt_Helper::add_msg($labels_status['msg'], 'error');
@@ -90,21 +97,6 @@ class OmnivaLt_Labels
     }
 
     exit;
-  }
-
-  private function requires_label_generation( $order_ids, $regenerate )
-  {
-    foreach ( $order_ids as $order_id ) {
-      if ( ! OmnivaLt_Omniva_Order::have_omniva_shipping($order_id) ) {
-        continue;
-      }
-
-      if ( $regenerate || empty(OmnivaLt_Omniva_Order::get_barcodes($order_id)) ) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /**

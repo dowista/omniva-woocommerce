@@ -254,7 +254,15 @@
   }
 
   function omniva_add_selected_item(value) {
-    var element = $('<span class="item" data-id="' + value + '">#' + value + '<span class="dashicons dashicons-no"></span></span>');
+    var checkbox = $('.manifest-item').filter(function() {
+      return String($(this).val()) === String(value);
+    }).first();
+    var has_barcodes = checkbox.attr('data-has-barcodes') === '1' ? '1' : '0';
+    var element = $('<span class="item"></span>');
+
+    element.attr('data-id', value);
+    element.attr('data-has-barcodes', has_barcodes);
+    element.text('#' + value).append('<span class="dashicons dashicons-no"></span>');
     element.appendTo('#selected-orders');
   }
 
@@ -270,11 +278,37 @@
 
     selected_orders.find('.selected-count').text(selected_count);
     selected_orders.closest('.omnivalt-manifest-page__bulk-actions').toggleClass('has-many-selected', has_many_selected);
+    omniva_update_label_action_state();
   }
 
   function omniva_set_selected_actions_visible(visible) {
     omniva_update_selected_summary();
     $('.omnivalt-manifest-page__bulk-actions, .omnivalt-manifest-page__selection-actions, .omnivalt-manifest-page__bottom-actions').toggleClass('is-visible', visible);
+  }
+
+  function omniva_update_label_action_state() {
+    var bulk_actions = $('.omnivalt-manifest-page__bulk-actions').first();
+    var selected_orders = $('#selected-orders .item');
+    var sender_info_complete = bulk_actions.attr('data-sender-info-complete') === '1';
+    var has_existing_labels = selected_orders.filter('[data-has-barcodes="1"]').length > 0;
+    var disabled = !sender_info_complete && !has_existing_labels;
+    var buttons = $('#submit_manifest_labels_1, #submit_manifest_labels_2');
+
+    buttons.prop('disabled', disabled);
+    if ( disabled ) {
+      buttons.attr('aria-disabled', 'true');
+    } else {
+      buttons.removeAttr('aria-disabled');
+    }
+
+    $('.omnivalt-manifest-page__tooltip-trigger').each(function() {
+      var trigger = $(this);
+      var tooltip = disabled ? trigger.attr('data-sender-tooltip') : '';
+      var button_title = trigger.find('button').first().attr('title') || '';
+
+      trigger.attr('data-tooltip', tooltip || '');
+      trigger.attr('aria-label', disabled ? (tooltip || button_title) : button_title);
+    });
   }
 
   function omniva_submit_bulk_action(form_selector) {

@@ -977,6 +977,11 @@ body.woocommerce_page_omnivalt-settings.omnivalt-settings-sidebar-open {
   box-shadow: 0 0 0 2px var(--omniva-accent-soft);
 }
 
+#omnivalt-settings-root .omnivalt-phone-input.is-invalid {
+  border-color: var(--omniva-error);
+  box-shadow: 0 0 0 2px var(--omniva-error-soft);
+}
+
 #omnivalt-settings-root .omnivalt-phone-input__country,
 #omnivalt-settings-root .omnivalt-phone-input__number {
   height: 100%;

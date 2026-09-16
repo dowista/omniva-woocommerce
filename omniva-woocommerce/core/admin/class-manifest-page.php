@@ -50,6 +50,7 @@ class OmnivaLt_Manifest_Page
     $orders_data = OmnivaLt_Manifest::page_get_orders();
     $selected_orders = self::get_selected_orders();
     $sender_info_complete = OmnivaLt_Helper::has_required_sender_information($shipping_settings);
+    $selected_order_has_barcodes = $sender_info_complete ? array() : self::get_selected_order_barcode_state($selected_orders);
     $manifest_enabled = (!isset($shipping_settings['manifest_enable']) || $shipping_settings['manifest_enable'] === 'yes') ? true : false;
     $active_omx = ($configs['api']['type'] === 'omx');
     $current_courier_calls = OmnivaLt_Helper::get_courier_calls();
@@ -79,6 +80,7 @@ class OmnivaLt_Manifest_Page
       'page_params' => $page_params,
       'orders_data' => $orders_data,
       'selected_orders' => $selected_orders,
+      'selected_order_has_barcodes' => $selected_order_has_barcodes,
       'sender_info_complete' => $sender_info_complete,
       'manifest_enabled' => $manifest_enabled,
       'active_omx' => $active_omx,
@@ -87,6 +89,17 @@ class OmnivaLt_Manifest_Page
       'is_wrong_timezone' => $is_wrong_timezone,
       'timezone_alert' => $timezone_alert,
     );
+  }
+
+  private static function get_selected_order_barcode_state( $selected_orders )
+  {
+    $barcode_state = array();
+
+    foreach ( $selected_orders as $order_id ) {
+      $barcode_state[(string) $order_id] = ! empty( OmnivaLt_Omniva_Order::get_barcodes($order_id) );
+    }
+
+    return $barcode_state;
   }
 
   private static function get_selected_orders()
