@@ -1,6 +1,8 @@
 <?php
 class OmnivaLt_Manifest_Page
 {
+  private const BARCODE_LOOKUP_CHUNK_SIZE = 100;
+
   private static $page_rendered = false;
 
   public static function load_admin_scripts()
@@ -101,9 +103,59 @@ class OmnivaLt_Manifest_Page
   private static function get_selected_order_barcode_state( $selected_orders )
   {
     $barcode_state = array();
+    if ( ! is_array($selected_orders) ) {
+      return $barcode_state;
+    }
+
+    $selected_orders = array_values(array_unique($selected_orders));
+
+    if ( empty($selected_orders) ) {
+      return $barcode_state;
+    }
+
+    $meta_keys = OmnivaLt_Core::get_configs('meta_keys');
+    if ( ! is_array($meta_keys) || empty($meta_keys['barcodes']) || ! is_string($meta_keys['barcodes']) ) {
+      return $barcode_state;
+    }
+
+    $selected_order_count = count($selected_orders);
+    $orders_with_barcodes_count = 0;
 
     foreach ( $selected_orders as $order_id ) {
-      $barcode_state[(string) $order_id] = ! empty( OmnivaLt_Omniva_Order::get_barcodes($order_id) );
+      $barcode_state[(string) $order_id] = false;
+    }
+
+    foreach ( array_chunk($selected_orders, self::BARCODE_LOOKUP_CHUNK_SIZE) as $order_chunk ) {
+      $orders_with_barcodes = wc_get_orders(array(
+        'include' => $order_chunk,
+        'limit' => count($order_chunk),
+        'paginate' => false,
+        'return' => 'ids',
+        // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- The include list is limited to 100 selected order IDs per query.
+        'meta_query' => array(
+          array(
+            'key' => $meta_keys['barcodes'],
+            'value' => '',
+            'compare' => '!=',
+          ),
+        ),
+      ));
+
+      if ( ! is_array($orders_with_barcodes) ) {
+        continue;
+      }
+
+      foreach ( $orders_with_barcodes as $order_id ) {
+        $order_key = (string) $order_id;
+        if ( isset($barcode_state[$order_key]) && ! $barcode_state[$order_key] ) {
+          $barcode_state[$order_key] = true;
+          $orders_with_barcodes_count++;
+        }
+      }
+
+      if ( $orders_with_barcodes_count === $selected_order_count ) {
+        break;
+      }
     }
 
     return $barcode_state;

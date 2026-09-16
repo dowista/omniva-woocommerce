@@ -209,7 +209,7 @@ $settings_script_class = wp_script_is('omnivalt_admin_settings_page', 'enqueued'
             <button type="button" class="omnivalt-settings-page__discard" data-settings-discard hidden>
               <?php esc_html_e('Discard', 'omnivalt'); ?>
             </button>
-            <button type="submit" name="save" class="woocommerce-save-button" value="<?php esc_attr_e('Save changes', 'omnivalt'); ?>" disabled>
+            <button type="submit" name="save" class="woocommerce-save-button" value="<?php esc_attr_e('Save changes', 'omnivalt'); ?>">
               <?php esc_html_e('Save settings', 'omnivalt'); ?>
             </button>
           </div>
