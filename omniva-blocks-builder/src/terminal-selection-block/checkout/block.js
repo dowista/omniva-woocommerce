@@ -735,10 +735,6 @@ export const Block = ({ checkoutExtensionData, extensions }) => {
     const isTerminalRate = isOmnivaTerminalMethod(selectedRateId);
     const hasPortalTarget = portalTarget && portalTarget.isConnected;
 
-    if ( isTerminalRate && ! hasPortalTarget ) {
-        return null;
-    }
-
     const blockContent = (
         <div className="omnivalt-container">
             <div className="omnivalt-general-errors">

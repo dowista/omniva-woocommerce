@@ -206,10 +206,16 @@ class OmnivaLt_Wc_Blocks
         // checkout request, so its cookie is newer than the saved session value.
         if ( ! empty($cookie_terminal_id) ) {
             $selected_terminal_id = $cookie_terminal_id;
-            WC()->session->set('omnivalt_terminal_id', $selected_terminal_id);
+            // The Store API callback can run before the WooCommerce session is initialized.
+            // @phpstan-ignore-next-line
+            if ( function_exists('WC') && isset(WC()->session) ) {
+                WC()->session->set('omnivalt_terminal_id', $selected_terminal_id);
+            }
         }
 
-        if ( empty($selected_terminal_id) ) {
+        // Keep the session fallback guarded for Store API requests without a session.
+        // @phpstan-ignore-next-line
+        if ( empty($selected_terminal_id) && function_exists('WC') && isset(WC()->session) ) {
             $selected_terminal_id = OmnivaLt_Wc::get_session('omnivalt_terminal_id');
         }
 
