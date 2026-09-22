@@ -1199,17 +1199,17 @@ jQuery(function($) {
         .attr('aria-label', textSettings.country_calling_code || '');
       var $number = $('<input type="tel" class="omnivalt-phone-input__number" inputmode="tel" autocomplete="tel-national">');
       var $dropdown = $('<div class="omnivalt-phone-input__dropdown" role="listbox"></div>').hide();
+      var storedInput = String(storedValue).replace(/[^\d+]/g, '');
 
       $.each(phoneSettings.countries, function(countryCode, countryData) {
         var prefix = '+' + countryData.dial_code;
-        if (storedValue.indexOf(prefix) === 0) {
+        if (storedInput.indexOf(prefix) === 0) {
           selectedCountry = countryCode;
-          storedValue = storedValue.substring(prefix.length);
           return false;
         }
       });
 
-      $number.val(storedValue.replace(/\D/g, '')).attr('placeholder', phoneSettings.placeholder).prop('required', false).removeAttr('required');
+      $number.val(storedInput).attr('placeholder', phoneSettings.placeholder).prop('required', false).removeAttr('required');
       $original.attr('type', 'hidden').prop('required', false).removeAttr('required').addClass('omnivalt-phone-input__value');
       $original.after($wrapper);
       $wrapper.append($country, $number, $dropdown);
@@ -1245,15 +1245,38 @@ jQuery(function($) {
 
       function syncPhone() {
         var countryData = phoneSettings.countries[selectedCountry];
-        var number = $number.val().replace(/\D/g, '').slice(0, countryData.max);
-        var isValid = !number || (number.length >= countryData.min && number.length <= countryData.max && (!isMobile || new RegExp(countryData.mobile).test(number)));
+        var rawValue = String($number.val() || '').trim();
+        var countryPrefix = '+' + countryData.dial_code;
+        var normalizedInput = rawValue.replace(/[^\d+]/g, '');
+        var hasInternationalPrefix = normalizedInput.indexOf(countryPrefix) === 0;
 
-        $number.val(number);
-        $number.attr('maxlength', countryData.max);
+        // Remove the country prefix from international input, but do not remove a
+        // national prefix from the remaining number in that case. For example,
+        // +3708... is invalid and must not be converted into a valid LT number.
+        if (hasInternationalPrefix) {
+          normalizedInput = normalizedInput.substring(countryPrefix.length);
+        }
+
+        var number = normalizedInput.replace(/\D/g, '');
+        var nationalPrefixes = countryData.national_prefixes || [];
+        if (!hasInternationalPrefix && number && nationalPrefixes.indexOf(number.charAt(0)) !== -1) {
+          number = number.substring(1);
+        }
+        var hasInvalidInternationalNationalPrefix = hasInternationalPrefix && number && nationalPrefixes.indexOf(number.charAt(0)) !== -1;
+        var isValid = !number || (!hasInvalidInternationalNationalPrefix && number.length >= countryData.min && number.length <= countryData.max && (!isMobile || new RegExp(countryData.mobile).test(number)));
+
+        $number.val(hasInternationalPrefix && !isValid ? rawValue : number);
+        $number.removeAttr('maxlength');
         $number[0].setCustomValidity(isValid ? '' : phoneSettings.invalid);
         $number.attr('aria-invalid', isValid ? 'false' : 'true');
         $wrapper.toggleClass('is-invalid', !isValid);
-        $original.val(number ? '+' + countryData.dial_code + number : '');
+        var normalizedValue = number ? '+' + countryData.dial_code + number : '';
+        if ($original.val() !== normalizedValue) {
+          // The hidden field is serialized with the settings form. Trigger the
+          // change event when syncPhone updates it programmatically so the save
+          // bar detects country-only changes as unsaved settings.
+          $original.val(normalizedValue).trigger('change');
+        }
       }
 
       $country.on('click', function() {
@@ -1281,16 +1304,9 @@ jQuery(function($) {
       var initialPhoneCountry = selectedCountry;
 
       $original.data('omnivaltPhoneReset', function() {
-        var countryData = phoneSettings.countries[initialPhoneCountry];
-        var number = initialPhoneValue;
-        var prefix = '+' + countryData.dial_code;
-
-        if (number.indexOf(prefix) === 0) {
-          number = number.substring(prefix.length);
-        }
-
+        var number = String(initialPhoneValue || '').replace(/[^\d+]/g, '');
         selectedCountry = initialPhoneCountry;
-        $number.val(number.replace(/\D/g, ''));
+        $number.val(number);
         renderCountryPicker();
         syncPhone();
       });

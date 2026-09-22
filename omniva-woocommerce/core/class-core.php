@@ -410,10 +410,10 @@ class OmnivaLt_Core
       'available_methods' => self::get_configs('available_methods'),
       'phone' => array(
         'countries' => array(
-          'LT' => array('name' => __('Lithuania', 'omnivalt'), 'dial_code' => '370', 'min' => 8, 'max' => 8, 'mobile' => '^6\\d{7}$'),
-          'LV' => array('name' => __('Latvia', 'omnivalt'), 'dial_code' => '371', 'min' => 8, 'max' => 8, 'mobile' => '^2\\d{7}$'),
-          'EE' => array('name' => __('Estonia', 'omnivalt'), 'dial_code' => '372', 'min' => 7, 'max' => 8, 'mobile' => '^(5|8)\\d{6,7}$'),
-          'FI' => array('name' => __('Finland', 'omnivalt'), 'dial_code' => '358', 'min' => 5, 'max' => 12, 'mobile' => '^(4|5)\\d{8}$'),
+          'LT' => array('name' => __('Lithuania', 'omnivalt'), 'dial_code' => '370', 'min' => 8, 'max' => 8, 'mobile' => '^6\\d{7}$', 'national_prefixes' => array('8', '0')),
+          'LV' => array('name' => __('Latvia', 'omnivalt'), 'dial_code' => '371', 'min' => 8, 'max' => 8, 'mobile' => '^2\\d{7}$', 'national_prefixes' => array()),
+          'EE' => array('name' => __('Estonia', 'omnivalt'), 'dial_code' => '372', 'min' => 7, 'max' => 8, 'mobile' => '^(5|8)\\d{6,7}$', 'national_prefixes' => array()),
+          'FI' => array('name' => __('Finland', 'omnivalt'), 'dial_code' => '358', 'min' => 5, 'max' => 12, 'mobile' => '^(4|5)\\d{8}$', 'national_prefixes' => array('0')),
         ),
         'placeholder' => __('Enter phone number', 'omnivalt'),
         'invalid' => __('Enter a valid phone number for the selected country.', 'omnivalt'),

@@ -557,10 +557,10 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
     private function normalize_sender_phone( $phone, $default_country, $mobile )
     {
       $countries = array(
-        'LT' => array('dial_code' => '370', 'phone' => '/^\d{8}$/'),
-        'LV' => array('dial_code' => '371', 'phone' => '/^\d{8}$/'),
-        'EE' => array('dial_code' => '372', 'phone' => '/^\d{7,8}$/'),
-        'FI' => array('dial_code' => '358', 'phone' => '/^\d{5,12}$/'),
+        'LT' => array('dial_code' => '370', 'phone' => '/^\d{8}$/', 'national_prefixes' => array('8', '0')),
+        'LV' => array('dial_code' => '371', 'phone' => '/^\d{8}$/', 'national_prefixes' => array()),
+        'EE' => array('dial_code' => '372', 'phone' => '/^\d{7,8}$/', 'national_prefixes' => array()),
+        'FI' => array('dial_code' => '358', 'phone' => '/^\d{5,12}$/', 'national_prefixes' => array('0')),
       );
       $phone = preg_replace('/[^\d+]/', '', $phone);
 
@@ -571,10 +571,12 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
 
       $country = strtoupper($default_country);
       $national_number = ltrim($phone, '+');
+      $has_international_prefix = strpos($phone, '+') === 0;
       foreach ( $countries as $country_code => $country_data ) {
         if ( strpos($phone, '+' . $country_data['dial_code']) === 0 ) {
           $country = $country_code;
           $national_number = substr($phone, strlen($country_data['dial_code']) + 1);
+          $has_international_prefix = true;
           break;
         }
       }
@@ -583,8 +585,16 @@ if ( ! class_exists('Omnivalt_Shipping_Method') ) {
         return false;
       }
 
-      // Accept legacy national prefixes before storing the canonical international value.
-      if ( ($country === 'LT' && (strpos($national_number, '8') === 0 || strpos($national_number, '0') === 0)) || ($country === 'FI' && strpos($national_number, '0') === 0) ) {
+      $national_prefixes = $countries[$country]['national_prefixes'];
+
+      // National prefixes are valid only in national input. If an international
+      // number contains one after its country code, reject it instead of silently
+      // converting a malformed number into a different number.
+      if ( $has_international_prefix && ! empty($national_number) && in_array($national_number[0], $national_prefixes, true) ) {
+        return false;
+      }
+
+      if ( ! $has_international_prefix && ! empty($national_number) && in_array($national_number[0], $national_prefixes, true) ) {
         $national_number = substr($national_number, 1);
       }
 
