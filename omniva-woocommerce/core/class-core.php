@@ -334,6 +334,7 @@ class OmnivaLt_Core
       ));
       wp_localize_script('omnivalt', 'omnivadata', array( //Old method (for dropdown)
         'ajax_url' => admin_url('admin-ajax.php'),
+        'add_terminal_nonce' => wp_create_nonce('omnivalt_add_terminal'),
         'omniva_plugin_url' => OMNIVALT_URL,
         'text_select_terminal' => __('Select terminal', 'omnivalt'),
         'text_select_post' => __('Select post office', 'omnivalt'),

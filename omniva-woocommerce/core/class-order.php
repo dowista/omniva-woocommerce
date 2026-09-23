@@ -232,7 +232,7 @@ class OmnivaLt_Order
   public static function validate_order($posted)
   {
     $packages = WC()->shipping->get_packages();
-    $chosen_methods = WC()->session->get('chosen_shipping_methods');
+    $chosen_methods = OmnivaLt_Wc::get_session('chosen_shipping_methods');
     if ( is_array($chosen_methods) && in_array('omnivalt', $chosen_methods) ) {
       foreach ( $packages as $i => $package ) {
         if ( $chosen_methods[$i] != 'omnivalt' ) {

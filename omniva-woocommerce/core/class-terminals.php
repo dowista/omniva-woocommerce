@@ -5,8 +5,15 @@ class OmnivaLt_Terminals
 
   public static function add_terminal_to_session()
   {
-    if (isset($_POST['terminal_id']) && is_numeric($_POST['terminal_id'])) {
-      WC()->session->set('omnivalt_terminal_id', $_POST['terminal_id']);
+    check_ajax_referer('omnivalt_add_terminal', 'nonce');
+
+    $terminal_id = '';
+    if ( isset($_POST['terminal_id']) && is_scalar($_POST['terminal_id']) ) {
+      $terminal_id = sanitize_text_field(wp_unslash((string) $_POST['terminal_id']));
+    }
+
+    if ( '' !== $terminal_id && ctype_digit($terminal_id) ) {
+      OmnivaLt_Wc::set_session('omnivalt_terminal_id', $terminal_id);
     }
     wp_die();
   }
@@ -15,9 +22,7 @@ class OmnivaLt_Terminals
   {
     check_ajax_referer('omnivalt_clear_terminal', 'nonce');
 
-    if ( function_exists('WC') && WC()->session ) {
-      WC()->session->set('omnivalt_terminal_id', '');
-    }
+    OmnivaLt_Wc::set_session('omnivalt_terminal_id', '');
 
     wp_send_json_success();
   }
