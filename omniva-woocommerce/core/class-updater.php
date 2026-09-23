@@ -25,7 +25,7 @@ class OmnivaLt_Updater
       }
       if ( ! empty($cached_update['version']) && array_key_exists('tag', $cached_update) && array_key_exists('changelog', $cached_update) ) {
 			$cached_package = isset($cached_update['package']) && is_string($cached_update['package']) ? $cached_update['package'] : '';
-			if ( array_key_exists('package', $cached_update) && false === strpos($cached_package, '/releases/latest/download/') ) {
+			if ( array_key_exists('package', $cached_update) && '' !== trim($cached_package) && false === strpos($cached_package, '/releases/latest/download/') ) {
 				return $cached_update;
 			}
 
@@ -55,25 +55,12 @@ class OmnivaLt_Updater
     $release_tag = (string) $response_data->tag_name;
     $release_notes = ( isset($response_data->body) && is_string($response_data->body) ) ? $response_data->body : '';
 
-    $package_url = '';
-		$asset_name = 'omniva-woocommerce.zip';
-    if ( '' !== $asset_name && isset($response_data->assets) && is_array($response_data->assets) ) {
-			foreach ( $response_data->assets as $asset ) {
-				$asset_name_value = '';
-				$asset_url         = '';
-				if ( is_object($asset) ) {
-					$asset_name_value = isset($asset->name) && is_string($asset->name) ? $asset->name : '';
-					$asset_url         = isset($asset->browser_download_url) && is_string($asset->browser_download_url) ? $asset->browser_download_url : '';
-				} elseif ( is_array($asset) ) {
-					$asset_name_value = isset($asset['name']) && is_string($asset['name']) ? $asset['name'] : '';
-					$asset_url         = isset($asset['browser_download_url']) && is_string($asset['browser_download_url']) ? $asset['browser_download_url'] : '';
-				}
-
-				if ( $asset_name === $asset_name_value && '' !== $asset_url ) {
-					$package_url = esc_url_raw($asset_url);
-					break;
-				}
-			}
+    $asset_name = isset($update_params['asset_name']) && is_string($update_params['asset_name']) ? trim($update_params['asset_name']) : '';
+    $assets = isset($response_data->assets) ? $response_data->assets : array();
+    $package_url = self::resolve_package_url($assets, $asset_name);
+    if ( '' === $package_url ) {
+      set_site_transient('omnivalt_latest_update', array('error' => true), HOUR_IN_SECONDS);
+      return false;
     }
 
 		$release_version = preg_replace('/^v/i', '', $release_tag);
@@ -131,14 +118,30 @@ class OmnivaLt_Updater
       $current_version = OMNIVALT_VERSION;
     }
 
+		$response = ( isset($transient->response) && is_array($transient->response) ) ? $transient->response : array();
+		$no_update = ( isset($transient->no_update) && is_array($transient->no_update) ) ? $transient->no_update : array();
 		$latest_update = self::get_latest_update();
 		if ( empty($latest_update) || ! isset($latest_update['version']) || ! is_string($latest_update['version']) || '' === trim($latest_update['version']) ) {
-			return $transient;
+			unset($response[$plugin_basename]);
+			$no_update[$plugin_basename] = self::get_no_update_plugin_data($plugin_basename, $current_version);
+			$transient_data = get_object_vars($transient);
+			$transient_data['response'] = $response;
+			$transient_data['no_update'] = $no_update;
+			return (object) $transient_data;
 		}
 
-    $response = ( isset($transient->response) && is_array($transient->response) ) ? $transient->response : array();
-    $no_update = ( isset($transient->no_update) && is_array($transient->no_update) ) ? $transient->no_update : array();
 		$has_update = version_compare($latest_update['version'], $current_version, '>');
+		$has_package = isset($latest_update['package']) && is_string($latest_update['package']) && '' !== trim($latest_update['package']);
+		$has_custom_changes = ! empty(self::get_custom_changes());
+
+		if ( $has_update && ! $has_package && ! $has_custom_changes ) {
+			unset($response[$plugin_basename]);
+			$no_update[$plugin_basename] = self::get_no_update_plugin_data($plugin_basename, $current_version);
+			$transient_data = get_object_vars($transient);
+			$transient_data['response'] = $response;
+			$transient_data['no_update'] = $no_update;
+			return (object) $transient_data;
+		}
 
 		if ( $has_update ) {
 			$update_info = self::enrich_update_info_with_github_metadata($latest_update);
@@ -157,7 +160,7 @@ class OmnivaLt_Updater
 				}
 			}
 
-			if ( ! empty(self::get_custom_changes()) ) {
+			if ( $has_custom_changes ) {
 				$plugin_update['package'] = '';
 			}
 
@@ -165,14 +168,7 @@ class OmnivaLt_Updater
       $response[$plugin_basename] = (object) $plugin_update;
     } else {
       unset($response[$plugin_basename]);
-      $no_update[$plugin_basename] = (object) array(
-        'id' => $plugin_basename,
-        'slug' => dirname($plugin_basename),
-        'plugin' => $plugin_basename,
-        'new_version' => $current_version,
-        'url' => isset($latest_update['url']) && is_string($latest_update['url']) ? $latest_update['url'] : '',
-        'package' => '',
-      );
+      $no_update[$plugin_basename] = self::get_no_update_plugin_data($plugin_basename, $current_version, $latest_update);
     }
 
     $transient_data = get_object_vars($transient);
@@ -180,6 +176,20 @@ class OmnivaLt_Updater
     $transient_data['no_update'] = $no_update;
 
     return (object) $transient_data;
+  }
+
+  private static function get_no_update_plugin_data( $plugin_basename, $current_version, $latest_update = array() )
+  {
+    $update_url = is_array($latest_update) && isset($latest_update['url']) && is_string($latest_update['url']) ? $latest_update['url'] : '';
+
+    return (object) array(
+      'id' => $plugin_basename,
+      'slug' => dirname($plugin_basename),
+      'plugin' => $plugin_basename,
+      'new_version' => $current_version,
+      'url' => $update_url,
+      'package' => '',
+    );
   }
 
   public static function disable_auto_update( $update, $item )
@@ -245,6 +255,12 @@ class OmnivaLt_Updater
     }
     if ( ! empty($update_info['wc_tested']) ) {
       $requirements_section .= '<p><strong>' . esc_html__('WC tested up to:', 'omnivalt') . '</strong> ' . esc_html($update_info['wc_tested']) . '</p>';
+
+      $wc_tested_version = is_string($update_info['wc_tested']) ? trim($update_info['wc_tested']) : '';
+      $wc_current_version = defined('WC_VERSION') ? WC_VERSION : '';
+      if ( '' !== $wc_tested_version && '' !== $wc_current_version && version_compare($wc_current_version, $wc_tested_version, '>') ) {
+        $requirements_section .= '<div class="notice notice-warning notice-alt"><p><strong>' . esc_html__('Warning:', 'omnivalt') . '</strong> ' . esc_html__('This plugin has not been tested with your current version of WooCommerce.', 'omnivalt') . '</p></div>';
+      }
     }
 
     $sections = array(
@@ -385,6 +401,43 @@ class OmnivaLt_Updater
 
     $plugin_basename = constant('OMNIVALT_BASENAME');
     return is_string($plugin_basename) ? $plugin_basename : '';
+  }
+
+  /**
+   * Resolve the configured installable release asset from the GitHub response.
+   *
+   * @param mixed  $assets       Release assets returned by GitHub.
+   * @param string $expected_name Expected installable asset filename.
+   * @return string
+   */
+  private static function resolve_package_url( $assets, $expected_name )
+  {
+    if ( ! is_array($assets) || ! is_string($expected_name) || '' === trim($expected_name) ) {
+      return '';
+    }
+
+    foreach ( $assets as $asset ) {
+      $asset_name = '';
+      $asset_url  = '';
+      if ( is_object($asset) ) {
+        $asset_name = isset($asset->name) && is_string($asset->name) ? $asset->name : '';
+        $asset_url  = isset($asset->browser_download_url) && is_string($asset->browser_download_url) ? $asset->browser_download_url : '';
+      } elseif ( is_array($asset) ) {
+        $asset_name = isset($asset['name']) && is_string($asset['name']) ? $asset['name'] : '';
+        $asset_url  = isset($asset['browser_download_url']) && is_string($asset['browser_download_url']) ? $asset['browser_download_url'] : '';
+      }
+
+      if ( $expected_name !== $asset_name || '' === $asset_url ) {
+        continue;
+      }
+
+      $package_url = esc_url_raw($asset_url);
+      if ( is_string($package_url) && '' !== trim($package_url) ) {
+        return $package_url;
+      }
+    }
+
+    return '';
   }
 
   private static function get_update_params()
