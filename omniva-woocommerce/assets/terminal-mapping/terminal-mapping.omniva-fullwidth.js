@@ -2568,7 +2568,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
         state.options,
         'sort_by_zip',
         null,
-        'Sort by distance from your ZIP'
+        'Sort by distance from your postcode'
       );
     }
 
@@ -2577,7 +2577,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
       state.options,
       'sorted_by_zip',
       null,
-      'Sorted by distance from your ZIP:'
+      'Sorted by distance from your postcode:'
     );
   }
 
@@ -2603,13 +2603,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
 
   function getOriginChangeLabel(tmjs, state, origin) {
     if (origin && origin.type === 'location') {
-      return getString(
-        tmjs,
-        state.options,
-        'use_zip',
-        null,
-        'Use ZIP'
-      );
+      return getString(tmjs, state.options, 'use_zip', null, 'Use postcode');
     }
 
     if (
@@ -2623,7 +2617,7 @@ window.OmnivaTerminalMapping = TerminalMapping;
         state.options,
         'enter_zip',
         null,
-        'Enter ZIP'
+        'Enter postcode'
       );
     }
 

@@ -2,9 +2,9 @@
 
 ## [1.21.0]
 ### Added
-- added a dedicated Omniva Shipping admin menu with separate Settings and Shippings pages
+- added a dedicated Omniva Shipping admin menu with separate Settings and Shipments pages
 - added a redesigned, tabbed settings interface for shipping methods, delivery countries, prices, sender information, order fulfilment and design options
-- added a full-width terminal map for classic and block-based Cart and Checkout pages with location search, geolocation and ZIP-based distance sorting
+- added a full-width terminal map for classic and block-based Cart and Checkout pages with location search, geolocation and postcode-based distance sorting
 - added country-aware sender phone controls and a custom pickup-window input in the admin settings
 
 ### Improved
