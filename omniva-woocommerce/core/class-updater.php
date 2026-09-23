@@ -3,8 +3,11 @@ defined('OMNIVALT_VERSION') or die();
 
 class OmnivaLt_Updater
 {
+  private static $using_last_known_update = false;
+
   public static function get_latest_update()
   {
+    self::$using_last_known_update = false;
     $update_params = self::get_update_params();
 
     if ( empty($update_params['check_url']) ) {
@@ -21,7 +24,7 @@ class OmnivaLt_Updater
     $cached_update = get_site_transient('omnivalt_latest_update');
     if ( is_array($cached_update) ) {
       if ( ! empty($cached_update['error']) ) {
-        return false;
+        return ! empty($cached_update['retryable']) ? self::get_last_known_update() : false;
       }
       if ( ! empty($cached_update['version']) && array_key_exists('tag', $cached_update) && array_key_exists('changelog', $cached_update) ) {
 			$cached_package = isset($cached_update['package']) && is_string($cached_update['package']) ? $cached_update['package'] : '';
@@ -41,15 +44,25 @@ class OmnivaLt_Updater
       ),
     ));
 
-    if ( is_wp_error($response) || 200 !== (int) wp_remote_retrieve_response_code($response) ) {
-      set_site_transient('omnivalt_latest_update', array('error' => true), HOUR_IN_SECONDS);
-      return false;
+    if ( is_wp_error($response) ) {
+      set_site_transient('omnivalt_latest_update', array('error' => true, 'retryable' => true), HOUR_IN_SECONDS);
+      return self::get_last_known_update();
+    }
+
+    $status = (int) wp_remote_retrieve_response_code($response);
+    if ( 200 !== $status ) {
+      $retryable = 0 === $status || 403 === $status || 408 === $status || 429 === $status || $status >= 500;
+      set_site_transient('omnivalt_latest_update', array('error' => true, 'retryable' => $retryable), HOUR_IN_SECONDS);
+      if ( ! $retryable ) {
+        delete_site_transient('omnivalt_last_known_update');
+      }
+      return $retryable ? self::get_last_known_update() : false;
     }
 
     $response_data = json_decode(wp_remote_retrieve_body($response));
     if ( ! is_object($response_data) || empty($response_data->tag_name) ) {
-      set_site_transient('omnivalt_latest_update', array('error' => true), HOUR_IN_SECONDS);
-      return false;
+      set_site_transient('omnivalt_latest_update', array('error' => true, 'retryable' => true), HOUR_IN_SECONDS);
+      return self::get_last_known_update();
     }
 
     $release_tag = (string) $response_data->tag_name;
@@ -60,6 +73,7 @@ class OmnivaLt_Updater
     $package_url = self::resolve_package_url($assets, $asset_name);
     if ( '' === $package_url ) {
       set_site_transient('omnivalt_latest_update', array('error' => true), HOUR_IN_SECONDS);
+      delete_site_transient('omnivalt_last_known_update');
       return false;
     }
 
@@ -78,8 +92,41 @@ class OmnivaLt_Updater
     );
 
     set_site_transient('omnivalt_latest_update', $latest_update, 12 * HOUR_IN_SECONDS);
+    set_site_transient('omnivalt_last_known_update', array('checked_at' => time(), 'update' => $latest_update), 48 * HOUR_IN_SECONDS);
 
     return $latest_update;
+  }
+
+  /**
+   * Use only a recent, previously verified release when GitHub is temporarily unavailable.
+   * A missing installable asset is not a temporary transport failure.
+   */
+  private static function get_last_known_update()
+  {
+    $cached = get_site_transient('omnivalt_last_known_update');
+    $params = self::get_update_params();
+    $asset_name = isset($params['asset_name']) && is_string($params['asset_name']) ? trim($params['asset_name']) : '';
+
+    if ( ! is_array($cached) || ! isset($cached['checked_at'], $cached['update']) || ! is_int($cached['checked_at']) || $cached['checked_at'] > time() || time() - $cached['checked_at'] >= 48 * HOUR_IN_SECONDS ) {
+      return false;
+    }
+
+    $update = $cached['update'];
+    if ( ! is_array($update) || ! isset($update['tag'], $update['version'], $update['url'], $update['package'], $update['changelog']) || '' === $asset_name ) {
+      return false;
+    }
+
+    if ( ! is_string($update['tag']) || ! is_string($update['version']) || '' === trim($update['version']) || ! is_string($update['url']) || ! is_string($update['package']) || '' === trim($update['package']) || ! is_string($update['changelog']) ) {
+      return false;
+    }
+
+    $package_path = wp_parse_url($update['package'], PHP_URL_PATH);
+    if ( 'https' !== wp_parse_url($update['package'], PHP_URL_SCHEME) || 'github.com' !== wp_parse_url($update['package'], PHP_URL_HOST) || ! is_string($package_path) || $asset_name !== basename($package_path) ) {
+      return false;
+    }
+
+    self::$using_last_known_update = true;
+    return $update;
   }
 
   public static function check_update( $current_version = '' )
@@ -106,7 +153,7 @@ class OmnivaLt_Updater
   {
     $plugin_basename = self::get_plugin_basename();
 
-		if ( '' === $plugin_basename || ( ! is_admin() && ! wp_doing_cron() ) || ! is_object($transient) ) {
+		if ( '' === $plugin_basename || ! is_object($transient) ) {
       return $transient;
     }
 
@@ -230,6 +277,7 @@ class OmnivaLt_Updater
 
     if ( in_array($plugin_basename, $plugins, true) ) {
       delete_site_transient('omnivalt_latest_update');
+      delete_site_transient('omnivalt_last_known_update');
     }
   }
 
@@ -328,7 +376,19 @@ class OmnivaLt_Updater
       isset($update_params['check_url']) ? $update_params['check_url'] : ''
     );
     $update_info = array_merge($update_info, $github_metadata);
-    set_site_transient('omnivalt_latest_update', $update_info, 12 * HOUR_IN_SECONDS);
+    // Enriching a fallback must not turn an API error into a fresh 12-hour release check.
+    if ( ! self::$using_last_known_update ) {
+      set_site_transient('omnivalt_latest_update', $update_info, 12 * HOUR_IN_SECONDS);
+    }
+
+    $last_known = get_site_transient('omnivalt_last_known_update');
+    if ( is_array($last_known) && isset($last_known['checked_at'], $last_known['update']) && is_int($last_known['checked_at']) && $last_known['checked_at'] <= time() && is_array($last_known['update']) && isset($last_known['update']['tag'], $last_known['update']['package']) && $last_known['update']['tag'] === $update_info['tag'] && $last_known['update']['package'] === $update_info['package'] ) {
+      $remaining = 48 * HOUR_IN_SECONDS - ( time() - $last_known['checked_at'] );
+      if ( $remaining > 0 ) {
+        $last_known['update'] = $update_info;
+        set_site_transient('omnivalt_last_known_update', $last_known, $remaining);
+      }
+    }
 
     return $update_info;
   }
