@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.0]
+### Added
+- added OMX shipment tracking to the Shipments page, with status badges, latest-event details and shipment event history
+- added automatic background synchronization and a manual update action limited to once per minute
+- added warnings when shipment tracking synchronization has been failing for 24 hours or when more than 30 days have passed since the last successful sync
+- added tracking support for recently registered shipments and kept tracking linked to orders when address cards are regenerated
+
 ## [1.21.0]
 ### Added
 - added native WordPress plugin update support

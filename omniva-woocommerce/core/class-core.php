@@ -9,6 +9,8 @@ class OmnivaLt_Core
     self::load_classes();
     self::load_pre_init_hooks();
     OmnivaLt_Cronjob::register_activation_hooks();
+    register_activation_hook(self::$main_file_path, array('OmnivaLt_Tracking_Sync', 'ensure_scheduled'));
+    register_deactivation_hook(self::$main_file_path, array('OmnivaLt_Tracking_Sync', 'deactivate'));
 
     add_action('init', function() {
       if ( ! self::allow_activate_plugin() ) {
@@ -473,6 +475,9 @@ class OmnivaLt_Core
     require_once $core_dir . 'api/' . 'class-api-omx-international.php';
     require_once $core_dir . 'class-product.php';
     require_once $core_dir . 'class-cronjob.php';
+    require_once $core_dir . 'class-tracking-storage.php';
+    require_once $core_dir . 'class-tracking-sync.php';
+    require_once $core_dir . 'api/class-api-omx-tracking.php';
     require_once $core_dir . 'class-terminals.php';
     require_once $core_dir . 'class-manifest.php';
     require_once $core_dir . 'admin/' . 'class-admin-page-assets.php';
@@ -555,6 +560,16 @@ class OmnivaLt_Core
 
   private static function load_launch_hooks()
   {
+    add_action('action_scheduler_before_process_queue', array('OmnivaLt_Tracking_Sync', 'initialize_schedule'));
+    add_action(OmnivaLt_Tracking_Sync::HOOK, array('OmnivaLt_Tracking_Sync', 'run'));
+    add_action(OmnivaLt_Tracking_Sync::LINKS_HOOK, array('OmnivaLt_Tracking_Sync', 'fill_links'));
+    add_filter('posts_where', array('OmnivaLt_Tracking_Sync', 'fill_links_cpt_where'), 10, 2);
+    add_action(OmnivaLt_Tracking_Sync::RETRY_ORDER_HOOK, array('OmnivaLt_Tracking_Sync', 'retry_order_links'), 10, 4);
+    add_action('add_option_woocommerce_omnivalt_settings', array('OmnivaLt_Tracking_Sync', 'ensure_scheduled'), 10, 0);
+    add_action('update_option_woocommerce_omnivalt_settings', array('OmnivaLt_Tracking_Sync', 'ensure_scheduled'), 10, 0);
+    add_action('wp_ajax_omnivalt_tracking', array('OmnivaLt_Manifest_Page', 'tracking_request'));
+    add_action('woocommerce_delete_order', array('OmnivaLt_Tracking_Sync', 'delete_order'));
+    add_action('deleted_post', array('OmnivaLt_Tracking_Sync', 'delete_legacy_order'), 10, 2);
     add_action('wp_enqueue_scripts', array('OmnivaLt_Core', 'load_front_scripts'), 99);
     add_action('omniva_admin_manifest_head', array('OmnivaLt_Manifest', 'load_admin_scripts'));
     add_action('admin_enqueue_scripts', array('OmnivaLt_Core', 'load_admin_global_scripts'));

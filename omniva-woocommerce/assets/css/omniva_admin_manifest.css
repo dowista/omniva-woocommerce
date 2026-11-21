@@ -2305,3 +2305,506 @@ body[class*='_page_omniva-manifest'] #wpbody-content {
     width: 100%;
   }
 }
+
+.page-omniva_manifest .omnivalt-manifest-page__header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.page-omniva_manifest .omnivalt-tracking-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  margin: 0;
+}
+.page-omniva_manifest .omnivalt-tracking-notices {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.page-omniva_manifest .omnivalt-tracking-notices:empty {
+  display: none;
+}
+.page-omniva_manifest .omnivalt-tracking-notice {
+  margin: 0;
+  border-radius: 6px;
+  box-shadow: none;
+}
+.page-omniva_manifest .omnivalt-tracking-notice p {
+  margin: 8px 12px;
+}
+.page-omniva_manifest .omnivalt-manifest-page__action-label--compact,
+.page-omniva_manifest .omnivalt-tracking-sync-label--compact {
+  display: none;
+}
+.page-omniva_manifest #omnivalt-tracking-sync {
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  max-width: 100%;
+  padding: 6px 14px;
+  line-height: 1.2;
+  white-space: normal;
+}
+.page-omniva_manifest #omnivalt-tracking-sync[aria-disabled='true'] {
+  border-color: #d7d7d7;
+  background: #ececec;
+  color: #888;
+  cursor: not-allowed;
+}
+.page-omniva_manifest
+  #omnivalt-tracking-sync[aria-disabled='true']:focus-visible {
+  outline: 2px solid var(--omniva-manifest-ink);
+  outline-offset: 2px;
+}
+.page-omniva_manifest .omnivalt-tracking-sync-label {
+  font-size: 14px;
+  line-height: 1.2;
+}
+.page-omniva_manifest #omnivalt-tracking-updated {
+  color: var(--omniva-manifest-muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
+}
+
+@media only screen and (max-width: 782px) {
+  .page-omniva_manifest
+    .omnivalt-manifest-page__header
+    > .omnivalt-manifest-page__header-actions {
+    order: 2;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+  .page-omniva_manifest
+    .omnivalt-manifest-page__header-actions
+    > .omnivalt-manifest-page__courier-action {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    padding-right: 8px;
+    padding-left: 8px;
+    white-space: nowrap;
+  }
+  .page-omniva_manifest .omnivalt-tracking-controls {
+    flex: 1 1 0;
+    align-items: stretch;
+    min-width: 0;
+    width: auto;
+  }
+  .page-omniva_manifest .omnivalt-tracking-sync-label,
+  .page-omniva_manifest #omnivalt-tracking-updated {
+    width: 100%;
+  }
+  .page-omniva_manifest
+    .omnivalt-manifest-page__header-actions
+    > .omnivalt-manifest-page__courier-action,
+  .page-omniva_manifest .omnivalt-tracking-sync-label,
+  .page-omniva_manifest #omnivalt-tracking-sync {
+    font-size: 13px;
+  }
+  .page-omniva_manifest .omnivalt-manifest-page__action-label--full,
+  .page-omniva_manifest .omnivalt-tracking-sync-label--full {
+    display: none;
+  }
+  .page-omniva_manifest .omnivalt-manifest-page__action-label--compact,
+  .page-omniva_manifest .omnivalt-tracking-sync-label--compact {
+    display: inline;
+  }
+  .page-omniva_manifest #omnivalt-tracking-sync {
+    width: 100%;
+    min-width: 0;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+  .page-omniva_manifest #omnivalt-tracking-updated {
+    font-size: 10px;
+  }
+  .page-omniva_manifest .omnivalt-tracking-notices {
+    margin-bottom: 14px;
+  }
+}
+body.omnivalt-tracking-open {
+  overflow: hidden;
+}
+.page-omniva_manifest .omnivalt-tracking-slot {
+  display: block;
+  margin: 6px 0 10px;
+}
+.page-omniva_manifest .omnivalt-tracking-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 28px;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--omniva-manifest-line);
+  border-radius: 999px;
+  background: #e5e5e5;
+  color: var(--omniva-manifest-muted);
+  font:
+    600 12px/1 'TT Wellingtons',
+    sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.page-omniva_manifest .omnivalt-tracking-status--processing,
+.page-omniva_manifest .omnivalt-tracking-status--parcel_machine {
+  background: #ffbc01;
+  color: var(--omniva-manifest-ink);
+}
+.page-omniva_manifest .omnivalt-tracking-status--delivered,
+.page-omniva_manifest .omnivalt-tracking-status--returned {
+  background: var(--omniva-manifest-green);
+  border-color: var(--omniva-manifest-green);
+  color: #fff;
+}
+.page-omniva_manifest .omnivalt-tracking-status--post_office {
+  background: var(--omniva-manifest-accent);
+  border-color: var(--omniva-manifest-accent);
+  color: var(--omniva-manifest-ink);
+}
+.page-omniva_manifest .omnivalt-tracking-status--pickup,
+.page-omniva_manifest .omnivalt-tracking-status--returning {
+  border-color: var(--omniva-manifest-accent);
+  background: #fff1e6;
+  color: #713400;
+}
+.page-omniva_manifest .omnivalt-tracking-status:hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.page-omniva_manifest .omnivalt-tracking-status--delivered:hover,
+.page-omniva_manifest .omnivalt-tracking-status--returned:hover {
+  box-shadow: none;
+}
+.page-omniva_manifest .omnivalt-tracking-status:focus-visible {
+  outline: 2px solid var(--omniva-manifest-accent);
+  outline-offset: 3px;
+}
+.page-omniva_manifest .omnivalt-tracking-dialog {
+  --tracking-color: #484848;
+  --tracking-badge-bg: #eee;
+  --tracking-badge-ink: var(--omniva-manifest-ink);
+  box-sizing: border-box;
+  width: min(700px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog:is(
+    [data-status='processing'],
+    [data-status='parcel_machine']
+  ) {
+  --tracking-color: #ffbc01;
+  --tracking-badge-bg: #fff4cf;
+}
+.page-omniva_manifest .omnivalt-tracking-dialog[data-status='post_office'] {
+  --tracking-color: var(--omniva-manifest-accent);
+  --tracking-badge-bg: var(--omniva-manifest-accent);
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog:is(
+    [data-status='returning'],
+    [data-status='pickup']
+  ) {
+  --tracking-color: var(--omniva-manifest-accent);
+  --tracking-badge-bg: #fff1e6;
+  --tracking-badge-ink: #713400;
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog:is(
+    [data-status='delivered'],
+    [data-status='returned']
+  ) {
+  --tracking-color: var(--omniva-manifest-green);
+  --tracking-badge-bg: #eef8ef;
+  --tracking-badge-ink: var(--omniva-manifest-green);
+}
+.page-omniva_manifest .omnivalt-tracking-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+.page-omniva_manifest .omnivalt-tracking-barcode {
+  margin: 0;
+  font-size: clamp(18px, 4vw, 26px);
+  overflow-wrap: anywhere;
+}
+.page-omniva_manifest .omnivalt-tracking-summary {
+  padding: 4px 15px;
+  border: 1px solid var(--tracking-color);
+  border-radius: 999px;
+  background: var(--tracking-badge-bg);
+  color: var(--tracking-badge-ink);
+  font-weight: 600;
+}
+.page-omniva_manifest .omnivalt-tracking-progress {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 5px;
+}
+.page-omniva_manifest .omnivalt-tracking-progress > span {
+  background: #bcbcbc;
+}
+.page-omniva_manifest .omnivalt-tracking-progress > .is-filled {
+  background: var(--tracking-color);
+}
+.page-omniva_manifest .omnivalt-tracking-destination {
+  font-size: 14px;
+  margin-top: 24px;
+}
+.page-omniva_manifest .omnivalt-tracking-destination-label {
+  color: var(--omniva-manifest-muted);
+  font-size: 12px;
+}
+.page-omniva_manifest .omnivalt-tracking-destination-value {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  align-items: end;
+}
+.page-omniva_manifest .omnivalt-tracking-history-title {
+  margin: 34px 0 12px;
+  font-size: 21px;
+}
+.page-omniva_manifest .omnivalt-tracking-events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+.page-omniva_manifest .omnivalt-tracking-events li {
+  position: relative;
+  margin: 0;
+  padding: 0 0 8px 30px;
+  font-size: 16px;
+}
+.page-omniva_manifest .omnivalt-tracking-events li:not(:last-child)::after {
+  position: absolute;
+  top: 20px;
+  bottom: 3px;
+  left: 9px;
+  border-left: 1px solid #a1a1a1;
+  content: '';
+}
+.page-omniva_manifest .omnivalt-tracking-event-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 16px;
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog:is(
+    [data-status='delivered'],
+    [data-status='returned']
+  )
+  .omnivalt-tracking-events
+  li:first-child
+  .omnivalt-tracking-event-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--omniva-manifest-green);
+  color: #fff;
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog:is(
+    [data-status='delivered'],
+    [data-status='returned']
+  )
+  .omnivalt-tracking-events
+  li:first-child
+  .omnivalt-tracking-event-marker::before {
+  display: block;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+.page-omniva_manifest
+  .omnivalt-tracking-events
+  li:first-child
+  .omnivalt-tracking-event-marker {
+  color: var(--tracking-badge-ink);
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog[data-status='cancelled']
+  .omnivalt-tracking-events
+  li:first-child
+  .omnivalt-tracking-event-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  color: var(--tracking-color);
+}
+.page-omniva_manifest
+  .omnivalt-tracking-dialog[data-status='cancelled']
+  .omnivalt-tracking-events
+  li:first-child
+  .omnivalt-tracking-event-marker::before {
+  display: block;
+  width: 24px;
+  height: 20px;
+  content: '\f335';
+  font-family: dashicons;
+  font-size: 24px;
+  line-height: 20px;
+  text-align: center;
+}
+.page-omniva_manifest .omnivalt-tracking-events li.is-current::after {
+  border-color: var(--omniva-manifest-accent);
+}
+.page-omniva_manifest
+  .omnivalt-tracking-events
+  li.is-current
+  .omnivalt-tracking-event-marker {
+  color: var(--omniva-manifest-accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .page-omniva_manifest
+    .omnivalt-tracking-events
+    li.is-current
+    .omnivalt-tracking-event-marker {
+    animation: omnivalt-tracking-marker-pulse 1.6s ease-in-out infinite
+      alternate;
+  }
+}
+@keyframes omnivalt-tracking-marker-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+.page-omniva_manifest .omnivalt-tracking-events li > div {
+  margin-top: 3px;
+  color: var(--omniva-manifest-muted);
+  font-size: 12px;
+}
+.page-omniva_manifest
+  .omnivalt-tracking-events
+  li
+  > .omnivalt-tracking-event-name {
+  font-size: 14px;
+}
+.omnivalt-manifest-page__floating-tooltip {
+  white-space: pre-line;
+}
+.omnivalt-manifest-page__floating-tooltip--tracking {
+  max-width: min(320px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 13px 16px;
+  border: 1px solid rgba(45, 45, 45, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(29, 35, 39, 0.14);
+  color: #2d2d2d;
+  text-align: left;
+}
+
+.omnivalt-manifest-page__floating-tooltip--tracking::after {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -5px;
+  border-right: 1px solid rgba(45, 45, 45, 0.18);
+  border-bottom: 1px solid rgba(45, 45, 45, 0.18);
+  background: #fff;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.omnivalt-manifest-page__floating-tooltip--tracking.omnivalt-manifest-page__floating-tooltip--below::after {
+  top: -5px;
+  bottom: auto;
+  border: 0;
+  border-top: 1px solid rgba(45, 45, 45, 0.18);
+  border-left: 1px solid rgba(45, 45, 45, 0.18);
+}
+
+.omnivalt-manifest-page__tracking-tooltip-timeline {
+  position: relative;
+  padding-left: 18px;
+}
+
+.omnivalt-manifest-page__tracking-tooltip-timeline::before {
+  position: absolute;
+  top: 8px;
+  bottom: 3px;
+  left: 3px;
+  width: 1px;
+  background: rgba(45, 45, 45, 0.22);
+  content: '';
+}
+
+.omnivalt-manifest-page__tracking-tooltip-timeline::after {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff6600;
+  content: '';
+}
+
+.omnivalt-manifest-page__tracking-tooltip-event {
+  color: #2d2d2d;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.omnivalt-manifest-page__tracking-tooltip-date,
+.omnivalt-manifest-page__tracking-tooltip-location {
+  color: #4f4f4f;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.omnivalt-manifest-page__tracking-tooltip-date {
+  margin-top: 5px;
+}
+.omnivalt-manifest-page__tracking-tooltip-location {
+  margin-top: 5px;
+}
+.omnivalt-manifest-page__tracking-tooltip-warning {
+  margin-top: 7px;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#omnivalt-manifest-root,
+#omnivalt-manifest-root *,
+#omnivalt-manifest-root *::before,
+#omnivalt-manifest-root *::after,
+.omnivalt-manifest-page__floating-tooltip {
+  font-feature-settings: 'lnum';
+  font-variant-numeric: lining-nums;
+}

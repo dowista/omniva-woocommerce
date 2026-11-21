@@ -71,12 +71,10 @@ class OmnivaLt_Labels
         continue;
       }
 
-      if ( $regenerate ) {
-        OmnivaLt_Omniva_Order::set_barcodes($order->id, '');
-        $barcodes = array();
-      }
-
-      if ( empty($barcodes) ) {
+      if ( $needs_generation ) {
+        if ( $regenerate ) {
+          OmnivaLt_Omniva_Order::set_barcodes($order->id, '');
+        }
         $barcodes = $this->register_label($order);
       }
 
@@ -198,7 +196,14 @@ class OmnivaLt_Labels
 
     if ( isset($status['status']) && $status['status'] === true ) {
       $barcodes = $status['barcodes'];
-      OmnivaLt_Omniva_Order::set_barcodes($order->id, $barcodes);
+      $saved = OmnivaLt_Omniva_Order::set_barcodes($order->id, $barcodes);
+      try {
+        if ( $saved ) {
+          OmnivaLt_Tracking_Sync::registered($order->id, $barcodes);
+        }
+      } catch ( \Throwable $e ) {
+        // A tracking queue failure cannot undo the shipment registration.
+      }
       OmnivaLt_Wc_Order::add_note($order->id, '<b>Omniva:</b> ' . __('Registered address cards', 'omnivalt') . ":\n" . implode(', ', $barcodes));
 
       $change_order_status = (isset($this->omnivalt_settings['status_created_label'])) ? $this->omnivalt_settings['status_created_label'] : '';

@@ -5,6 +5,10 @@ if ( ! defined('ABSPATH') ) {
 
 $page_data = isset($page_data) && is_array($page_data) ? $page_data : array();
 $shipping_settings = isset($page_data['shipping_settings']) ? $page_data['shipping_settings'] : false;
+$show_tracking_controls = ! empty($page_data['show_tracking_controls']);
+$tracking_status = isset($page_data['tracking_status']) && is_array($page_data['tracking_status']) ? $page_data['tracking_status'] : array();
+$tracking_rows = $page_data['tracking_rows'] ?? array();
+$order_details = $page_data['order_details'] ?? array();
 $configs = isset($page_data['configs']) && is_array($page_data['configs']) ? $page_data['configs'] : array();
 $page_params = isset($page_data['page_params']) && is_array($page_data['page_params']) ? $page_data['page_params'] : array();
 $orders_data = isset($page_data['orders_data']) && is_array($page_data['orders_data']) ? $page_data['orders_data'] : array();
@@ -59,15 +63,37 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
         <p><?php esc_html_e('Manage Omniva shipments, address cards and courier collection in one place.', 'omnivalt'); ?></p>
       </div>
       <?php if ( $shipping_settings ) : ?>
-        <button id="omniva-call-btn" class="button omnivalt-manifest-page__courier-action" type="button">
-          <svg class="omnivalt-manifest-page__truck-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h11v11H3V5zm12 4h3l3 3v4h-2a2 2 0 0 1-4 0h-1V9zm2 2v3h2.5L18 11h-1zm-10 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" fill="currentColor" /></svg>
-          <?php esc_html_e('Call Omniva courier', 'omnivalt'); ?>
-        </button>
+        <div class="omnivalt-manifest-page__header-actions">
+          <button id="omniva-call-btn" class="button omnivalt-manifest-page__courier-action" type="button">
+            <svg class="omnivalt-manifest-page__truck-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h11v11H3V5zm12 4h3l3 3v4h-2a2 2 0 0 1-4 0h-1V9zm2 2v3h2.5L18 11h-1zm-10 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm10 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" fill="currentColor" /></svg>
+            <span class="omnivalt-manifest-page__action-label--full"><?php esc_html_e('Call Omniva courier', 'omnivalt'); ?></span>
+            <span class="omnivalt-manifest-page__action-label--compact"><?php esc_html_e('Call courier', 'omnivalt'); ?></span>
+          </button>
+          <?php if ( $show_tracking_controls ) : ?>
+            <?php $tracking_cooldown = $tracking_status['retry_after'] > 0; ?>
+            <div class="omnivalt-tracking-controls">
+              <button type="button" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--secondary" id="omnivalt-tracking-sync" aria-label="<?php esc_attr_e('Update shipment statuses', 'omnivalt'); ?>" data-retry-after="<?php echo esc_attr($tracking_status['retry_after']); ?>" data-tooltip="<?php esc_attr_e('Shipment statuses can be updated once per minute.', 'omnivalt'); ?>" <?php disabled($tracking_status['preparing']); ?><?php if ( $tracking_status['preparing'] ) : ?> data-tracking-preparing="true"<?php endif; ?><?php if ( $tracking_cooldown ) : ?> aria-disabled="true" aria-describedby="omnivalt-tracking-cooldown-help"<?php endif; ?>>
+                <span class="omnivalt-tracking-sync-label omnivalt-tracking-sync-label--full"><?php esc_html_e('Update shipment statuses', 'omnivalt'); ?></span>
+                <span class="omnivalt-tracking-sync-label omnivalt-tracking-sync-label--compact"><?php esc_html_e('Update statuses', 'omnivalt'); ?></span>
+                <span id="omnivalt-tracking-updated" role="status"><?php echo esc_html($tracking_status['label']); ?></span>
+              </button>
+              <span id="omnivalt-tracking-cooldown-help" class="screen-reader-text"><?php esc_html_e('Shipment statuses can be updated once per minute.', 'omnivalt'); ?></span>
+            </div>
+          <?php endif; ?>
+        </div>
       <?php endif; ?>
     </header>
   <?php if ( ! $shipping_settings ) : ?>
     <?php echo wp_kses_post( OmnivaLt_Helper::build_notice( sprintf( esc_html__('Please configure the plugin on %s.', 'omnivalt'), '<a href="' . esc_url( OmnivaLt_Settings_Page::get_page_url() ) . '">' . esc_html__('Omniva settings page', 'omnivalt') . '</a>' ), 'error', 'Omniva' ) ); ?>
   <?php else : ?>
+      <?php if ( $show_tracking_controls ) : ?>
+        <div class="omnivalt-tracking-notices"><?php
+          if ( $tracking_status['error'] ) : ?><div class="notice notice-warning omnivalt-tracking-notice omnivalt-tracking-failure"><p><?php esc_html_e('Shipment status synchronization has been failing for more than 24 hours.', 'omnivalt'); ?></p><?php
+            if ( ! empty($tracking_status['failure_message']) ) : ?><p><?php echo esc_html($tracking_status['failure_message']); ?></p><?php endif;
+          ?></div><?php endif;
+          if ( $tracking_status['gap'] ) : ?><div class="notice notice-warning omnivalt-tracking-notice omnivalt-tracking-gap" data-gap-id="<?php echo esc_attr($tracking_status['gap_id']); ?>"><p><?php esc_html_e('Shipment tracking was not synchronized for more than 30 days. Some historical events may be missing.', 'omnivalt'); ?> <button type="button" class="button-link omnivalt-tracking-dismiss"><?php esc_html_e('Dismiss', 'omnivalt'); ?></button></p></div><?php endif;
+        ?></div>
+      <?php endif; ?>
       <?php if ( ! empty($current_courier_calls) ) : ?>
         <section class="call-courier-container omnivalt-manifest-page__scheduled-card">
           <div class="omnivalt-manifest-page__scheduled-heading">
@@ -244,7 +270,7 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
               <?php $date_tracker = false; ?>
               <?php foreach ( $orders_data['orders'] as $order ) : ?>
                 <?php
-                $order_data = OmnivaLt_Wc_Order::get_data($order->get_id());
+                $order_data = $order_details[$order->get_id()];
                 $barcodes = $order_data->omniva->barcodes;
                 $order_has_barcodes = false;
                 if ( is_array($barcodes) ) {
@@ -347,6 +373,9 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
                       <?php if ( ! empty($barcodes) ) : ?>
                         <?php foreach ( $barcodes as $barcode ) : ?>
                           <?php do_action('print_omniva_tracking_url', $barcode, $shipping_settings['shop_countrycode']); ?>
+                          <?php if ( $show_tracking_controls && is_string($barcode) ) : ?>
+                            <?php OmnivaLt_Manifest_Page::tracking_button($order_data->id, $barcode, $tracking_rows[$barcode] ?? null); ?>
+                          <?php endif; ?>
                         <?php endforeach; ?>
                       <?php endif; ?>
                       <?php $error = $order_data->omniva->error; ?>
