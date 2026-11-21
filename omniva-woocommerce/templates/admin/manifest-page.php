@@ -12,6 +12,8 @@ $order_details = $page_data['order_details'] ?? array();
 $configs = isset($page_data['configs']) && is_array($page_data['configs']) ? $page_data['configs'] : array();
 $page_params = isset($page_data['page_params']) && is_array($page_data['page_params']) ? $page_data['page_params'] : array();
 $orders_data = isset($page_data['orders_data']) && is_array($page_data['orders_data']) ? $page_data['orders_data'] : array();
+$date_errors = $orders_data['date_errors'] ?? array();
+$shipment_status_error = ! empty($orders_data['shipment_status_error']);
 $selected_orders = isset($page_data['selected_orders']) && is_array($page_data['selected_orders']) ? $page_data['selected_orders'] : array();
 $selected_order_has_barcodes = isset($page_data['selected_order_has_barcodes']) && is_array($page_data['selected_order_has_barcodes']) ? $page_data['selected_order_has_barcodes'] : array();
 $sender_info_complete = ! empty($page_data['sender_info_complete']);
@@ -59,7 +61,7 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
           <span aria-hidden="true">/</span>
           <span><?php esc_html_e('Omniva', 'omnivalt'); ?></span>
         </div>
-        <h1><?php esc_html_e('Omniva delivery', 'omnivalt'); ?></h1>
+        <h1><?php esc_html_e('Omniva Shipments', 'omnivalt'); ?></h1>
         <p><?php esc_html_e('Manage Omniva shipments, address cards and courier collection in one place.', 'omnivalt'); ?></p>
       </div>
       <?php if ( $shipping_settings ) : ?>
@@ -75,7 +77,7 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
               <button type="button" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--secondary" id="omnivalt-tracking-sync" aria-label="<?php esc_attr_e('Update shipment statuses', 'omnivalt'); ?>" data-retry-after="<?php echo esc_attr($tracking_status['retry_after']); ?>" data-tooltip="<?php esc_attr_e('Shipment statuses can be updated once per minute.', 'omnivalt'); ?>" <?php disabled($tracking_status['preparing']); ?><?php if ( $tracking_status['preparing'] ) : ?> data-tracking-preparing="true"<?php endif; ?><?php if ( $tracking_cooldown ) : ?> aria-disabled="true" aria-describedby="omnivalt-tracking-cooldown-help"<?php endif; ?>>
                 <span class="omnivalt-tracking-sync-label omnivalt-tracking-sync-label--full"><?php esc_html_e('Update shipment statuses', 'omnivalt'); ?></span>
                 <span class="omnivalt-tracking-sync-label omnivalt-tracking-sync-label--compact"><?php esc_html_e('Update statuses', 'omnivalt'); ?></span>
-                <span id="omnivalt-tracking-updated" role="status"><?php echo esc_html($tracking_status['label']); ?></span>
+                <span id="omnivalt-tracking-updated" role="status" data-last-success="<?php echo esc_attr($tracking_status['last_success']); ?>"><?php echo esc_html($tracking_status['label']); ?></span>
               </button>
               <span id="omnivalt-tracking-cooldown-help" class="screen-reader-text"><?php esc_html_e('Shipment statuses can be updated once per minute.', 'omnivalt'); ?></span>
             </div>
@@ -205,8 +207,8 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
 
       <section class="table-container omnivalt-manifest-page__orders-card">
         <?php $row_label_action_forms = array(); ?>
-        <form id="filter-form" class="" action="<?php echo esc_url(OmnivaLt_Manifest::page_make_link(array('action' => $orders_data['action']))); ?>" method="POST">
-          <?php wp_nonce_field('omnivalt_labels', 'omnivalt_labels_nonce'); ?>
+        <?php $filter_url = OmnivaLt_Manifest::page_make_link('all_orders' === $orders_data['action'] ? array() : array('action' => $orders_data['action'])); ?>
+        <form id="filter-form" class="" action="<?php echo esc_url($filter_url); ?>" method="POST">
           <div id="omnivalt-manifest-page__filters" class="omnivalt-manifest-page__filters" role="dialog" aria-label="<?php esc_attr_e('Filters', 'omnivalt'); ?>">
             <button id="omnivalt-manifest-page__filter-close" type="button" class="omnivalt-manifest-page__filter-close" aria-label="<?php esc_attr_e('Close filters', 'omnivalt'); ?>">
               <span class="dashicons dashicons-no-alt" aria-hidden="true"></span>
@@ -232,18 +234,40 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
                 <?php endforeach; ?>
               </select>
             </div>
+            <div class="omnivalt-manifest-page__filter-field">
+              <label for="filter_shipment_status"><?php esc_html_e('Shipment Status', 'omnivalt'); ?></label>
+              <select name="filter_shipment_status" id="filter_shipment_status">
+                <option value="-1"><?php echo esc_html(_x('All', 'All status', 'omnivalt')); ?></option>
+                <?php foreach ( OmnivaLt_Manifest_Page::tracking_labels() as $status_key => $status ) : ?>
+                  <option value="<?php echo esc_attr($status_key); ?>" <?php selected($status_key, $orders_data['filters']['shipment_status']); ?>><?php echo esc_html($status); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
             <?php if ($manifest_enabled) : ?>
               <div class="omnivalt-manifest-page__filter-field omnivalt-manifest-page__filter-field--date">
-                <label><?php esc_html_e('Manifest date', 'omnivalt'); ?></label>
-                <div class="datetimepicker">
-                  <input name="filter_start_date" type="text" id="datetimepicker1" data-date-format="YYYY-MM-DD" value="<?php echo esc_attr($orders_data['filters']['start_date']); ?>" placeholder="<?php esc_attr_e('From', 'omnivalt'); ?>" autocomplete="off" />
-                  <input name="filter_end_date" type="text" id="datetimepicker2" data-date-format="YYYY-MM-DD" value="<?php echo esc_attr($orders_data['filters']['end_date']); ?>" placeholder="<?php esc_attr_e('To', 'omnivalt'); ?>" autocomplete="off" />
+                <label for="filter_manifest_date"><?php esc_html_e('Manifest date', 'omnivalt'); ?></label>
+                <input type="button" id="filter_manifest_date" value="<?php esc_attr_e('Select date range', 'omnivalt'); ?>" hidden aria-controls="manifest-date-range" aria-expanded="false" />
+                <div id="manifest-date-range" class="omnivalt-manifest-page__date-range">
+                  <div>
+                    <label for="filter_start_date"><?php esc_html_e('From', 'omnivalt'); ?></label>
+                    <input name="filter_start_date" type="text" id="filter_start_date" data-date-format="YYYY-MM-DD" value="<?php echo esc_attr($orders_data['filters']['start_date']); ?>" placeholder="YYYY-MM-DD" autocomplete="off"<?php if ( ! empty($date_errors['start_date']) ) : ?> aria-invalid="true" aria-describedby="omnivalt-start-date-error"<?php endif; ?> />
+                    <?php if ( ! empty($date_errors['start_date']) ) : ?>
+                      <p id="omnivalt-start-date-error" class="omnivalt-manifest-page__date-error"><?php esc_html_e('Enter a valid date in YYYY-MM-DD format.', 'omnivalt'); ?></p>
+                    <?php endif; ?>
+                  </div>
+                  <div>
+                    <label for="filter_end_date"><?php esc_html_e('To', 'omnivalt'); ?></label>
+                    <input name="filter_end_date" type="text" id="filter_end_date" data-date-format="YYYY-MM-DD" value="<?php echo esc_attr($orders_data['filters']['end_date']); ?>" placeholder="YYYY-MM-DD" autocomplete="off"<?php if ( ! empty($date_errors['end_date']) ) : ?> aria-invalid="true" aria-describedby="omnivalt-end-date-error"<?php endif; ?> />
+                    <?php if ( ! empty($date_errors['end_date']) ) : ?>
+                      <p id="omnivalt-end-date-error" class="omnivalt-manifest-page__date-error"><?php esc_html_e('Enter a valid date in YYYY-MM-DD format.', 'omnivalt'); ?></p>
+                    <?php endif; ?>
+                  </div>
                 </div>
               </div>
             <?php endif; ?>
             <div class="omnivalt-manifest-page__filter-actions">
               <button class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--primary" type="submit"><?php esc_html_e('Filter', 'omnivalt'); ?></button>
-              <button id="clear_filter_btn" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--text" type="button"><?php esc_html_e('Reset', 'omnivalt'); ?></button>
+              <a id="clear_filter_btn" class="button omnivalt-manifest-page__button omnivalt-manifest-page__button--text" href="<?php echo esc_url($filter_url); ?>"><?php esc_html_e('Reset', 'omnivalt'); ?></a>
             </div>
           </div>
           <table class="wp-list-table widefat fixed striped posts">
@@ -435,8 +459,14 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
                 <tr class="omnivalt-manifest-page__empty-row">
                   <td colspan="<?php echo $manifest_enabled ? 9 : 8; ?>" class="omnivalt-manifest-page__empty-cell">
                     <div class="omnivalt-manifest-page__empty-state">
-                      <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/smile.svg'); ?>" alt="" aria-hidden="true" />
-                      <p><?php esc_html_e('No orders found', 'woocommerce'); ?></p>
+                      <?php if ( $date_errors ) : ?>
+                        <p role="alert"><?php esc_html_e('Check the manifest date range and apply the filters again.', 'omnivalt'); ?></p>
+                      <?php elseif ( $shipment_status_error ) : ?>
+                        <p role="alert"><?php esc_html_e('Could not apply the shipment status filter. Please try again.', 'omnivalt'); ?></p>
+                      <?php else : ?>
+                        <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/smile.svg'); ?>" alt="" aria-hidden="true" />
+                        <p><?php esc_html_e('No orders found', 'woocommerce'); ?></p>
+                      <?php endif; ?>
                     </div>
                   </td>
                 </tr>
@@ -589,44 +619,6 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
       </div>
       <!--/ Modal Carier call-->
 
-      <script>
-        jQuery('document').ready(function($) {
-          // "From" date picker
-          $('#datetimepicker1').datetimepicker({
-            pickTime: false,
-            useCurrent: false
-          });
-          // "To" date picker
-          $('#datetimepicker2').datetimepicker({
-            pickTime: false,
-            useCurrent: false
-          });
-
-          // Set limits depending on date picker selections
-          $("#datetimepicker1").on("dp.change", function(e) {
-            $('#datetimepicker2').data("DateTimePicker").setMinDate(e.date);
-          });
-          $("#datetimepicker2").on("dp.change", function(e) {
-            $('#datetimepicker1').data("DateTimePicker").setMaxDate(e.date);
-          });
-
-          // Pass on filters to pagination links
-          $('.tablenav-pages').on('click', 'a', function(e) {
-            e.preventDefault();
-            var form = document.getElementById('filter-form');
-            form.action = e.target.href;
-            form.submit();
-          });
-
-          // Filter cleanup and page reload
-          $('#clear_filter_btn').on('click', function(e) {
-            e.preventDefault();
-            $('#filter_id, #filter_customer, #filter_barcode, #datetimepicker1, #datetimepicker2').val('');
-            $('#filter_status').val('-1');
-            document.getElementById('filter-form').submit();
-          });
-        });
-      </script>
   <?php endif; ?>
   </div>
 </div>

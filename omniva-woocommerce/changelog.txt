@@ -5,6 +5,12 @@
 - added automatic background synchronization and a manual update action limited to once per minute
 - added warnings when shipment tracking synchronization has been failing for 24 hours or when more than 30 days have passed since the last successful sync
 - added tracking support for recently registered shipments and kept tracking linked to orders when address cards are regenerated
+- added a Shipment Status filter that uses the same tracking statuses as the shipment badges
+- renamed the Shipments page heading to "Omniva Shipments"
+- improved manifest date filtering with a single date-range field, an inclusive end date, and clear feedback for invalid dates
+- fixed Shipments dialogs and the mobile filter panel to extend to the top of the screen
+- fixed the full-screen parcel machine map to cover the viewport when the WordPress admin bar is present
+- fixed courier call and cancellation dialogs to open at the top of their content every time
 
 = 1.21.0 =
 - added native WordPress plugin update support

@@ -27,6 +27,8 @@ class OmnivaLt_Manifest_Page
       'historyTitle' => __('Shipment history', 'omnivalt'), 'destination' => __('Delivery location', 'omnivalt'),
       'empty' => __('No synchronized tracking events yet.', 'omnivalt'),
       'continuing' => __('Synchronization continues in the background.', 'omnivalt'),
+      'listReady' => __('Shipment statuses have been updated. Refresh the list to apply your current filters.', 'omnivalt'),
+      'refreshList' => __('Refresh list', 'omnivalt'),
     ));
 
     OmnivaLt_Admin_Page_Assets::add_readiness_fallback(
@@ -93,7 +95,7 @@ class OmnivaLt_Manifest_Page
 
     $active_filter_count = 0;
     $active_filters = (isset($orders_data['filters']) && is_array($orders_data['filters'])) ? $orders_data['filters'] : array();
-    foreach ( array('id', 'customer', 'barcode', 'status') as $filter_key ) {
+    foreach ( array('id', 'customer', 'barcode', 'status', 'shipment_status') as $filter_key ) {
       $filter_value = isset($active_filters[$filter_key]) ? $active_filters[$filter_key] : false;
       if (false !== $filter_value && null !== $filter_value && '' !== trim((string) $filter_value) && ('status' !== $filter_key || '-1' !== (string) $filter_value)) {
         $active_filter_count++;

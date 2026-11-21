@@ -261,7 +261,8 @@ class OmnivaLt_Tracking_Storage
     return null === $row ? $this->previous_state($barcode) : $row;
   }
 
-  public function read_display_batch( $account, $barcodes )
+  /** @return ($strict is true ? array|false : array) */
+  public function read_display_batch( $account, $barcodes, $strict = false )
   {
     if ( ! $this->valid_account($account) ) {
       return array();
@@ -281,6 +282,9 @@ class OmnivaLt_Tracking_Storage
         array_merge(array($account), $batch)
       ), ARRAY_A);
       if ( '' !== $this->db->last_error || ! is_array($rows) ) {
+        if ( $strict ) {
+          return false;
+        }
         continue;
       }
       $active = array();
@@ -307,6 +311,9 @@ class OmnivaLt_Tracking_Storage
       // The second database query can change last_error independently of the first.
       // @phpstan-ignore notIdentical.alwaysFalse
       if ( '' !== $this->db->last_error || ! is_array($rows) ) {
+        if ( $strict ) {
+          return false;
+        }
         continue;
       }
       $prior = array();
@@ -319,6 +326,60 @@ class OmnivaLt_Tracking_Storage
       }
     }
     return $result;
+  }
+
+  /** Resolves candidate order-to-barcode links using badge account precedence. */
+  public function order_barcodes_for_status( $account, $status )
+  {
+    if ( ! $this->valid_account($account) || ! $this->exists() ) {
+      return false;
+    }
+    $after = '';
+    $order_barcodes = array();
+    $pattern = '%' . $this->db->esc_like('"status":"' . $status . '"') . '%';
+    do {
+      $barcodes = $this->db->get_col($this->db->prepare(
+        "SELECT DISTINCT s.barcode FROM {$this->states_table} s
+        WHERE s.barcode > %s AND s.state LIKE %s
+          AND EXISTS (SELECT 1 FROM {$this->links_table} l WHERE l.barcode = s.barcode)
+        ORDER BY s.barcode LIMIT 100",
+        $after, $pattern
+      ));
+      if ( '' !== $this->db->last_error || ! is_array($barcodes) ) {
+        return false;
+      }
+      if ( empty($barcodes) ) {
+        break;
+      }
+      $after = end($barcodes);
+      $matches = array();
+      $states = $this->read_display_batch($account, $barcodes, true);
+      if ( false === $states ) {
+        return false;
+      }
+      foreach ( $states as $barcode => $row ) {
+        if ( $status === ($row['state']['status'] ?? null) ) {
+          $matches[] = $barcode;
+        }
+      }
+      if ( empty($matches) ) {
+        continue;
+      }
+      $placeholders = implode(',', array_fill(0, count($matches), '%s'));
+      $links = $this->db->get_results($this->db->prepare(
+        "SELECT order_id, barcode FROM {$this->links_table} WHERE barcode IN ($placeholders)",
+        $matches
+      ), ARRAY_A);
+      // The link query can fail after the candidate and state reads succeeded.
+      // @phpstan-ignore notIdentical.alwaysFalse
+      if ( '' !== $this->db->last_error || ! is_array($links) ) {
+        return false;
+      }
+      foreach ( $links as $link ) {
+        $order_barcodes[(int) $link['order_id']][$link['barcode']] = true;
+      }
+    } while ( count($barcodes) === 100 );
+    return $order_barcodes;
   }
 
   public static function latest_event( $state )

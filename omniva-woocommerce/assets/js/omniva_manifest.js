@@ -1,5 +1,76 @@
 /* global omniva_eraseCookie, omniva_getCookie, omniva_setCookie, omnivaglobals, omnivatext */
 (function($) {
+  $(document).on('click', '#filter-form .tablenav-pages a', function(event) {
+    event.preventDefault();
+    var form = this.closest('form');
+    form.action = this.href;
+    form.submit();
+  });
+
+  $(function() {
+    var range = $('#filter_manifest_date');
+    if (!range.length) {
+      return;
+    }
+    var placeholder = range.val();
+    var panel = $('#manifest-date-range');
+    var start = $('#filter_start_date');
+    var end = $('#filter_end_date');
+    var dates = start.add(end);
+    var field = range.closest('.omnivalt-manifest-page__filter-field');
+    var card = field.closest('.omnivalt-manifest-page__orders-card');
+    var pickerDefaults;
+    if (typeof $.fn.datetimepicker === 'function') {
+      pickerDefaults = $.fn.datetimepicker.defaults;
+      dates.datetimepicker({pickTime: false, useCurrent: false});
+    }
+
+    function setRangeOpen(open) {
+      if (!open && pickerDefaults) {
+        dates.each(function() {
+          $(this).data('DateTimePicker').hide();
+        });
+      }
+      range.attr('aria-expanded', String(open));
+      card.toggleClass('is-date-range-open', open);
+      panel.prop('hidden', !open);
+      panel.toggleClass('opens-up', open &&
+        range[0].getBoundingClientRect().bottom + panel.outerHeight() + 8 > window.innerHeight);
+    }
+
+    function updateRange() {
+      var from = start.val();
+      var to = end.val();
+      if (pickerDefaults) {
+        var fromDate = window.moment(from, 'YYYY-MM-DD', true);
+        var toDate = window.moment(to, 'YYYY-MM-DD', true);
+        start.data('DateTimePicker').setMaxDate(toDate.isValid() ? toDate : pickerDefaults.maxDate);
+        end.data('DateTimePicker').setMinDate(fromDate.isValid() ? fromDate : pickerDefaults.minDate);
+      }
+      range.val(from || to ? [from, to].join(' – ').trim() : placeholder);
+    }
+
+    updateRange();
+    panel.prop('hidden', true);
+    range.prop('hidden', false).on('click', function() {
+      setRangeOpen(panel.prop('hidden'));
+    });
+    dates.on('change', updateRange);
+    field.on('keydown', function(event) {
+      if (event.key === 'Escape' && !panel.prop('hidden')) {
+        event.stopPropagation();
+        setRangeOpen(false);
+        range.trigger('focus');
+      }
+    });
+    $(document).on('click focusin', function(event) {
+      if (!panel.prop('hidden') && !field[0].contains(event.target) &&
+        !$(event.target).closest('.bootstrap-datetimepicker-widget').length) {
+        setRangeOpen(false);
+      }
+    });
+  });
+
   /* Mobile order details */
   $(document).on('click', '.omnivalt-manifest-page__mobile-details, .omnivalt-manifest-page__orders-card .customer-name', function() {
     var button = $(this);
@@ -87,7 +158,7 @@
     e.preventDefault();
     $('#omniva-courier-modal .modal-content').hide();
     $('#modal-content-call').show();
-    $('#omniva-courier-modal').addClass('open');
+    $('#omniva-courier-modal').addClass('open').scrollTop(0);
     $("#call_quantity").trigger("change");
   });
 
@@ -117,7 +188,7 @@
     $('#modal-content-cancel').show();
     var call_id = $(this).siblings('input[name="call_id"]')[0].value;
     $('#omniva-cancel-id').val(call_id);
-    $('#omniva-courier-modal').addClass('open');
+    $('#omniva-courier-modal').addClass('open').scrollTop(0);
   });
 
   /* Remove courier arrival time */
@@ -512,6 +583,24 @@
     }
     refreshBatch(0);
   }
+  function trackingListTarget(form) {
+    var target = new URL(form.action);
+    var perPage = new URLSearchParams(window.location.search).get('perpage');
+    if (perPage) {
+      target.searchParams.set('perpage', perPage);
+    }
+    return target.href;
+  }
+  function hasUnappliedFilters(form) {
+    return $(form).find('input[name^="filter_"], select[name^="filter_"]').is(function () {
+      var value = this.defaultValue;
+      if (this.tagName === 'SELECT') {
+        var appliedOption = $(this.options).filter(function () { return this.defaultSelected; })[0];
+        value = appliedOption ? appliedOption.value : this.options[0].value;
+      }
+      return this.value !== value;
+    });
+  }
   function close() {
     if (historyRequest) {
       var previous = historyRequest;
@@ -614,17 +703,39 @@
   }
   function watchSync(button, preparing) {
     var status = $('#omnivalt-tracking-updated');
+    var lastSuccess = Number(status.attr('data-last-success'));
+    var appliedShipmentStatus = $('#filter_shipment_status option[selected]').val();
+    var statusFiltered = appliedShipmentStatus && appliedShipmentStatus !== '-1';
+    var filterForm = document.getElementById('filter-form');
     var notices = $('.omnivalt-tracking-notices');
     var lastLabel = status.text();
-    notices.find('.omnivalt-tracking-request-error').remove();
+    notices.find('.omnivalt-tracking-request-error, .omnivalt-tracking-list-refresh').remove();
     var attempts = 0;
     var retryAfter = 0;
+    function offerListRefresh(message) {
+      var notice = $('<div>', {class: 'notice notice-info omnivalt-tracking-notice omnivalt-tracking-list-refresh'});
+      $('<p>', {role: 'status', text: message}).appendTo(notice);
+      $('<p>').append($('<button>', {
+        class: 'button',
+        type: 'submit',
+        form: filterForm.id,
+        formaction: trackingListTarget(filterForm),
+        text: config.refreshList
+      })).appendTo(notice);
+      notices.prepend(notice);
+    }
     function checkAgain(delay) {
-      if (attempts++ < 90) {
-        progressTimer = window.setTimeout(function () {
-          request('status').done(receive).fail(function (xhr) { failed(xhr); });
-        }, delay);
+      if (attempts >= 90) {
+        status.text(config.continuing);
+        if (statusFiltered) { offerListRefresh(config.continuing); }
+        else if (!preparing) { refreshRows(); }
+        setSyncCooldown(button, retryAfter);
+        return;
       }
+      attempts++;
+      progressTimer = window.setTimeout(function () {
+        request('status').done(receive).fail(function (xhr) { failed(xhr); });
+      }, delay);
     }
     function receive(response) {
       if (!response.success) { failed(); return; }
@@ -638,9 +749,22 @@
       lastLabel = response.data.label;
       if (!response.data.error) { notices.find('.omnivalt-tracking-failure').remove(); }
       if (response.data.failed) { failed(null, response.data.failure_message); return; }
-      if (!response.data.complete && attempts < 90) { checkAgain(2000); return; }
-      status.text(response.data.complete ? response.data.label : config.continuing);
-      setSyncCooldown(button, retryAfter); refreshRows();
+      if (!response.data.complete) { checkAgain(2000); return; }
+      status.text(response.data.label);
+      if (statusFiltered) {
+        if (Number(response.data.last_success) > lastSuccess) {
+          if (hasUnappliedFilters(filterForm)) {
+            offerListRefresh(config.listReady);
+          } else {
+            filterForm.action = trackingListTarget(filterForm);
+            filterForm.submit();
+            return;
+          }
+        }
+      } else {
+        refreshRows();
+      }
+      setSyncCooldown(button, retryAfter);
     }
     function failed(xhr, failureMessage) {
       if (preparing) { checkAgain(5000); return; }
