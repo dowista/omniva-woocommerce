@@ -128,7 +128,7 @@ class OmnivaLt_Api_Core
         return $output;
     }
 
-    public function get_manifest( $orders_ids )
+    public function get_manifest( $orders_ids, $download = true )
     {
         $output = array(
             'status' => false,
@@ -188,7 +188,6 @@ class OmnivaLt_Api_Core
                     continue;
                 }
 
-                $data_client = $this->get_client_data($order);
                 $data_shipments = $this->get_shipments_data($order);
                 if ( empty($data_shipments->barcodes) ) {
                     continue;
@@ -207,7 +206,10 @@ class OmnivaLt_Api_Core
                 $output['success'][] = $order_id;
             }
 
-            $api_manifest->downloadManifest('I', 'Omnivalt_manifest_' . current_time('Ymd_His'));
+            if ( ! empty($output['success']) ) {
+                // String mode builds the same PDF without sending it.
+                $api_manifest->downloadManifest($download ? 'I' : 'S', 'Omnivalt_manifest_' . current_time('Ymd_His'));
+            }
             $output['status'] = true;
         } catch (OmnivaException $e) {
             $output['msg'] = $e->getMessage();

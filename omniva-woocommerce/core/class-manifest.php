@@ -372,9 +372,19 @@ class OmnivaLt_Manifest
         $single_order = false;
       }
       if ( empty($filters['shipment_status']) || isset($args['omnivalt_manifest_shipment_status']) ) {
-        $results = $filters['shipment_status']
-          ? self::query_shipment_status_orders($args)
-          : OmnivaLt_Wc_Order::get_orders($args, true);
+        $query_orders = function( $query_args ) use ( $filters ) {
+          return $filters['shipment_status']
+            ? self::query_shipment_status_orders($query_args)
+            : OmnivaLt_Wc_Order::get_orders($query_args, true);
+        };
+        $results = $query_orders($args);
+        // Actions can move the last rows to another tab, so show the last remaining page instead of an empty one.
+        if ( isset($results->orders, $results->max_num_pages) && empty($results->orders)
+          && $results->max_num_pages > 0 && (int) $paged > $results->max_num_pages ) {
+          $paged = (int) $results->max_num_pages;
+          $args['paged'] = $paged;
+          $results = $query_orders($args);
+        }
         if ( $filters['shipment_status'] && ('' !== $wpdb->last_error
           || ! isset($results->orders, $results->total, $results->max_num_pages)
           || ! is_array($results->orders) || $results->total < count($results->orders)) ) {

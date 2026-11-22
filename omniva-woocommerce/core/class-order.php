@@ -435,7 +435,28 @@ class OmnivaLt_Order
     $regenerate = 'regenerate' === $process;
 
     $omnivalt_labels = new OmnivaLt_Labels();
-    $omnivalt_labels->print_labels($order_ids, true, $regenerate, $inline, 'POST' === $request_method);
+    if ( 'GET' === $request_method ) {
+      if ( ! $omnivalt_labels->output_labels($order_ids, false, $inline, false) ) {
+        self::close_print_tab();
+      }
+      exit;
+    }
+
+    $labels = $omnivalt_labels->generate_labels($order_ids, $regenerate);
+    if ( empty($labels['barcodes']) ) {
+      self::close_print_tab();
+    }
+
+    $print_args = array(
+      'action' => 'omnivalt_labels',
+      'post' => $order_ids,
+      'process' => 'print',
+      'omnivalt_labels_nonce' => wp_create_nonce('omnivalt_labels'),
+    );
+    if ( $inline ) {
+      $print_args['inline'] = '1';
+    }
+    self::open_print_url(self::get_print_url($print_args), $labels['generated']);
   }
 
   public static function post_manifest_actions()
@@ -467,7 +488,97 @@ class OmnivaLt_Order
     }
 
     $omnivalt_labels = new OmnivaLt_Labels();
-    $omnivalt_labels->print_manifest($order_ids, 'POST' === $request_method);
+    if ( 'GET' === $request_method ) {
+      if ( empty($omnivalt_labels->output_manifest($order_ids)) ) {
+        self::close_print_tab();
+      }
+      exit;
+    }
+
+    $manifest_ids = $omnivalt_labels->save_manifest_dates($order_ids);
+    if ( empty($manifest_ids) ) {
+      self::close_print_tab();
+    }
+    self::open_print_url(self::get_print_url(array(
+      'action' => 'omnivalt_manifest',
+      'post' => $manifest_ids,
+      'process' => 'print',
+      'omnivalt_manifest_nonce' => wp_create_nonce('omnivalt_manifest'),
+    )), true);
+  }
+
+  private static function get_print_url( $args )
+  {
+    $referer = wp_get_referer();
+    if ( $referer ) {
+      // Keeps the Shipments page as the fallback when the read-only request cannot close its tab.
+      $args['_wp_http_referer'] = $referer;
+    }
+
+    return add_query_arg(urlencode_deep($args), admin_url('admin-post.php'));
+  }
+
+  /**
+   * Finish a POST print action on its read-only GET URL so PDF viewers keep the file name and can reload it.
+   * When order data changed, a bridge page first tells open Shipments lists to reload.
+   */
+  private static function open_print_url( $url, $refresh_list )
+  {
+    if ( ! $refresh_list ) {
+      wp_safe_redirect($url, 303);
+      exit;
+    }
+
+    self::render_print_bridge($url, false);
+  }
+
+  /**
+   * Close the PDF tab after a print failure so the reloaded Shipments list shows the notice.
+   * Browsers that refuse to close the tab open the list in it instead.
+   */
+  private static function close_print_tab()
+  {
+    $list_url = wp_get_referer() ? wp_get_referer() : OmnivaLt_Manifest::page_make_link(array());
+    self::render_print_bridge($list_url, true);
+  }
+
+  private static function render_print_bridge( $url, $close_tab )
+  {
+    // Notices must be stored before the Shipments list reloads in another request.
+    if ( session_id() ) {
+      session_write_close();
+    }
+
+    $charset = get_option('blog_charset');
+    $link_text = $close_tab ? __('Shipments', 'omnivalt') : __('Open PDF', 'omnivalt');
+    nocache_headers();
+    header('Content-Type: text/html; charset=' . $charset);
+    ?>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="<?php echo esc_attr($charset); ?>">
+<title><?php echo esc_html($link_text); ?></title>
+</head>
+<body>
+<script>
+if ('BroadcastChannel' in window) {
+  var channel = new BroadcastChannel('omnivalt-shipments');
+  channel.postMessage('refresh');
+  channel.close();
+}
+<?php if ( $close_tab ) : ?>
+window.close();
+<?php endif; ?>
+if (!window.closed) {
+  window.location.replace(<?php echo wp_json_encode($url); ?>);
+}
+</script>
+<noscript><a href="<?php echo esc_url($url); ?>"><?php echo esc_html($link_text); ?></a></noscript>
+</body>
+</html>
+    <?php
+    exit;
   }
 
   /*public static function order_actions($order) //Disabled because disabled hook and this function use old structure

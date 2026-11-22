@@ -28,12 +28,56 @@ class OmnivaLt_Labels
       return;
     }
 
+    if ( ! $this->output_labels($orderIds, $regenerate, $inline, $allow_generation) ) {
+      wp_safe_redirect(wp_get_referer() ? wp_get_referer() : admin_url('edit.php?post_type=shop_order'));
+    }
+
+    exit;
+  }
+
+  /**
+   * Stream the labels PDF. Returns false when no PDF was sent; API errors are added as notices.
+   */
+  public function output_labels( $orderIds, $regenerate = false, $inline = false, $allow_generation = true )
+  {
+    $collected = $this->collect_barcodes($orderIds, $regenerate, $allow_generation);
+    if ( empty($collected['barcodes']) ) {
+      return false;
+    }
+
+    $labels_status = $this->omnivalt_api->download_shipment_labels($collected['barcodes'], $inline);
+    if ( ! $labels_status['status'] ) {
+      OmnivaLt_Helper::add_msg(esc_html($labels_status['msg']), 'error');
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Register missing or regenerated labels without sending a PDF.
+   * Returns array('barcodes' => array, 'generated' => bool); "generated" is true when registration was attempted.
+   */
+  public function generate_labels( $orderIds, $regenerate = false )
+  {
+    return $this->collect_barcodes($orderIds, $regenerate, true);
+  }
+
+  private function collect_barcodes( $orderIds, $regenerate, $allow_generation )
+  {
+    $result = array(
+      'barcodes' => array(),
+      'generated' => false,
+    );
+    if ( empty($orderIds) ) {
+      return $result;
+    }
+
     if ( ! is_array($orderIds) )
       $orderIds = array($orderIds);
 
     $orderIds = array_unique($orderIds);
 
-    $all_barcodes = array();
     foreach ( $orderIds as $orderId ) {
       $this->is_international = false;
       $order = OmnivaLt_Wc_Order::get_data($orderId, array('shipment', 'shipping', 'billing'));
@@ -72,6 +116,7 @@ class OmnivaLt_Labels
       }
 
       if ( $needs_generation ) {
+        $result['generated'] = true;
         if ( $regenerate ) {
           OmnivaLt_Omniva_Order::set_barcodes($order->id, '');
         }
@@ -83,22 +128,11 @@ class OmnivaLt_Labels
       }
 
       foreach ( $barcodes as $barcode ) {
-        $all_barcodes[] = $barcode;
+        $result['barcodes'][] = $barcode;
       }
     }
 
-    if ( empty($all_barcodes) ) {
-      wp_safe_redirect(wp_get_referer() ? wp_get_referer() : admin_url('edit.php?post_type=shop_order'));
-      exit;
-    }
-
-    $labels_status = $this->omnivalt_api->download_shipment_labels($all_barcodes, $inline);
-    if ( ! $labels_status['status'] ) {
-      OmnivaLt_Helper::add_msg($labels_status['msg'], 'error');
-      wp_safe_redirect(wp_get_referer());
-    }
-
-    exit;
+    return $result;
   }
 
   /**
@@ -231,7 +265,7 @@ class OmnivaLt_Labels
     }
     
     OmnivaLt_Omniva_Order::set_error($order->id, $status['msg']);
-    OmnivaLt_Helper::add_msg($order->number . ' - ' . $status['msg'], 'error');
+    OmnivaLt_Helper::add_msg(esc_html($order->number . ' - ' . $status['msg']), 'error');
 
     do_action('omnivalt_label_register_failed', $order->id);
 
@@ -240,26 +274,60 @@ class OmnivaLt_Labels
 
   public function print_manifest( $orders_ids, $save_manifest_date = true )
   {
-    $result = $this->omnivalt_api->get_manifest($orders_ids);
-
-    if ( ! $result['status'] ) {
-      OmnivaLt_Helper::add_msg(__('Failed to get manifest', 'omnivalt') . '. ' . __('Error', 'omnivalt') . ': ' . $result['msg'], 'error');
-      wp_safe_redirect(wp_get_referer());
-      exit;
-    }
-    if ( empty($result['success']) ) {
-      OmnivaLt_Helper::add_msg(__('No compatible orders for manifest', 'omnivalt'), 'error');
+    $manifest_ids = $this->output_manifest($orders_ids);
+    if ( empty($manifest_ids) ) {
       wp_safe_redirect(wp_get_referer());
       exit;
     }
 
     if ( $save_manifest_date ) {
-      foreach ( $result['success'] as $order_id ) {
-        OmnivaLt_Omniva_Order::set_manifest_date($order_id, current_time('Y-m-d H:i:s'));
-      }
+      $this->set_manifest_dates($manifest_ids);
     }
 
     exit;
+  }
+
+  /**
+   * Stream the manifest PDF. Returns the included order IDs, or an empty array after adding an error notice.
+   */
+  public function output_manifest( $orders_ids )
+  {
+    return $this->get_manifest_order_ids($orders_ids, true);
+  }
+
+  /**
+   * Build the manifest PDF without sending it and save the dates only after it was built.
+   * Returns the included order IDs, or an empty array after adding an error notice.
+   */
+  public function save_manifest_dates( $orders_ids )
+  {
+    $manifest_ids = $this->get_manifest_order_ids($orders_ids, false);
+    $this->set_manifest_dates($manifest_ids);
+
+    return $manifest_ids;
+  }
+
+  private function get_manifest_order_ids( $orders_ids, $download )
+  {
+    $result = $this->omnivalt_api->get_manifest($orders_ids, $download);
+
+    if ( ! $result['status'] ) {
+      OmnivaLt_Helper::add_msg(__('Failed to get manifest', 'omnivalt') . '. ' . __('Error', 'omnivalt') . ': ' . esc_html($result['msg']), 'error');
+      return array();
+    }
+    if ( empty($result['success']) ) {
+      OmnivaLt_Helper::add_msg(__('No compatible orders for manifest', 'omnivalt'), 'error');
+      return array();
+    }
+
+    return $result['success'];
+  }
+
+  private function set_manifest_dates( $orders_ids )
+  {
+    foreach ( $orders_ids as $order_id ) {
+      OmnivaLt_Omniva_Order::set_manifest_date($order_id, current_time('Y-m-d H:i:s'));
+    }
   }
 
   public function get_tracking_link( $country_code, $barcode, $link_only = false )
@@ -393,7 +461,7 @@ class OmnivaLt_Labels
 
       OmnivaLt_Helper::add_msg(sprintf(__('Omniva courier called. Arrival time between %s.', 'omnivalt'), $arrival_start . ' - ' . $arrival_end), 'success');
     } else {
-      OmnivaLt_Helper::add_msg(__("There was an error calling Omniva courier. Error: " . $call_result['msg'], 'omnivalt'), 'error');
+      OmnivaLt_Helper::add_msg(__('There was an error calling Omniva courier. Error: ', 'omnivalt') . esc_html($call_result['msg']), 'error');
     }
     wp_safe_redirect(wp_get_referer());
     exit;
@@ -422,7 +490,7 @@ class OmnivaLt_Labels
     $omnivalt_api = new OmnivaLt_Api();
     $result = $omnivalt_api->cancel_courier_call($call_id);
     if ( ! $result['status'] ) {
-      OmnivaLt_Helper::add_msg($result['msg'], 'error');
+      OmnivaLt_Helper::add_msg(esc_html($result['msg']), 'error');
       wp_safe_redirect(wp_get_referer());
       exit;
     }

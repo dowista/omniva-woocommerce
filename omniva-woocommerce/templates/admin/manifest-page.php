@@ -482,16 +482,7 @@ $manifest_script_class = wp_script_is('omniva_manifest', 'enqueued') ? '' : ' is
           <?php endif; ?>
         </form>
         <?php foreach ( $row_label_action_forms as $row_label_action_form ) : ?>
-          <?php
-          $label_print_url = add_query_arg(array(
-            'action' => 'omnivalt_labels',
-            'post' => $row_label_action_form['order_id'],
-            'process' => 'print',
-            'inline' => '1',
-            'omnivalt_labels_nonce' => wp_create_nonce('omnivalt_labels'),
-          ), admin_url('admin-post.php'));
-          ?>
-          <form id="<?php echo esc_attr($row_label_action_form['id']); ?>" action="<?php echo esc_url($label_print_url); ?>" method="POST" target="_blank">
+          <form id="<?php echo esc_attr($row_label_action_form['id']); ?>" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" method="POST" target="_blank">
             <input type="hidden" name="action" value="omnivalt_labels" />
             <input type="hidden" name="post" value="<?php echo esc_attr((string) $row_label_action_form['order_id']); ?>" />
             <input type="hidden" name="inline" value="1" />

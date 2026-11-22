@@ -237,10 +237,18 @@
     omniva_submit_bulk_action('#manifest-print-form');
   });
 
-  // Row label forms open the PDF in a new tab, so this page cannot learn the result of the registration.
-  $(document).on('submit', 'form[id^="omnivalt-label-"], form[id^="omnivalt-regenerate-label-"]', function() {
-    omniva_mark_orders_as_labeled([$(this).find('input[name="post"]').val()]);
-  });
+  // Print actions that change order data finish on a bridge page that posts to this channel.
+  if ('BroadcastChannel' in window) {
+    new BroadcastChannel('omnivalt-shipments').onmessage = function() {
+      var filterForm = document.getElementById('filter-form');
+      if (!filterForm) {
+        return;
+      }
+      filterForm.reset();
+      filterForm.action = window.location.href;
+      filterForm.submit();
+    };
+  }
 
   /* Row action tooltips */
   $(document).on('mouseenter focusin', '.omnivalt-manifest-page__row-action, .omnivalt-manifest-page__tooltip-trigger, .omnivalt-tracking-status, #omnivalt-tracking-sync[aria-disabled="true"]', function() {
@@ -428,17 +436,6 @@
     }
   }
 
-  // Optimistic: the server stays authoritative and reports orders without barcodes when a manifest is requested.
-  function omniva_mark_orders_as_labeled(order_ids) {
-    var labeled_ids = $.map(order_ids, function(order_id) {
-      return String(order_id);
-    });
-
-    $('.manifest-item').filter(function() {
-      return $.inArray(String($(this).val()), labeled_ids) !== -1;
-    }).attr('data-has-barcodes', '1');
-  }
-
   function omniva_submit_bulk_action(form_selector) {
     var ids = [];
     $(form_selector + ' .post_id').remove();
@@ -452,33 +449,21 @@
         ids.push(id);
       }
     });
-    for (var i=0; i<ids.length; i++) {
-      $(form_selector).append('<input type="hidden" class = "post_id" name="post[]" value = "' + ids[i] + '" />');
-    }
     if (!ids.length) {
       alert(omnivatext.alert_select_orders);
-    } else {
-      // PDF viewers can reload the response URL with GET and cannot replay its POST body.
-      var form = $(form_selector)[0];
-      var print_url = new URL(form.getAttribute('action'), window.location.href);
-      var print_params = new URLSearchParams(new FormData(form));
-      print_params.delete('_wp_http_referer');
-      print_params.set('process', 'print');
-      print_url.search = print_params.toString();
-      form.setAttribute('action', print_url.toString());
-
-      if (form_selector === '#labels-print-form') {
-        omniva_mark_orders_as_labeled(ids);
-      }
-
-      omniva_eraseCookie(omnivaglobals.cookie_checked_list);
-      $('#selected-orders .item').remove();
-      $('#selected-orders').hide();
-      omniva_set_selected_actions_visible(false);
-      $('.manifest-item').prop('checked', false);
-      $('.check-all').prop('checked', false);
-      $(form_selector).submit();
+      return;
     }
+
+    for (var i = 0; i < ids.length; i++) {
+      $('<input type="hidden" class="post_id" name="post[]" />').val(ids[i]).appendTo(form_selector);
+    }
+    omniva_eraseCookie(omnivaglobals.cookie_checked_list);
+    $('#selected-orders .item').remove();
+    $('#selected-orders').hide();
+    omniva_set_selected_actions_visible(false);
+    $('.manifest-item').prop('checked', false);
+    $('.check-all').prop('checked', false);
+    $(form_selector).submit();
   }
 
   function omniva_show_action_tooltip(element) {
