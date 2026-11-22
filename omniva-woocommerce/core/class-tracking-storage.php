@@ -29,9 +29,12 @@ class OmnivaLt_Tracking_Storage
       account char(64) NOT NULL,
       barcode varchar(64) NOT NULL,
       state longtext NOT NULL,
+      shipment_status varchar(32) NOT NULL DEFAULT '',
+      last_event_id varchar(32) DEFAULT NULL,
       revision bigint unsigned NOT NULL DEFAULT 0,
       PRIMARY KEY  (account,barcode),
-      KEY barcode (barcode)
+      KEY barcode (barcode),
+      KEY shipment_status (shipment_status,barcode)
     ) $charset;");
     dbDelta("CREATE TABLE {$this->links_table} (
       order_id bigint unsigned NOT NULL,
@@ -238,7 +241,7 @@ class OmnivaLt_Tracking_Storage
       return false;
     }
     $row = $this->db->get_row($this->db->prepare(
-      "SELECT state, revision FROM {$this->states_table} WHERE account = %s AND barcode = %s",
+      "SELECT state, shipment_status, revision FROM {$this->states_table} WHERE account = %s AND barcode = %s",
       $account, $barcode
     ), ARRAY_A);
     if ( '' !== $this->db->last_error ) {
@@ -251,7 +254,7 @@ class OmnivaLt_Tracking_Storage
     if ( ! is_array($state) || JSON_ERROR_NONE !== json_last_error() ) {
       return false;
     }
-    return array('state' => $state, 'revision' => (string) $row['revision']);
+    return array('state' => $state, 'shipment_status' => $row['shipment_status'], 'revision' => (string) $row['revision']);
   }
 
   /** Display reads can fall back to an earlier account after a credential change. */
@@ -261,8 +264,7 @@ class OmnivaLt_Tracking_Storage
     return null === $row ? $this->previous_state($barcode) : $row;
   }
 
-  /** @return ($strict is true ? array|false : array) */
-  public function read_display_batch( $account, $barcodes, $strict = false )
+  public function read_display_batch( $account, $barcodes )
   {
     if ( ! $this->valid_account($account) ) {
       return array();
@@ -278,23 +280,21 @@ class OmnivaLt_Tracking_Storage
     foreach ( array_chunk(array_keys($requested), 100) as $batch ) {
       $placeholders = implode(',', array_fill(0, count($batch), '%s'));
       $rows = $this->db->get_results($this->db->prepare(
-        "SELECT barcode, state FROM {$this->states_table} WHERE account = %s AND barcode IN ($placeholders)",
+        "SELECT barcode, state, shipment_status FROM {$this->states_table} WHERE account = %s AND barcode IN ($placeholders)",
         array_merge(array($account), $batch)
       ), ARRAY_A);
       if ( '' !== $this->db->last_error || ! is_array($rows) ) {
-        if ( $strict ) {
-          return false;
-        }
         continue;
       }
       $active = array();
       foreach ( $rows as $row ) {
-        $active[$row['barcode']] = json_decode($row['state'], true);
+        $active[$row['barcode']] = $row;
+        $active[$row['barcode']]['state'] = json_decode($row['state'], true);
       }
       $missing = array();
       foreach ( $batch as $barcode ) {
         if ( array_key_exists($barcode, $active) ) {
-          $state = is_array($active[$barcode]) ? array('state' => $active[$barcode]) : null;
+          $state = is_array($active[$barcode]['state']) ? $active[$barcode] : null;
           $result += array_fill_keys(array_keys($requested[$barcode]), $state);
         } else {
           $missing[] = $barcode;
@@ -305,20 +305,17 @@ class OmnivaLt_Tracking_Storage
       }
       $placeholders = implode(',', array_fill(0, count($missing), '%s'));
       $rows = $this->db->get_results($this->db->prepare(
-        "SELECT barcode, state FROM {$this->states_table} WHERE barcode IN ($placeholders) ORDER BY account",
+        "SELECT barcode, state, shipment_status, last_event_id FROM {$this->states_table} WHERE barcode IN ($placeholders) ORDER BY account",
         $missing
       ), ARRAY_A);
       // The second database query can change last_error independently of the first.
       // @phpstan-ignore notIdentical.alwaysFalse
       if ( '' !== $this->db->last_error || ! is_array($rows) ) {
-        if ( $strict ) {
-          return false;
-        }
         continue;
       }
       $prior = array();
       foreach ( $rows as $row ) {
-        $prior[$row['barcode']][] = $row['state'];
+        $prior[$row['barcode']][] = $row;
       }
       foreach ( $missing as $barcode ) {
         $state = self::select_previous_state($prior[$barcode] ?? array());
@@ -328,58 +325,56 @@ class OmnivaLt_Tracking_Storage
     return $result;
   }
 
-  /** Resolves candidate order-to-barcode links using badge account precedence. */
-  public function order_barcodes_for_status( $account, $status )
+  /** Restricts the paginated order query using the same account precedence as the badges. */
+  public function shipment_status_where( $account, $status, $orders, $meta, $meta_key, $hpos )
   {
-    if ( ! $this->valid_account($account) || ! $this->exists() ) {
-      return false;
+    if ( ! $this->valid_account($account) || ! is_string($status) || '' === $status ) {
+      return ' AND 1 = 0';
     }
-    $after = '';
-    $order_barcodes = array();
-    $pattern = '%' . $this->db->esc_like('"status":"' . $status . '"') . '%';
-    do {
-      $barcodes = $this->db->get_col($this->db->prepare(
-        "SELECT DISTINCT s.barcode FROM {$this->states_table} s
-        WHERE s.barcode > %s AND s.state LIKE %s
-          AND EXISTS (SELECT 1 FROM {$this->links_table} l WHERE l.barcode = s.barcode)
-        ORDER BY s.barcode LIMIT 100",
-        $after, $pattern
-      ));
-      if ( '' !== $this->db->last_error || ! is_array($barcodes) ) {
-        return false;
-      }
-      if ( empty($barcodes) ) {
-        break;
-      }
-      $after = end($barcodes);
-      $matches = array();
-      $states = $this->read_display_batch($account, $barcodes, true);
-      if ( false === $states ) {
-        return false;
-      }
-      foreach ( $states as $barcode => $row ) {
-        if ( $status === ($row['state']['status'] ?? null) ) {
-          $matches[] = $barcode;
-        }
-      }
-      if ( empty($matches) ) {
-        continue;
-      }
-      $placeholders = implode(',', array_fill(0, count($matches), '%s'));
-      $links = $this->db->get_results($this->db->prepare(
-        "SELECT order_id, barcode FROM {$this->links_table} WHERE barcode IN ($placeholders)",
-        $matches
-      ), ARRAY_A);
-      // The link query can fail after the candidate and state reads succeeded.
-      // @phpstan-ignore notIdentical.alwaysFalse
-      if ( '' !== $this->db->last_error || ! is_array($links) ) {
-        return false;
-      }
-      foreach ( $links as $link ) {
-        $order_barcodes[(int) $link['order_id']][$link['barcode']] = true;
-      }
-    } while ( count($barcodes) === 100 );
-    return $order_barcodes;
+    $order_id = $hpos ? 'id' : 'ID';
+    $meta_id = $hpos ? 'id' : 'meta_id';
+    $meta_order_id = $hpos ? 'order_id' : 'post_id';
+
+    // Match the barcode in a value position and check the serialized array's entry count.
+    $string_token = 'S:[0-9]+:"([^"]|"+[^";])*"*";';
+    $key_token = '(I:-?[0-9]+;|' . $string_token . ')';
+    $entry = '(' . $key_token . $string_token . ')';
+    $array_prefix = '^A:[0-9]+:[{]';
+    $barcode_prefix = $array_prefix . $entry . '*' . $key_token . 'S:';
+    $barcode_suffix = $entry . '*[}]$';
+    // Bound the declared count by the shortest entry and group repeats for older regex engines.
+    $entry_count = "LEAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m.meta_value, ':', 2), ':', -1), 1 + LENGTH(m.meta_value) DIV 11)";
+    return $this->db->prepare(
+      " AND EXISTS (
+        SELECT 1 FROM %i l
+        JOIN %i s ON s.barcode = l.barcode
+        JOIN %i m ON m.%i = (
+          SELECT bm.%i FROM %i bm WHERE bm.%i = l.order_id AND bm.meta_key = %s
+          ORDER BY bm.%i LIMIT 1
+        )
+        WHERE l.order_id = %i.%i AND s.shipment_status = %s
+          AND (s.account = %s OR (
+            NOT EXISTS (SELECT 1 FROM %i a WHERE a.account = %s AND a.barcode = s.barcode)
+            AND s.account = (
+              SELECT p.account FROM %i p
+              WHERE p.barcode = s.barcode AND p.last_event_id IS NOT NULL
+              ORDER BY CHAR_LENGTH(p.last_event_id) DESC, CAST(p.last_event_id AS BINARY) DESC, p.account LIMIT 1
+            )
+          ))
+          AND (CAST(UPPER(CONVERT(m.meta_value USING ascii)) AS BINARY) = CAST(l.barcode AS BINARY)
+            OR CASE WHEN UPPER(CONVERT(m.meta_value USING ascii)) REGEXP CONCAT(
+                %s, LENGTH(l.barcode), ':', CHAR(34),
+                CASE WHEN l.barcode REGEXP '^[A-Z0-9-]{1,64}$' THEN l.barcode END,
+                CHAR(34), ';', %s)
+              THEN UPPER(CONVERT(m.meta_value USING ascii)) REGEXP CONCAT(
+                %s, REPEAT(%s, ({$entry_count}) DIV 255), %s, '{', MOD({$entry_count}, 255), '}[}]$')
+              END)
+      )",
+      $this->links_table, $this->states_table, $meta, $meta_id, $meta_id, $meta,
+      $meta_order_id, $meta_key, $meta_id, $orders, $order_id,
+      $status, $account, $this->states_table, $account, $this->states_table,
+      $barcode_prefix, $barcode_suffix, $array_prefix, $entry . '{255}', $entry
+    );
   }
 
   public static function latest_event( $state )
@@ -392,11 +387,20 @@ class OmnivaLt_Tracking_Storage
     return isset($state['event_id']) ? $state : array();
   }
 
+  private static function state_event_id( $state )
+  {
+    $event = self::latest_event($state);
+    return OmnivaLt_Tracking_Sync::event_id($event['event_id'] ?? '0');
+  }
+
   public function previous_state( $barcode )
   {
     $barcode = self::normalize_barcode($barcode);
     if ( false === $barcode ) { return null; }
-    $rows = $this->db->get_col($this->db->prepare("SELECT state FROM {$this->states_table} WHERE barcode = %s ORDER BY account", $barcode));
+    $rows = $this->db->get_results($this->db->prepare(
+      "SELECT state, shipment_status, last_event_id FROM {$this->states_table} WHERE barcode = %s ORDER BY account",
+      $barcode
+    ), ARRAY_A);
     if ( '' !== $this->db->last_error || ! is_array($rows) ) { return false; }
     return self::select_previous_state($rows);
   }
@@ -404,18 +408,18 @@ class OmnivaLt_Tracking_Storage
   private static function select_previous_state( $rows )
   {
     $latest = null;
-    $previous_id = '0';
-    foreach ( $rows as $json ) {
-      $state = json_decode($json, true);
-      if ( ! is_array($state) ) { continue; }
-      $event = self::latest_event($state);
-      $id = OmnivaLt_Tracking_Sync::event_id($event['event_id'] ?? '0');
-      if ( false !== $id && (null === $latest || OmnivaLt_Tracking_Sync::compare_ids($id, $previous_id) > 0) ) {
-        $latest = $state;
-        $previous_id = $id;
+    $latest_id = null;
+    foreach ( $rows as $row ) {
+      $id = $row['last_event_id'];
+      if ( ! is_string($id) || (null !== $latest_id && OmnivaLt_Tracking_Sync::compare_ids($id, $latest_id) <= 0) ) {
+        continue;
       }
+      $state = json_decode($row['state'], true);
+      if ( ! is_array($state) ) { continue; }
+      $latest = array('state' => $state, 'shipment_status' => $row['shipment_status']);
+      $latest_id = $id;
     }
-    return null === $latest ? null : array('state' => $latest);
+    return $latest;
   }
 
   /** True is saved, null means the revision or link changed, false is a write error. */
@@ -425,6 +429,11 @@ class OmnivaLt_Tracking_Storage
     if ( ! $this->valid_account($account) || false === $barcode || ! is_array($state) ) {
       return false;
     }
+    $status = $state['shipment_status'] ?? '';
+    $last_event_id = self::state_event_id($state);
+    // A row without events ranks as '0'. An invalid ID is excluded from account fallback.
+    $last_event_id = false === $last_event_id ? '' : $last_event_id;
+    unset($state['shipment_status']);
     $encoded = wp_json_encode($state);
     if ( ! is_string($encoded) ) {
       return false;
@@ -432,19 +441,19 @@ class OmnivaLt_Tracking_Storage
     if ( null !== $revision && (! is_string($revision) || ! preg_match('/^[0-9]+$/D', $revision)) ) {
       return false;
     }
-    return $this->with_lock($this->link_state_lock, 1, function() use ($account, $barcode, $encoded, $revision) {
+    return $this->with_lock($this->link_state_lock, 1, function() use ($account, $barcode, $encoded, $status, $last_event_id, $revision) {
       $linked = $this->lock_condition() . " AND EXISTS (SELECT 1 FROM {$this->links_table} WHERE barcode = %s)";
       if ( null === $revision ) {
         $query = $this->db->prepare(
-          "INSERT IGNORE INTO {$this->states_table} (account, barcode, state, revision)
-          SELECT %s, %s, %s, 1 FROM DUAL WHERE {$linked}",
-          $account, $barcode, $encoded, $barcode
+          "INSERT IGNORE INTO {$this->states_table} (account, barcode, state, shipment_status, last_event_id, revision)
+          SELECT %s, %s, %s, %s, NULLIF(%s, ''), 1 FROM DUAL WHERE {$linked}",
+          $account, $barcode, $encoded, $status, $last_event_id, $barcode
         );
       } else {
         $query = $this->db->prepare(
-          "UPDATE {$this->states_table} SET state = %s, revision = revision + 1
+          "UPDATE {$this->states_table} SET state = %s, shipment_status = %s, last_event_id = NULLIF(%s, ''), revision = revision + 1
           WHERE account = %s AND barcode = %s AND revision = %s AND {$linked}",
-          $encoded, $account, $barcode, $revision, $barcode
+          $encoded, $status, $last_event_id, $account, $barcode, $revision, $barcode
         );
       }
       $updated = $this->write_tracking_json($query);

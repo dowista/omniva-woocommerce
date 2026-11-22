@@ -254,9 +254,9 @@ class OmnivaLt_Manifest_Page
       return is_string($value) ? $value : '';
     }
     try {
-      $timezone = wp_timezone();
-      $date = new DateTimeImmutable(trim($value), $timezone);
-      return wp_date(get_option('date_format') . ' ' . get_option('time_format'), $date->getTimestamp(), $timezone);
+      // OMX can omit the timezone from UTC event timestamps.
+      $date = new DateTimeImmutable(trim($value), new DateTimeZone('UTC'));
+      return wp_date(get_option('date_format') . ' ' . get_option('time_format'), $date->getTimestamp(), wp_timezone());
     } catch ( \Throwable $e ) {
       return $value;
     }
@@ -274,13 +274,13 @@ class OmnivaLt_Manifest_Page
       return;
     }
     echo '<span class="omnivalt-tracking-slot" data-order="' . esc_attr($order_id) . '" data-barcode="' . esc_attr($barcode) . '">';
-    if ( is_array($row) && ! empty($row['state']['status']) ) {
+    if ( is_array($row) && ! empty($row['shipment_status']) ) {
       $state = $row['state'];
       $labels = OmnivaLt_Manifest_Page::tracking_labels();
-      if ( isset($labels[$state['status']]) ) {
+      if ( isset($labels[$row['shipment_status']]) ) {
         $event = OmnivaLt_Tracking_Storage::latest_event($state);
         $event_name = empty($event['event_id']) ? __('Shipment registered', 'omnivalt') : (isset($event['event_name']) && is_string($event['event_name']) ? $event['event_name'] : '');
-        $event_date = self::format_tracking_event_date($event['event_date'] ?? '');
+        $event_date = self::format_tracking_event_date(empty($event) ? ($state['registered_at'] ?? '') : ($event['event_date'] ?? ''));
         $location_name = isset($event['location_name']) && is_string($event['location_name']) ? trim($event['location_name']) : '';
         $warnings = array();
         if ( ! empty($state['warnings']['stopped']) ) {
@@ -290,7 +290,7 @@ class OmnivaLt_Manifest_Page
           $warnings[] = __('Shipment not found in parcel machine', 'omnivalt');
         }
         $tip = implode("\n", array_merge(array_filter(array($event_name, $event_date, $location_name)), $warnings));
-        echo '<button type="button" class="omnivalt-tracking-status omnivalt-tracking-status--' . esc_attr($state['status']) . '" data-tracking-status="' . esc_attr($state['status']) . '" data-tracking-label="' . esc_attr($labels[$state['status']]) . '" data-tooltip="' . esc_attr($tip) . '" data-tracking-event="' . esc_attr($event_name) . '" data-tracking-date="' . esc_attr($event_date) . '" data-tracking-location="' . esc_attr($location_name) . '" data-tracking-warnings="' . esc_attr(implode("\n", $warnings)) . '" aria-label="' . esc_attr($labels[$state['status']] . '. ' . $tip) . '">' . esc_html($labels[$state['status']]) . (! empty($state['warnings']) ? ' <span aria-hidden="true">!</span>' : '') . '</button>';
+        echo '<button type="button" class="omnivalt-tracking-status omnivalt-tracking-status--' . esc_attr($row['shipment_status']) . '" data-tracking-status="' . esc_attr($row['shipment_status']) . '" data-tracking-label="' . esc_attr($labels[$row['shipment_status']]) . '" data-tooltip="' . esc_attr($tip) . '" data-tracking-event="' . esc_attr($event_name) . '" data-tracking-date="' . esc_attr($event_date) . '" data-tracking-location="' . esc_attr($location_name) . '" data-tracking-warnings="' . esc_attr(implode("\n", $warnings)) . '" aria-label="' . esc_attr($labels[$row['shipment_status']] . '. ' . $tip) . '">' . esc_html($labels[$row['shipment_status']]) . (! empty($state['warnings']) ? ' <span aria-hidden="true">!</span>' : '') . '</button>';
       }
     }
     echo '</span>';
@@ -418,6 +418,13 @@ class OmnivaLt_Manifest_Page
         'name' => isset($event['event_name']) && is_string($event['event_name']) && '' !== $event['event_name'] ? $event['event_name'] : $event['event_code'],
         'date' => self::format_tracking_event_date($event['event_date'] ?? ''),
         'location' => isset($event['location_name']) && is_string($event['location_name']) ? $event['location_name'] : '',
+      );
+    }
+    if ( empty($events) && 'registered' === ($row['shipment_status'] ?? '') && ! empty($row['state']['registered_locally']) ) {
+      $events[] = array(
+        'name' => __('Shipment registered', 'omnivalt'),
+        'date' => self::format_tracking_event_date($row['state']['registered_at'] ?? ''),
+        'location' => '',
       );
     }
     wp_send_json_success(array('events' => $events));

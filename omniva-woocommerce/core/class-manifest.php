@@ -32,6 +32,11 @@ class OmnivaLt_Manifest
     
     $query['meta_query'] = self::build_meta_query($query_vars);
 
+    if ( is_array($query['omnivalt_manifest_shipment_status'] ?? null) ) {
+      // Tracking writes do not invalidate the WordPress posts query cache.
+      $query['cache_results'] = false;
+    }
+
     return $query;
   }
 
@@ -357,14 +362,16 @@ class OmnivaLt_Manifest
     $results = false;
     if ( empty($date_errors) && ! $shipment_status_error && (! $single_order || $filters['shipment_status']) ) {
       if ( $filters['shipment_status'] ) {
-        $matching_ids = self::shipment_status_order_ids(
-          $filters['shipment_status'], $filters['id'], $single_order, $configs['meta_keys']['barcodes']
-        );
-        $shipment_status_error = false === $matching_ids;
-        $args['post__in'] = $matching_ids;
+        $account = OmnivaLt_Tracking_Sync::account();
+        if ( $account && (! $filters['id'] || $single_order) ) {
+          $args['omnivalt_manifest_shipment_status'] = array('account' => $account['id'], 'status' => $filters['shipment_status']);
+          if ( $single_order ) {
+            $args['post__in'] = array($single_order->get_id());
+          }
+        }
         $single_order = false;
       }
-      if ( empty($filters['shipment_status']) || ! empty($args['post__in']) ) {
+      if ( empty($filters['shipment_status']) || isset($args['omnivalt_manifest_shipment_status']) ) {
         $results = $filters['shipment_status']
           ? self::query_shipment_status_orders($args)
           : OmnivaLt_Wc_Order::get_orders($args, true);
@@ -410,73 +417,33 @@ class OmnivaLt_Manifest
     );
   }
 
-  private static function shipment_status_order_ids( $status, $requested_id, $order, $barcode_meta_key )
+  public static function shipment_status_cpt_where( $where, $query )
   {
     global $wpdb;
-    $account = OmnivaLt_Tracking_Sync::account();
-    if ( ! $account || ($requested_id && ! $order) ) {
-      return array();
+    $filter = $query->get('omnivalt_manifest_shipment_status');
+    if ( is_array($filter) ) {
+      $where .= self::shipment_status_where($filter, $wpdb->posts, $wpdb->postmeta, false);
     }
-    $storage = OmnivaLt_Tracking_Sync::storage();
-    if ( $order ) {
-      $barcodes = (array) $order->get_meta($barcode_meta_key, true);
-      if ( '' !== $wpdb->last_error ) {
-        return false;
-      }
-      if ( empty($barcodes) ) {
-        return array();
-      }
-      $states = $storage->read_display_batch($account['id'], $barcodes, true);
-      if ( false === $states ) {
-        return false;
-      }
-      foreach ( $states as $row ) {
-        if ( $status === ($row['state']['status'] ?? null) ) {
-          return array($order->get_id());
-        }
-      }
-      return array();
-    }
-    $candidates = $storage->order_barcodes_for_status($account['id'], $status);
-    return false === $candidates ? false : self::orders_with_current_barcodes($candidates, $barcode_meta_key);
+    return $where;
   }
 
-  private static function orders_with_current_barcodes( $candidates, $barcode_meta_key )
+  public static function shipment_status_hpos_clauses( $clauses, $query, $args )
   {
-    global $wpdb;
-    $matching_ids = array();
-    foreach ( array_chunk(array_keys($candidates), 100) as $order_ids ) {
-      $orders = self::query_shipment_status_orders(array(
-        'post__in' => $order_ids,
-        'limit' => count($order_ids),
-        'paginate' => false,
-        'return' => 'objects',
-      ));
-      if ( '' !== $wpdb->last_error || ! is_array($orders) ) {
-        return false;
-      }
-      foreach ( $orders as $order ) {
-        if ( ! $order instanceof WC_Order ) {
-          continue;
-        }
-        $id = $order->get_id();
-        // Use current order metadata, as the rendered shipment row does.
-        $barcodes = (array) $order->get_meta($barcode_meta_key, true);
-        // Reading order metadata can issue another database query.
-        // @phpstan-ignore notIdentical.alwaysFalse
-        if ( '' !== $wpdb->last_error ) {
-          return false;
-        }
-        foreach ( $barcodes as $barcode ) {
-          $key = OmnivaLt_Tracking_Storage::normalize_barcode($barcode);
-          if ( false !== $key && isset($candidates[$id][$key]) ) {
-            $matching_ids[] = $id;
-            break;
-          }
-        }
-      }
+    $filter = $args['omnivalt_manifest_shipment_status'] ?? null;
+    if ( is_array($filter) ) {
+      $clauses['where'] .= self::shipment_status_where(
+        $filter, $query->get_table_name('orders'), $query->get_table_name('meta'), true
+      );
     }
-    return $matching_ids;
+    return $clauses;
+  }
+
+  private static function shipment_status_where( $filter, $orders, $meta, $hpos )
+  {
+    $meta_keys = OmnivaLt_Core::get_configs('meta_keys');
+    return OmnivaLt_Tracking_Sync::storage()->shipment_status_where(
+      $filter['account'] ?? '', $filter['status'] ?? '', $orders, $meta, $meta_keys['barcodes'], $hpos
+    );
   }
 
   private static function query_shipment_status_orders( $args )

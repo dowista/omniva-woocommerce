@@ -617,6 +617,8 @@ class OmnivaLt_Core
     add_filter('admin_post_omnivalt_call_courier', array('OmnivaLt_Labels', 'post_call_courier_actions'));
     add_filter('admin_post_omnivalt_cancel_courier', array('OmnivaLt_Labels', 'post_cancel_courier_actions'));
     add_filter('woocommerce_order_data_store_cpt_get_orders_query', array('OmnivaLt_Manifest', 'handle_custom_query_var'), 10, 2);
+    add_filter('posts_where', array('OmnivaLt_Manifest', 'shipment_status_cpt_where'), 10, 2);
+    add_filter('woocommerce_orders_table_query_clauses', array('OmnivaLt_Manifest', 'shipment_status_hpos_clauses'), 10, 3);
     add_filter('woocommerce_package_rates', array('OmnivaLt_Order', 'restrict_shipping_methods_by_cats'), 10, 1);
     add_filter('woocommerce_package_rates', array('OmnivaLt_Order', 'restrict_shipping_methods_by_shipclass'), 10, 1);
     add_filter('woocommerce_package_rates', array('OmnivaLt_Order', 'remove_picapac_without_terminal'), PHP_INT_MAX, 1);

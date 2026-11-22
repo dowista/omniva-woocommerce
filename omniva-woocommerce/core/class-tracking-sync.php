@@ -431,9 +431,13 @@ class OmnivaLt_Tracking_Sync
     if ( ! $account || $order_id < 1 || ! is_array($barcodes) || empty($barcodes) ) {
       return;
     }
+    $registration_dates = array_fill_keys(
+      array_filter(array_map(array('OmnivaLt_Tracking_Storage', 'normalize_barcode'), $barcodes), 'is_string'),
+      gmdate('Y-m-d\TH:i:s\Z')
+    );
     try {
-      if ( self::with_order_lock($order_id, function() use ($account, $order_id) {
-        return self::restore_order_links($account, $order_id);
+      if ( self::with_order_lock($order_id, function() use ($account, $order_id, $registration_dates) {
+        return self::restore_order_links($account, $order_id, $registration_dates);
       }) ) {
         return;
       }
@@ -465,7 +469,7 @@ class OmnivaLt_Tracking_Sync
     }
   }
 
-  private static function restore_order_links( $account, $order_id )
+  private static function restore_order_links( $account, $order_id, $registration_dates = array() )
   {
     global $wpdb;
     $order = wc_get_order($order_id);
@@ -489,7 +493,7 @@ class OmnivaLt_Tracking_Sync
     }
     $previous = $storage->order_barcodes($order_id);
     // Reconcile every indexed barcode against the authoritative metadata under the lock.
-    return false !== $previous && self::register_links($storage, $account['id'], $order_id, $barcodes, $previous);
+    return false !== $previous && self::register_links($storage, $account['id'], $order_id, $barcodes, $previous, $registration_dates);
   }
 
   private static function read_barcode_meta( $order, $meta_key )
@@ -538,17 +542,22 @@ class OmnivaLt_Tracking_Sync
     return (bool) wp_next_scheduled(self::RETRY_ORDER_HOOK, $cron_args);
   }
 
-  private static function register_links( $storage, $account, $order_id, $barcodes, $previous_barcodes )
+  private static function register_links( $storage, $account, $order_id, $barcodes, $previous_barcodes, $registration_dates )
   {
     $all_linked = true;
     foreach ( $barcodes as $barcode ) {
-      if ( ! is_string($barcode) || ! $storage->link($order_id, $barcode) ) {
+      $barcode = OmnivaLt_Tracking_Storage::normalize_barcode($barcode);
+      if ( false === $barcode || ! $storage->link($order_id, $barcode) ) {
         $all_linked = false;
         continue;
       }
       $row = $storage->read($account, $barcode);
       if ( null === $row ) {
-        $storage->write_result($account, $barcode, array('registered_locally' => true, 'status' => 'registered', 'events' => array()), null);
+        $state = array('registered_locally' => true, 'shipment_status' => 'registered', 'events' => array());
+        if ( isset($registration_dates[$barcode]) ) {
+          $state['registered_at'] = $registration_dates[$barcode];
+        }
+        $storage->write_result($account, $barcode, $state, null);
       }
       $pending = $storage->pending($account, $barcode);
       if ( is_array($pending) && ! empty($pending) ) {
@@ -677,7 +686,7 @@ class OmnivaLt_Tracking_Sync
     });
 
     // Replay in ID order so an older pending event can change the latest status and warnings.
-    $summary = ! empty($state['registered_locally']) ? array('registered_locally' => true, 'status' => 'registered') : array();
+    $summary = ! empty($state['registered_locally']) ? array('registered_locally' => true, 'shipment_status' => 'registered') : array();
     foreach ( $history as $event ) {
       $summary = self::reduce_event($summary, $event['event_code']);
     }
@@ -715,34 +724,34 @@ class OmnivaLt_Tracking_Sync
 
     if ( 'TRT_SHIPMENT_RETURN' === $code ) {
       $state['returning'] = true;
-      $state['status'] = 'returning';
+      $state['shipment_status'] = 'returning';
       $state['warnings'] = array();
     } elseif ( in_array($code, array('TRT_SHIPMENT_DELIVERED', 'TRT_SHIPMENT_EMI'), true) ) {
-      $state['status'] = ! empty($state['returning']) ? 'returned' : 'delivered';
+      $state['shipment_status'] = ! empty($state['returning']) ? 'returned' : 'delivered';
       $state['warnings'] = array();
     } elseif ( 'TRT_SHIPMENT_CANCELLED' === $code ) {
-      $state['status'] = 'cancelled';
+      $state['shipment_status'] = 'cancelled';
       $state['warnings'] = array();
     } elseif ( 'TRT_SHIPMENT_MOVEMENT_STOPPED' === $code ) {
-      if ( empty($state['status']) ) { $state['status'] = 'processing'; }
+      if ( empty($state['shipment_status']) ) { $state['shipment_status'] = 'processing'; }
       $state['warnings']['stopped'] = true;
     } elseif ( 'TRT_SHIPMENT_MOVEMENT_RESTORED' === $code ) {
       unset($state['warnings']['stopped']);
     } elseif ( 'TRT_SHIPMENT_MISSING_IN_PM' === $code ) {
-      if ( empty($state['status']) ) { $state['status'] = 'processing'; }
+      if ( empty($state['shipment_status']) ) { $state['shipment_status'] = 'processing'; }
       $state['warnings']['missing'] = true;
     } elseif ( ! empty($state['returning']) ) {
       // Informational and movement events do not undo the return journey.
     } elseif ( 'TRT_SHIPMENT_REGISTERED' === $code ) {
-      $state['status'] = 'registered';
+      $state['shipment_status'] = 'registered';
     } elseif ( 'TRT_SHIPMENT_STORED_IN_PM' === $code ) {
-      $state['status'] = 'parcel_machine';
+      $state['shipment_status'] = 'parcel_machine';
       unset($state['warnings']['missing']);
     } elseif ( 'TRT_SHIPMENT_ARRIVED_TO_FINAL_PO' === $code ) {
-      $state['status'] = 'post_office';
+      $state['shipment_status'] = 'post_office';
       unset($state['warnings']['missing']);
     } elseif ( 'TRT_SHIPMENT_EDH' === $code ) {
-      $state['status'] = 'pickup';
+      $state['shipment_status'] = 'pickup';
       unset($state['warnings']['missing']);
     } elseif ( in_array($code, array(
       'TRT_SHIPMENT_HANDOVER_TO_PM', 'TRT_SHIPMENT_PICKED_UP_BY_COURIER',
@@ -755,7 +764,7 @@ class OmnivaLt_Tracking_Sync
       'TRT_SHIPMENT_EMD', 'TRT_SHIPMENT_EMF', 'TRT_SHIPMENT_EMG',
       'TRT_SHIPMENT_EMJ',
     ), true) ) {
-      $state['status'] = 'processing';
+      $state['shipment_status'] = 'processing';
       unset($state['warnings']['missing']);
     }
     return $state;
