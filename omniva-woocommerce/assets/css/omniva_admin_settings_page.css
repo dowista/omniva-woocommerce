@@ -22,6 +22,7 @@
 }
 
 #omnivalt-settings-root {
+  --omniva-news-background: #e3c6e4;
   --omniva-ink: #000000;
   --omniva-muted: #2d2d2d;
   --omniva-line: rgba(45, 45, 45, 0.18);
@@ -58,21 +59,21 @@
   -webkit-font-smoothing: antialiased;
 }
 
-body[class*="_page_omnivalt-settings"] {
+body[class*='_page_omnivalt-settings'] {
   --omniva-canvas: #f4f4f4;
 }
 
-body[class*="_page_omnivalt-settings"] #wpcontent {
+body[class*='_page_omnivalt-settings'] #wpcontent {
   position: relative;
 }
 
-body[class*="_page_omnivalt-settings"] #wpcontent,
-body[class*="_page_omnivalt-settings"] #wpbody,
-body[class*="_page_omnivalt-settings"] #wpbody-content {
+body[class*='_page_omnivalt-settings'] #wpcontent,
+body[class*='_page_omnivalt-settings'] #wpbody,
+body[class*='_page_omnivalt-settings'] #wpbody-content {
   background-color: var(--omniva-canvas);
 }
 
-body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
+body[class*='_page_omnivalt-settings'].omnivalt-settings-sidebar-open {
   overflow: hidden;
 }
 
@@ -216,8 +217,8 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
   flex-shrink: 0;
   gap: 0;
   border-radius: 10px;
-  background: var(--omniva-accent);
-  color: #ffffff;
+  background: var(--omniva-news-background);
+  color: var(--omniva-ink);
   text-align: left;
   text-decoration: none;
 }
@@ -234,13 +235,13 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
   max-width: 100%;
   height: auto;
   margin: 0 0 7px;
-  filter: brightness(0) invert(1);
+  filter: brightness(0);
 }
 
 #omnivalt-settings-root .omnivalt-settings-page__brand-slogan {
   width: 144px;
   margin-top: 25px;
-  color: #ffffff;
+  color: var(--omniva-ink);
   font-family: 'TT Wellingtons', sans-serif;
   font-size: 15px;
   font-weight: 600;
@@ -374,30 +375,86 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
   text-underline-offset: 2px;
 }
 
+#omnivalt-settings-root .omnivalt-settings-page__news-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  padding: 20px;
+  background: var(--omniva-news-background);
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__news-card h2 {
+  grid-column: 1;
+  margin-bottom: 4px;
+  font-size: 22px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__news-card p {
+  grid-column: 1;
+  color: var(--omniva-ink);
+  font-size: 16px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__help-card {
+  padding: 20px;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__help-card h2 {
+  margin-bottom: 4px;
+  font-size: 22px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+#omnivalt-settings-root .omnivalt-settings-page__help-card p {
+  color: var(--omniva-ink);
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+#omnivalt-settings-root .omnivalt-settings-news__open {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin: 0;
+  line-height: 1.4;
+}
+
+#omnivalt-settings-root .omnivalt-settings-news__open[hidden] {
+  display: none;
+}
+
 #omnivalt-settings-root .omnivalt-settings-page__support-image {
   position: relative;
   z-index: 1;
   display: flex;
   height: 160px;
   min-height: 0;
-  align-items: center;
-  justify-content: end;
-  margin-bottom: -24px;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 22px;
   overflow: visible;
   border: 0;
   background: transparent;
+  width: 70%;
+  margin-left: 83px;
 }
 
 #omnivalt-settings-root .omnivalt-settings-page__support-image img {
   display: block;
-  height: 140px;
+  height: 224px;
+  max-width: 100%;
   object-fit: contain;
 }
 
 #omnivalt-settings-root .omnivalt-settings-page__help-card {
   position: relative;
   z-index: 2;
-  padding-top: 28px;
 }
 
 #omnivalt-settings-root
@@ -405,6 +462,7 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
   > .omnivalt-settings-page__brand {
   align-self: stretch;
   margin: 0 0 18px;
+  border: 1px solid var(--omniva-line);
 }
 
 #omnivalt-settings-root .omnivalt-settings-page__card-header {
@@ -1863,7 +1921,8 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
   ):not(.omniva-picker__option):not(.omnivalt-phone-input__country):not(
     .omnivalt-phone-input__option
   ):not(.omniva-tabs__tab):not(.omnivalt-position-list__reset),
-#omnivalt-settings-root .woocommerce table.form-table.omniva-settings .button {
+#omnivalt-settings-root .woocommerce table.form-table.omniva-settings .button,
+#omnivalt-settings-root .omnivalt-settings-news__open {
   min-height: 38px;
   padding: 8px 14px;
   border: 1px solid var(--omniva-ink);
@@ -1888,7 +1947,8 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
 #omnivalt-settings-root
   .woocommerce
   table.form-table.omniva-settings
-  .omniva-fake-btn:hover {
+  .omniva-fake-btn:hover,
+#omnivalt-settings-root .omnivalt-settings-news__open:hover {
   background: var(--omniva-canvas);
 }
 
@@ -2590,6 +2650,10 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
     height: 20px;
     font-size: 20px;
   }
+
+  #omnivalt-settings-root .omnivalt-settings-page__support-image {
+    margin-bottom: 15px;
+  }
 }
 
 @media (max-width: 1160px) {
@@ -2610,7 +2674,7 @@ body[class*="_page_omnivalt-settings"].omnivalt-settings-sidebar-open {
 }
 
 @media screen and (max-width: 782px) {
-  body[class*="_page_omnivalt-settings"].auto-fold #wpcontent {
+  body[class*='_page_omnivalt-settings'].auto-fold #wpcontent {
     padding-left: 0;
   }
 

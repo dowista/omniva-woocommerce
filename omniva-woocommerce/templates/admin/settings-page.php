@@ -257,7 +257,7 @@ $settings_script_class = wp_script_is('omnivalt_admin_settings_page', 'enqueued'
         <span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>
       </button>
       <div class="omnivalt-settings-page__support-image">
-        <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/support.png'); ?>" alt="<?php esc_attr_e('Omniva business customer support', 'omnivalt'); ?>" />
+        <img src="<?php echo esc_url(OMNIVALT_URL . 'assets/img/admin/support-agent.png'); ?>" alt="<?php esc_attr_e('Omniva business customer support', 'omnivalt'); ?>" />
       </div>
 
       <section class="omnivalt-settings-page__sidebar-card omnivalt-settings-page__help-card">
@@ -267,9 +267,14 @@ $settings_script_class = wp_script_is('omnivalt_admin_settings_page', 'enqueued'
       </section>
 
       <section class="omnivalt-settings-page__sidebar-card omnivalt-settings-page__news-card">
-        <h2><?php esc_html_e('News!', 'omnivalt'); ?></h2>
-        <p><?php esc_html_e('We are working on new features and improvements for your shipping experience.', 'omnivalt'); ?></p>
-        <p><?php esc_html_e('Check back soon for the latest updates.', 'omnivalt'); ?></p>
+        <h2><?php esc_html_e("What's new?", 'omnivalt'); ?></h2>
+        <p>
+          <?php
+          /* translators: %s: Installed plugin version. */
+          echo esc_html(sprintf(__('Version %s', 'omnivalt'), OMNIVALT_VERSION));
+          ?>
+        </p>
+        <button type="button" class="button omnivalt-settings-news__open" data-settings-news-open aria-haspopup="dialog" aria-label="<?php esc_attr_e('View updates', 'omnivalt'); ?>" hidden><?php esc_html_e('View', 'omnivalt'); ?></button>
       </section>
 
       <a class="omnivalt-settings-page__brand" href="<?php echo esc_url('https://www.omniva.lt/'); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php esc_attr_e('Omniva - Delivering Happiness', 'omnivalt'); ?>">
@@ -286,3 +291,16 @@ $settings_script_class = wp_script_is('omnivalt_admin_settings_page', 'enqueued'
     </aside>
   </div>
 </div>
+
+<template id="omnivalt-settings-news-placeholder">
+  <dialog id="omnivalt-settings-news" class="omnivalt-settings-news" aria-labelledby="omnivalt-settings-news-status">
+    <form method="dialog" class="omnivalt-settings-news__dismiss">
+      <button type="submit" class="omnivalt-settings-news__close" aria-label="<?php esc_attr_e('Close updates', 'omnivalt'); ?>" autofocus>
+        <span class="dashicons dashicons-no-alt" aria-hidden="true"></span>
+      </button>
+    </form>
+    <div class="omnivalt-settings-news__placeholder">
+      <p id="omnivalt-settings-news-status" role="status"><?php esc_html_e('Loading…', 'omnivalt'); ?></p>
+    </div>
+  </dialog>
+</template>

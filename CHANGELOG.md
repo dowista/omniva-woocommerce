@@ -7,6 +7,7 @@
 - added warnings when shipment tracking synchronization has been failing for 24 hours or when more than 30 days have passed since the last successful sync
 - added tracking support for recently registered shipments and kept tracking linked to orders when address cards are regenerated
 - added a Shipment Status filter that uses the same tracking statuses as the shipment badges
+- added a What's New dialog that opens in Settings or Shipments until dismissed for the store, with a View button in Settings
 
 ### Improved
 - renamed the Shipments page heading to "Omniva Shipments"

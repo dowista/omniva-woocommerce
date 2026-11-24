@@ -318,6 +318,17 @@ class OmnivaLt_Core
     $folder_css = '/assets/css/';
     
     wp_enqueue_style('omnivalt_admin_global', plugins_url($folder_css . 'omniva_admin_global.css', self::$main_file_path), array(), OMNIVALT_VERSION);
+
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The page only selects admin assets and is checked against exact slugs below.
+    $page = isset($_GET['page']) && is_string($_GET['page']) ? wp_unslash($_GET['page']) : '';
+    if ( in_array($page, array(
+      OmnivaLt_Admin_Navigation::MENU_SLUG,
+      OmnivaLt_Admin_Navigation::SETTINGS_PAGE_SLUG,
+      OmnivaLt_Admin_Navigation::MANIFEST_PAGE_SLUG,
+    ), true) && current_user_can('manage_woocommerce') ) {
+      wp_enqueue_script('omnivalt_admin_global', plugins_url('assets/js/omniva_admin_global.js', self::$main_file_path), array(), OMNIVALT_VERSION, true);
+      wp_localize_script('omnivalt_admin_global', 'omnivaltWhatsNew', OmnivaLt_Admin_Whats_New::get_script_data());
+    }
   }
 
   /**
@@ -482,6 +493,7 @@ class OmnivaLt_Core
     require_once $core_dir . 'class-manifest.php';
     require_once $core_dir . 'admin/' . 'class-admin-page-assets.php';
     require_once $core_dir . 'admin/' . 'class-admin-navigation.php';
+    require_once $core_dir . 'admin/' . 'class-admin-whats-new.php';
     require_once $core_dir . 'admin/' . 'class-manifest-page.php';
     require_once $core_dir . 'admin/' . 'class-settings-page.php';
     require_once $core_dir . 'class-order.php';
@@ -568,6 +580,8 @@ class OmnivaLt_Core
     add_action('add_option_woocommerce_omnivalt_settings', array('OmnivaLt_Tracking_Sync', 'ensure_scheduled'), 10, 0);
     add_action('update_option_woocommerce_omnivalt_settings', array('OmnivaLt_Tracking_Sync', 'ensure_scheduled'), 10, 0);
     add_action('wp_ajax_omnivalt_tracking', array('OmnivaLt_Manifest_Page', 'tracking_request'));
+    add_action('wp_ajax_omnivalt_load_whats_new', array('OmnivaLt_Admin_Whats_New', 'load'));
+    add_action('wp_ajax_omnivalt_dismiss_whats_new', array('OmnivaLt_Admin_Whats_New', 'dismiss'));
     add_action('woocommerce_delete_order', array('OmnivaLt_Tracking_Sync', 'delete_order'));
     add_action('deleted_post', array('OmnivaLt_Tracking_Sync', 'delete_legacy_order'), 10, 2);
     add_action('wp_enqueue_scripts', array('OmnivaLt_Core', 'load_front_scripts'), 99);

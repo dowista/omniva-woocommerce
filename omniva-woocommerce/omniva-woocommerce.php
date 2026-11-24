@@ -5,7 +5,7 @@
  * Author: Omniva
  * Author URI: https://www.omniva.lt/
  * Plugin URI: https://www.omniva.lt/en/business/integrations-for-e-shops
- * Version: 1.21.0
+ * Version: 1.22.0
  * Domain Path: /languages
  * Text Domain: omnivalt
  * 
@@ -22,7 +22,9 @@ if (!defined('WPINC')) {
   die;
 }
 
-define('OMNIVALT_VERSION', '1.21.0');
+define('OMNIVALT_VERSION', '1.22.0');
+// Change only when a release should show the What's New dialog again.
+define('OMNIVALT_WHATS_NEW_VERSION', '1.22.0');
 define('OMNIVALT_DIR', plugin_dir_path(__FILE__));
 define('OMNIVALT_URL', plugin_dir_url(__FILE__));
 define('OMNIVALT_BASENAME', plugin_basename(__FILE__));
