@@ -179,7 +179,9 @@ class OmnivaLt_Tracking_Sync
     if ( ! is_int($after) || $after < 1 || 'shop_order' !== $query->get('post_type') ) {
       return $where;
     }
-    return $where . $wpdb->prepare(' AND %i.ID > %d', $wpdb->posts, $after);
+    $posts_table = OmnivaLt_Tracking_Storage::sql_identifier($wpdb->posts);
+    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- The core posts table name is quoted above.
+    return $where . $wpdb->prepare(" AND {$posts_table}.ID > %d", $after);
   }
 
   public static function manual_retry_after( $state )

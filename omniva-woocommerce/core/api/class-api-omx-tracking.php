@@ -1,10 +1,12 @@
 <?php
 
+use Mijora\Omniva\Request as Omniva_Request;
+
 /** Read-only access to the OMX tracking event stream. */
 class OmnivaLt_Api_Omx_Tracking
 {
-  const URL = 'https://omx.omniva.eu/api/v01/omx/shipments';
-  const TEST_URL = 'https://test-omx.omniva.eu/api/v01/omx/shipments';
+  const URL = Omniva_Request::API_OMX_URL . 'shipments';
+  const TEST_URL = Omniva_Request::API_OMX_URL_TEST . 'shipments';
 
   private $username;
   private $password;
@@ -68,6 +70,7 @@ class OmnivaLt_Api_Omx_Tracking
     if ( '' === $this->username || '' === $this->password ) {
       return $this->failure('missing_credentials');
     }
+    // Keep the HTTP status available for sync failures, including rate limits.
     $response = wp_remote_get($url, array(
       'timeout' => 15,
       'redirection' => 0,

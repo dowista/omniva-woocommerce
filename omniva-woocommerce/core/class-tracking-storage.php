@@ -325,15 +325,25 @@ class OmnivaLt_Tracking_Storage
     return $result;
   }
 
+  /** Quote a trusted SQL identifier on WordPress versions without identifier placeholders. */
+  public static function sql_identifier( $name )
+  {
+    return '`' . str_replace('`', '``', $name) . '`';
+  }
+
   /** Restricts the paginated order query using the same account precedence as the badges. */
   public function shipment_status_where( $account, $status, $orders, $meta, $meta_key, $hpos )
   {
     if ( ! $this->valid_account($account) || ! is_string($status) || '' === $status ) {
       return ' AND 1 = 0';
     }
-    $order_id = $hpos ? 'id' : 'ID';
-    $meta_id = $hpos ? 'id' : 'meta_id';
-    $meta_order_id = $hpos ? 'order_id' : 'post_id';
+    $links_table = self::sql_identifier($this->links_table);
+    $states_table = self::sql_identifier($this->states_table);
+    $meta_table = self::sql_identifier($meta);
+    $orders_table = self::sql_identifier($orders);
+    $order_id = self::sql_identifier($hpos ? 'id' : 'ID');
+    $meta_id = self::sql_identifier($hpos ? 'id' : 'meta_id');
+    $meta_order_id = self::sql_identifier($hpos ? 'order_id' : 'post_id');
 
     // Match the barcode in a value position and check the serialized array's entry count.
     $string_token = 'S:[0-9]+:"([^"]|"+[^";])*"*";';
@@ -345,18 +355,19 @@ class OmnivaLt_Tracking_Storage
     // Bound the declared count by the shortest entry and group repeats for older regex engines.
     $entry_count = "LEAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m.meta_value, ':', 2), ':', -1), 1 + LENGTH(m.meta_value) DIV 11)";
     return $this->db->prepare(
+      // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Identifiers are quoted above and entry_count is a fixed SQL expression.
       " AND EXISTS (
-        SELECT 1 FROM %i l
-        JOIN %i s ON s.barcode = l.barcode
-        JOIN %i m ON m.%i = (
-          SELECT bm.%i FROM %i bm WHERE bm.%i = l.order_id AND bm.meta_key = %s
-          ORDER BY bm.%i LIMIT 1
+        SELECT 1 FROM {$links_table} l
+        JOIN {$states_table} s ON s.barcode = l.barcode
+        JOIN {$meta_table} m ON m.{$meta_id} = (
+          SELECT bm.{$meta_id} FROM {$meta_table} bm WHERE bm.{$meta_order_id} = l.order_id AND bm.meta_key = %s
+          ORDER BY bm.{$meta_id} LIMIT 1
         )
-        WHERE l.order_id = %i.%i AND s.shipment_status = %s
+        WHERE l.order_id = {$orders_table}.{$order_id} AND s.shipment_status = %s
           AND (s.account = %s OR (
-            NOT EXISTS (SELECT 1 FROM %i a WHERE a.account = %s AND a.barcode = s.barcode)
+            NOT EXISTS (SELECT 1 FROM {$states_table} a WHERE a.account = %s AND a.barcode = s.barcode)
             AND s.account = (
-              SELECT p.account FROM %i p
+              SELECT p.account FROM {$states_table} p
               WHERE p.barcode = s.barcode AND p.last_event_id IS NOT NULL
               ORDER BY CHAR_LENGTH(p.last_event_id) DESC, CAST(p.last_event_id AS BINARY) DESC, p.account LIMIT 1
             )
@@ -370,9 +381,7 @@ class OmnivaLt_Tracking_Storage
                 %s, REPEAT(%s, ({$entry_count}) DIV 255), %s, '{', MOD({$entry_count}, 255), '}[}]$')
               END)
       )",
-      $this->links_table, $this->states_table, $meta, $meta_id, $meta_id, $meta,
-      $meta_order_id, $meta_key, $meta_id, $orders, $order_id,
-      $status, $account, $this->states_table, $account, $this->states_table,
+      $meta_key, $status, $account, $account,
       $barcode_prefix, $barcode_suffix, $array_prefix, $entry . '{255}', $entry
     );
   }
